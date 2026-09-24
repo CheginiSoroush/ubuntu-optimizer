@@ -6,7 +6,7 @@
 menu_loop() {
     local title="$1"; shift
     local warnings=()
-    while [ "$1" = "-w" ]; then
+    while [ "$1" = "-w" ]; do
         warnings+=("$2")
         shift 2
     done
