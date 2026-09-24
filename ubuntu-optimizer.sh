@@ -3,6 +3,9 @@
 # ============================================================
 #   Ubuntu Optimizer & Fixer - v5.5 (نسخه ماژولار)
 #
+#   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
+#   github.com/CheginiSoroush/ubuntu-optimizer
+#
 #   فایل اصلی: بارگذاری ماژول‌ها + حالت CLI + منوی اصلی
 #   جدید در v5.5:
 #     + ماژول github — نصب و به‌روزرسانی برنامه‌ها از GitHub
@@ -128,7 +131,7 @@ trap 'echo ""; warn "خروج..."; exit 130' INT TERM
 while [ $# -gt 0 ]; do
     case "$1" in
         -h|--help)        usage; exit 0 ;;
-        -V|--version)     echo "Ubuntu Optimizer & Fixer - v5.5"; exit 0 ;;
+        -V|--version)     echo "Ubuntu Optimizer & Fixer - v5.5 — by CheginiSoroush"; exit 0 ;;
         -y|--yes)         ASSUME_YES=1; shift ;;
         --no-color)       RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; MAGENTA=''; BOLD=''; NC=''; shift ;;
         --no-log)         LOG_ENABLED=0; shift ;;

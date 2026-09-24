@@ -1,4 +1,5 @@
 # ============================================================
+#   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
 #   lib/snapflatpak.sh — مدیریت snap و flatpak + به‌روزرسانی‌ها
 #   فیکس مهم v5.2: باگ stdin در update_targz_apps — read های
 #   تعاملی داخل حلقه‌ی while-read، خطوط خودِ فایل رجیستری را

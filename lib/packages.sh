@@ -1,4 +1,5 @@
 # ============================================================
+#   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
 #   lib/packages.sh — نصب بسته‌ها و برنامه‌ها (deb، ابزارها، nodejs)
 #   v5.4: حذف purge_firefox و purge_nodejs — این دو میراث v2.0
 #   بودند و با cleanup_app (منوی ۸ / --cleanup) هم‌پوشانی کامل داشتند.

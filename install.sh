@@ -3,6 +3,8 @@
 # ============================================================
 #   install.sh — نصب و مدیریت خودِ Ubuntu Optimizer & Fixer
 #
+#   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
+#
 #   اجرا:
 #     ./install.sh               → نصب کامل (سلامت + میان‌بر uo + alias + PATH)
 #     ./install.sh --check       → بررسی سلامت فایل‌ها و وضعیت نصب
