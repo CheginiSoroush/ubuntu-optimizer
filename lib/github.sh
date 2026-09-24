@@ -1,8 +1,12 @@
 # ============================================================
 #   lib/github.sh — نصب و به‌روزرسانی برنامه‌ها از GitHub Releases
-#   جریان: دریافت اطلاعات آخرین release → انتخاب هوشمند فایل
-#   (فیلتر معماری + فرمت) → دانلود موقت → نصب → ثبت در github.db
-#   → حذف فایل دانلودی
+#   جریان: دریافت آخرین release → انتخاب خودکار هوشمند فایل
+#   (امتیازدهی معماری/فرمت — بدون سؤال در حالت عادی) → دانلود
+#   موقت → نصب → ثبت در github.db → حذف فایل دانلودی
+#
+#   فیکس v5.5: باگ فیلتر معماری — الگوهای armv5/armv6/armv7 و
+#   i386 و غیره به‌عنوان «خنثی» رد می‌شدند و لیست چندتایی
+#   ساخته می‌شد؛ حالا انتخاب کاملاً خودکار با امتیاز است.
 # ============================================================
 
 readonly GITHUB_DB="$REGISTRY_DIR/github.db"
@@ -38,7 +42,6 @@ gh_fetch_latest() {   # $1 = OWNER/REPO یا URL کامل
     fi
 
     local repo="$1" resp
-    # پاک‌سازی ورودی — URL کامل یا OWNER/REPO
     repo=${repo#https://github.com/}
     repo=${repo#git@github.com:}
     repo=${repo%/}
@@ -78,85 +81,132 @@ gh_fetch_latest() {   # $1 = OWNER/REPO یا URL کامل
     return 0
 }
 
-# ---------- انتخاب فایل مناسب از فایل‌های release ----------
-# فیلتر: فرمت پشتیبانی‌شده (.deb/.tar.gz/.tgz) + معماری سیستم
+# ---------- انتخاب خودکار فایل مناسب (امتیازدهی) ----------
+# امتیاز هر فایل:
+#   معماری:  +۴۰ نام معماری سیستم دقیق | +۳۰ معماری ۶۴ بیتی سازگار
+#            | -۲۰۰ معماری غیرسازگار (رد قطعی)
+#   فرمت:    +۱۰ .deb | +۵ .tar.gz/.tgz | -۲۰۰ سایر (رد قطعی)
+#   جریمه‌ها: -۱۵ بدون برچسب معماری (مثل universal) | -۸ musl
+# انتخاب: بالاترین امتیاز — فقط اگر چند فایل «امتیاز مساوی مثبت»
+# داشتند و اطلاعات کافی برای تمایز نبود، سؤال پرسیده می‌شود.
 gh_pick_asset() {
     GH_PICKED_URL=""
     local sys_arch
     sys_arch=$(uname -m)
 
-    local -a ok=() pref=()
-    local u f low good i choice
+    local -a urls=() scores=()
+    local u f low score best i choice
 
     for u in "${GH_URLS[@]}"; do
         f=$(basename "$u")
         low=${f,,}
+        score=0
+
+        # --- فرمت ---
         case "$low" in
-            *.deb|*.tar.gz|*.tgz) ;;
-            *) continue ;;
+            *.deb)      score=$((score + 10)) ;;
+            *.tar.gz|*.tgz) score=$((score + 5)) ;;
+            *)          continue ;;   # فرمت نامعتبر — رد
         esac
-        good=1
-        if [[ "$low" == *arm64* || "$low" == *aarch64* ]]; then
-            [ "$sys_arch" = "aarch64" ] || good=0
-        elif [[ "$low" == *amd64* || "$low" == *x86_64* || "$low" == *x64* ]]; then
-            [ "$sys_arch" = "x86_64" ] || good=0
+
+        # --- معماری (چند الگو برای هر خانواده) ---
+        # سازگار با سیستم فعلی
+        if [ "$sys_arch" = "x86_64" ]; then
+            case "$low" in
+                *amd64*|*x86_64*|*x64*)       score=$((score + 40)) ;;
+                *i386*|*i686*|*80386*|*x86*)   score=$((score + 20)) ;;
+                *arm64*|*aarch64*|*armv5*|*armv6*|*armv7*|*arm*|*riscv64*|*ppc64le*|*s390x*|*loong64*|*universal*|*all*) score=$((score - 200)) ;;
+                *)                             score=$((score - 15)) ;;  # بدون برچسب معماری
+            esac
+        elif [ "$sys_arch" = "aarch64" ]; then
+            case "$low" in
+                *arm64*|*aarch64*)             score=$((score + 40)) ;;
+                *armv5*|*armv6*|*armv7*|*arm*)  score=$((score + 20)) ;;
+                *amd64*|*x86_64*|*x64*|*i386*|*i686*|*riscv64*|*ppc64le*|*s390x*|*loong64*) score=$((score - 200)) ;;
+                *)                             score=$((score - 15)) ;;
+            esac
+        else
+            # معماری ناشناخته — فقط برچسب‌های خنثی مجاز
+            case "$low" in
+                *arm64*|*aarch64*|*amd64*|*x86_64*|*x64*|*armv5*|*armv6*|*armv7*|*riscv64*|*ppc64le*|*s390x*|*loong64*)
+                    score=$((score - 200)) ;;
+            esac
         fi
-        [ "$good" = "1" ] && ok+=("$u")
+
+        # --- جریمه‌های ریز ---
+        [[ "$low" == *musl* ]] && score=$((score - 8))
+
+        # --- رد قطعی‌ها ---
+        [ "$score" -le -100 ] && continue
+
+        urls+=("$u")
+        scores+=("$score")
     done
 
-    # ترجیح فرمت: .deb (وابستگی‌ها توسط apt) سپس tar.gz/tgz
-    for u in "${ok[@]}"; do [[ "$(basename "$u")" == *.deb ]] && pref+=("$u"); done
-    [ ${#pref[@]} -eq 0 ] && pref=("${ok[@]}")
-
-    if [ ${#pref[@]} -eq 1 ]; then
-        GH_PICKED_URL="${pref[0]}"
-        return 0
-    fi
-
-    if [ ${#pref[@]} -gt 1 ]; then
-        if [ "$CLI_MODE" = "1" ] && [ "$ASSUME_YES" = "1" ]; then
-            GH_PICKED_URL="${pref[0]}"
-            info "(انتخاب خودکار اولین فایل با -y)"
-            return 0
+    if [ ${#urls[@]} -eq 0 ]; then
+        # هیچ فایل امتیاز مثبت نگرفت — انتخاب دستی از همه (آخرین راه نجات)
+        if [ ${#GH_URLS[@]} -eq 0 ]; then
+            failure "این release هیچ فایل نصبی (asset) ندارد — فقط سورس است."
+            return 1
         fi
-        info "چند فایل مناسب پیدا شد؛ کدام نصب شود؟"
+        warn "هیچ فایل به‌طور خودکار قابل تشخیص نبود؛ همه فایل‌ها:"
         i=1
-        for u in "${pref[@]}"; do
+        for u in "${GH_URLS[@]}"; do
             echo "   $i) $(basename "$u")"
             ((i++))
         done
         read -r -p "   شماره (0=انصراف): " choice
-        if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#pref[@]} ]; then
-            GH_PICKED_URL="${pref[$((choice-1))]}"
-            return 0
+        if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#GH_URLS[@]} ]; then
+            u="${GH_URLS[$((choice-1))]}"
+            case "$(basename "$u")" in
+                *.deb|*.tar.gz|*.tgz|*.DEB|*.TAR.GZ|*.TGZ)
+                    GH_PICKED_URL="$u"
+                    return 0
+                    ;;
+                *)
+                    failure "این فرمت پشتیبانی نمی‌شود: $(basename "$u") (فقط .deb و .tar.gz)"
+                    return 1
+                    ;;
+            esac
         fi
         return 1
     fi
 
-    # هیچ فایل خودکار مناسب نبود — انتخاب دستی از همه فایل‌ها
-    if [ ${#GH_URLS[@]} -eq 0 ]; then
-        failure "این release هیچ فایل نصبی (asset) ندارد — فقط سورس است."
-        return 1
+    # بالاترین امتیاز
+    best=0
+    for i in "${!scores[@]}"; do
+        [ "${scores[$i]}" -gt "${scores[$best]}" ] && best=$i
+    done
+    GH_PICKED_URL="${urls[$best]}"
+
+    # اگر تنها فایلِ با بالاترین امتیاز نیست و رقیب هم‌امتیاز مثبت دارد → سؤال
+    local -a ties=()
+    for i in "${!scores[@]}"; do
+        [ "${scores[$i]}" = "${scores[$best]}" ] && ties+=("$i")
+    done
+    if [ ${#ties[@]} -eq 1 ]; then
+        return 0
     fi
-    warn "فایل متناسب با معماری/فرمت پشتیبانی‌شده پیدا نشد؛ همه فایل‌ها:"
+
+    # مساوی — در حالت -y اولین، وگرنه سؤال
+    if [ "$CLI_MODE" = "1" ] && [ "$ASSUME_YES" = "1" ]; then
+        info "(انتخاب خودکار اولین فایل هم‌امتیاز با -y)"
+        return 0
+    fi
+    info "چند فایل کاملاً هم‌ارزش پیدا شد؛ کدام نصب شود؟"
     i=1
-    for u in "${GH_URLS[@]}"; do
-        echo "   $i) $(basename "$u")"
+    for idx in "${ties[@]}"; do
+        echo "   $i) $(basename "${urls[$idx]}")"
         ((i++))
     done
+    local -a tie_urls=()
+    for idx in "${ties[@]}"; do
+        tie_urls+=("${urls[$idx]}")
+    done
     read -r -p "   شماره (0=انصراف): " choice
-    if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#GH_URLS[@]} ]; then
-        u="${GH_URLS[$((choice-1))]}"
-        case "$(basename "$u")" in
-            *.deb|*.tar.gz|*.tgz|*.DEB|*.TAR.GZ|*.TGZ)
-                GH_PICKED_URL="$u"
-                return 0
-                ;;
-            *)
-                failure "این فرمت پشتیبانی نمی‌شود: $(basename "$u") (فقط .deb و .tar.gz)"
-                return 1
-                ;;
-        esac
+    if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#tie_urls[@]} ]; then
+        GH_PICKED_URL="${tie_urls[$((choice-1))]}"
+        return 0
     fi
     return 1
 }
