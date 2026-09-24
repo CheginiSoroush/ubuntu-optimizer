@@ -1,5 +1,8 @@
 # ============================================================
 #   lib/snapflatpak.sh — مدیریت snap و flatpak + به‌روزرسانی‌ها
+#   فیکس مهم v5.2: باگ stdin در update_targz_apps — read های
+#   تعاملی داخل حلقه‌ی while-read، خطوط خودِ فایل رجیستری را
+#   می‌خواندند؛ حالا رجیستری یک‌جا با mapfile خوانده می‌شود.
 # ============================================================
 
 snap_list_apps() {
@@ -225,8 +228,17 @@ update_targz_apps() {
         return 0
     fi
 
-    local line name ver dir sel f fv idx j
-    while IFS='|' read -r name ver dir _; do
+    # ★ اسنپ‌شات یک‌جا از رجیستری — نه while-read مستقیم از فایل!
+    # دلیل: read های تعاملی داخل حلقه، در حالت قبلی، خطوط خودِ فایل
+    # رجیستری را به‌جای ورودی کاربر می‌خواندند (برنامه دوم «بلعیده» می‌شد
+    # و پرامپت هرگز منتظر کاربر نمی‌ایستاد). این‌طور فایل رجیستری حتی
+    # می‌تواند وسط حلقه (موقع نصب نسخه جدید) امن بازنویسی شود.
+    local -a reg_lines=()
+    mapfile -t reg_lines < "$REGISTRY_DB"
+
+    local line name ver dir sel f idx j
+    for line in "${reg_lines[@]}"; do
+        IFS='|' read -r name ver dir _ <<< "$line"
         [ -z "$name" ] && continue
 
         echo ""
@@ -288,7 +300,7 @@ update_targz_apps() {
         else
             info "رد شد."
         fi
-    done < "$REGISTRY_DB"
+    done
     return 0
 }
 

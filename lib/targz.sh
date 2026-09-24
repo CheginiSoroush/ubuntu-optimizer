@@ -1,6 +1,7 @@
 # ============================================================
 #   lib/targz.sh — نصب هوشمند برنامه‌های tar.gz
 #   (تشخیص اجرایی اصلی + بررسی معماری + نصب وابستگی‌ها + رجیستری)
+#   جدید: install_targz_cli برای نصب مستقیم از حالت CLI
 # ============================================================
 
 # انتخاب هوشمند فایل اجرایی اصلی بسته (نه ابزارهای کمکی Electron/JVM)
@@ -280,6 +281,29 @@ install_targz() {
 
     read -r -p "   نام برنامه (مثلاً abdownloadmanager): " APP_NAME
     [ -n "$APP_NAME" ] || { failure "نام برنامه وارد نشد."; return 1; }
+    APP_NAME=$(printf '%s' "$APP_NAME" | tr -cd '[:alnum:]_-')
+
+    targz_install_from_file "$TARGZ_PATH" "$APP_NAME"
+}
+
+# نصب tar.gz از حالت CLI — بدون منو
+# $1=مسیر فایل  $2=نام اختیاری (اگر داده نشود از نام فایل حدس زده می‌شود)
+install_targz_cli() {
+    local TARGZ_PATH="$1" APP_NAME="$2"
+
+    TARGZ_PATH=${TARGZ_PATH/#\~/$HOME}
+    [ -f "$TARGZ_PATH" ] || { failure "فایل پیدا نشد: $TARGZ_PATH"; return 1; }
+    [[ "$TARGZ_PATH" =~ \.tar\.gz$ ]] || { failure "پسوند فایل باید .tar.gz باشد."; return 1; }
+
+    if [ -z "$APP_NAME" ]; then
+        APP_NAME=$(name_from_archive "$TARGZ_PATH")
+        if [ -z "$APP_NAME" ]; then
+            failure "نام برنامه از نام فایل قابل تشخیص نبود."
+            info "نام را صریح بدهید: --install-targz <فایل> <نام>"
+            return 1
+        fi
+        info "نام تشخیص داده‌شده از فایل: $APP_NAME"
+    fi
     APP_NAME=$(printf '%s' "$APP_NAME" | tr -cd '[:alnum:]_-')
 
     targz_install_from_file "$TARGZ_PATH" "$APP_NAME"

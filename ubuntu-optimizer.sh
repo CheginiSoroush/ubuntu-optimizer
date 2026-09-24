@@ -4,11 +4,12 @@
 #   Ubuntu Optimizer & Fixer - v5.2 (نسخه ماژولار)
 #
 #   فایل اصلی: بارگذاری ماژول‌ها + حالت CLI + منوی اصلی
-#   جدید در v5.2:
-#     + گزارش وضعیت سیستم (--report) — سلامت سیستم و
-#       وضعیت بهینه‌سازی‌ها، فقط خواندنی
-#     + نصب/مدیریت پروژه با install.sh جداگانه
-#   v5.1: سیستم لاگ — ثبت خودکار عملیات + خلاصه پایان اجرا
+#   فیکس‌های این بازنگری (همچنان v5.2):
+#     + گزینه --install-targz FILE [NAME] برای نصب مستقیم از CLI
+#     + گزینه -V/--version
+#     + پیام پایان CLI اکنون واقعی است — اگر خطایی رخ داده باشد،
+#       دیگر ادعای «همه کارها انجام شد» نمی‌کند
+#     + فیکس باگ stdin در update_targz_apps (در lib/snapflatpak.sh)
 #
 #   ماژول‌ها در پوشه lib/ کنار همین فایل قرار دارند.
 #   اجرای مستقیم فایل‌های lib/ ممکن نیست — همیشه از همین فایل اجرا کن.
@@ -38,6 +39,8 @@ PURGE_DATA=0
 CLI_MODE=0
 CLEANUP_TARGET=""
 CLI_ACTIONS=()
+INSTALL_TARGZ_FILE=""
+INSTALL_TARGZ_NAME=""
 ORIG_ARGS="$*"   # آرگومان‌های اصلی برای ثبت در لاگ (قبل از مصرف توسط حلقه)
 
 # ============================================================
@@ -54,10 +57,15 @@ Ubuntu Optimizer & Fixer - v5.2 (ماژولار)
 
 گزینه‌ها:
   -h, --help          نمایش این راهنما
+  -V, --version       نمایش نسخه برنامه
   -y, --yes           تأیید خودکار همه سؤال‌ها (با احتیاط!)
   --no-color          خروجی بدون رنگ
 
   --report            گزارش وضعیت سیستم (فقط خواندنی)
+
+  --install-targz FILE [NAME]
+                      نصب برنامه از فایل .tar.gz (اگر NAME ندهید،
+                      از نام فایل حدس زده می‌شود) — هوشمند + رجیستری
 
   --optimize          همه بهینه‌سازی‌های شبکه + سیستم
   --network           بهینه‌سازی شبکه (BBR, DNS, MTU, TCP)
@@ -85,6 +93,7 @@ Ubuntu Optimizer & Fixer - v5.2 (ماژولار)
 
 مثال‌ها:
   uo --report
+  uo --install-targz ~/Downloads/app.tar.gz myapp
   uo --optimize
   uo --update -y
   uo --cleanup abdownloadmanager --purge-data
@@ -108,10 +117,25 @@ trap 'echo ""; warn "خروج..."; exit 130' INT TERM
 while [ $# -gt 0 ]; do
     case "$1" in
         -h|--help)        usage; exit 0 ;;
+        -V|--version)     echo "Ubuntu Optimizer & Fixer - v5.2"; exit 0 ;;
         -y|--yes)         ASSUME_YES=1; shift ;;
         --no-color)       RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; MAGENTA=''; BOLD=''; NC=''; shift ;;
         --no-log)         LOG_ENABLED=0; shift ;;
         --report)         CLI_ACTIONS+=("system_report|گزارش وضعیت سیستم"); shift ;;
+        --install-targz)
+            if [ $# -ge 2 ]; then
+                INSTALL_TARGZ_FILE="$2"
+                shift 2
+                # نام اختیاری — اگر آرگومان بعدی پرچم نیست، نام برنامه است
+                if [ $# -ge 1 ] && [[ "$1" != -* ]]; then
+                    INSTALL_TARGZ_NAME="$1"
+                    shift
+                fi
+            else
+                echo "گزینه --install-targz نیاز به مسیر فایل دارد: --install-targz <فایل> [نام]"
+                exit 1
+            fi
+            ;;
         --log)
             if [ -f "$LOG_FILE" ]; then
                 echo "── آخرین ۶۰ خط لاگ ──"
@@ -164,7 +188,7 @@ while [ $# -gt 0 ]; do
 done
 
 # ---------- اجرای حالت CLI ----------
-if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ]; then
+if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TARGZ_FILE" ]; then
     CLI_MODE=1
     log_session_start "cli" "$ORIG_ARGS"
     trap 'log_session_end; print_session_summary' EXIT
@@ -173,11 +197,18 @@ if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ]; then
     for cli_action in "${CLI_ACTIONS[@]}"; do
         "${cli_action%%|*}"
     done
+    if [ -n "$INSTALL_TARGZ_FILE" ]; then
+        install_targz_cli "$INSTALL_TARGZ_FILE" "$INSTALL_TARGZ_NAME"
+    fi
     if [ -n "$CLEANUP_TARGET" ]; then
         cleanup_app "$CLEANUP_TARGET"
     fi
     echo ""
-    success "پایان — همه کارهای درخواستی انجام شد."
+    if [ "$LOG_FAIL_COUNT" -gt 0 ]; then
+        warn "پایان — برخی مراحل با خطا همراه بود؛ جزئیات در لاگ."
+    else
+        success "پایان — همه کارهای درخواستی انجام شد."
+    fi
     exit 0
 fi
 

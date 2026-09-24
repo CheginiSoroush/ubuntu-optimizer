@@ -1,5 +1,7 @@
 # ============================================================
 #   lib/system.sh — بهینه‌سازی سیستم/حافظه + امنیت + زمان
+#   بهبود v5.2: fix_time — همگام‌سازی از دیمن فعال (chronyc makestep)
+#   + پیام شفاف درباره مسدودی پورت NTP توسط ISP
 # ============================================================
 
 optimize_memory() {
@@ -152,16 +154,39 @@ fix_time() {
     fi
     sudo systemctl enable --now chrony > /dev/null 2>&1
 
-    if command -v chronyd > /dev/null 2>&1; then
+    local synced=0 i
+
+    # روش ۱: درخواست همگام‌سازی فوری از دیمنِ در حال اجرا
+    if systemctl is-active --quiet chrony 2>/dev/null; then
+        sudo chronyc makestep > /dev/null 2>&1
+        # چند ثانیه به دیمن فرصت می‌دهیم
+        for i in 1 2 3 4 5; do
+            if [ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null)" = "yes" ]; then
+                synced=1
+                break
+            fi
+            sleep 1
+        done
+    fi
+
+    # روش ۲: همگام‌سازی یک‌باره مستقل (جایگزین ntpdate)
+    if [ "$synced" = "0" ] && command -v chronyd > /dev/null 2>&1; then
         if sudo chronyd -q 'pool.ntp.org iburst' > /dev/null 2>&1; then
-            success "زمان سیستم همگام شد."
-        else
-            warn "همگام‌سازی فوری ناموفق بود؛ chrony در پس‌زمینه ادامه می‌دهد."
+            synced=1
         fi
+    fi
+
+    if [ "$synced" = "1" ]; then
+        success "زمان سیستم همگام شد."
+    else
+        warn "همگام‌سازی NTP در این لحظه ممکن نشد."
+        warn "علت رایج: مسدود بودن پورت NTP (UDP 123) توسط ISP یا فایروال."
+        info "chrony در پس‌زمینه به تلاش ادامه می‌دهد و معمولاً خودش همگام می‌کند."
     fi
 
     sudo hwclock --systohc 2>/dev/null
     success "زمان فعلی: $(date)"
+    return 0
 }
 
 show_time_status() {
