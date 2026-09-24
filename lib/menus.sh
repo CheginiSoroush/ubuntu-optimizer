@@ -1,5 +1,7 @@
 # ============================================================
 #   lib/menus.sh — موتور منو، منوهای فرعی و منوی اصلی
+#   v5.4: حذف هم‌پوشانی‌ها — منوی ۷ فقط «نصب» (حذف برنامه‌ها از
+#   منوی ۸)، منوی ۱۰ فقط «مدیریت» (به‌روزرسانی‌ها از منوی ۹)
 # ============================================================
 
 # استفاده: menu_loop "عنوان" [-w "هشدار"]... "توضیح|نام_تابع"...
@@ -98,9 +100,7 @@ menu_packages() {
         "نصب فایل .deb|install_deb" \
         "نصب برنامه از فایل .tar.gz (هوشمند + ثبت در رجیستری)|install_targz" \
         "نصب nodejs و npm|install_nodejs" \
-        "نصب AppClean|install_appclean" \
-        "حذف کامل nodejs و npm|purge_nodejs" \
-        "حذف کامل Firefox|purge_firefox"
+        "نصب AppClean|install_appclean"
 }
 
 menu_appmgmt() {
@@ -114,12 +114,10 @@ menu_appmgmt() {
 menu_snapflat() {
     menu_loop "🧩 مدیریت snap و flatpak" \
         "لیست برنامه‌های snap|snap_list_apps" \
-        "به‌روزرسانی همه snap ها|update_snap" \
         "نصب برنامه snap|snap_install_app" \
         "حذف برنامه snap|snap_remove_app" \
         "پاک‌سازی نسخه‌های قدیمی snap (بازیابی فضا)|snap_clean_revisions" \
         "لیست برنامه‌های flatpak|flatpak_list_apps" \
-        "به‌روزرسانی همه flatpak ها|update_flatpak" \
         "نصب برنامه flatpak|flatpak_install_app" \
         "حذف برنامه flatpak|flatpak_remove_app" \
         "پاک‌سازی ران‌تایم‌های بدون استفاده flatpak|flatpak_clean_unused"
@@ -160,7 +158,7 @@ main_menu() {
         cat << "EOF"
     ╔══════════════════════════════════════════════════════╗
     ║                                                      ║
-    ║       Ubuntu Optimizer & Fixer - v5.3                ║
+    ║       Ubuntu Optimizer & Fixer - v5.4                ║
     ║       ابزار جامع بهینه‌سازی و رفع مشکلات اوبونتو     ║
     ║                                                      ║
     ╚══════════════════════════════════════════════════════╝

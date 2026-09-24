@@ -1,5 +1,9 @@
 # ============================================================
 #   lib/packages.sh — نصب بسته‌ها و برنامه‌ها (deb، ابزارها، nodejs)
+#   v5.4: حذف purge_firefox و purge_nodejs — این دو میراث v2.0
+#   بودند و با cleanup_app (منوی ۸ / --cleanup) هم‌پوشانی کامل داشتند.
+#   مسیرهای داده خاص‌شان به offer_user_data_cleanup در
+#   lib/appmgmt.sh منتقل شد تا هیچ قابلیتی از دست نرود.
 # ============================================================
 
 install_essential_tools() {
@@ -47,46 +51,6 @@ install_deb() {
             failure "خطا در نصب بسته."
             return 1
         fi
-    fi
-}
-
-purge_firefox() {
-    header "حذف کامل Firefox"
-    warn "بوکمارک‌ها، رمزها و تمام داده‌های کاربری Firefox هم حذف می‌شوند!"
-    if ! pkg_installed firefox && ! { command -v snap > /dev/null 2>&1 && snap list firefox > /dev/null 2>&1; }; then
-        info "Firefox نصب نیست."
-        return 0
-    fi
-    confirm_action "ادامه می‌کنید؟" || { info "لغو شد."; return 0; }
-
-    if pkg_installed firefox; then
-        sudo apt purge -y firefox > /dev/null 2>&1
-    fi
-    if command -v snap > /dev/null 2>&1 && snap list firefox > /dev/null 2>&1; then
-        info "حذف نسخه snap..."
-        sudo snap remove --purge firefox > /dev/null 2>&1
-    fi
-    if command -v flatpak > /dev/null 2>&1 && flatpak list --app 2>/dev/null | grep -q firefox; then
-        flatpak uninstall -y org.mozilla.firefox 2>/dev/null
-    fi
-    sudo apt autoremove -y > /dev/null 2>&1
-    rm -rf ~/.mozilla ~/.cache/mozilla ~/.config/firefox ~/.cache/firefox 2>/dev/null
-    success "Firefox کامل حذف شد."
-}
-
-purge_nodejs() {
-    header "حذف کامل nodejs و npm"
-    if ! pkg_installed nodejs; then
-        info "nodejs نصب نیست."
-        return 0
-    fi
-    confirm_action "nodejs و npm و بسته‌های سراسری‌شان حذف شوند؟" || { info "لغو شد."; return 0; }
-    if sudo apt purge -y nodejs npm > /dev/null 2>&1; then
-        sudo apt autoremove -y > /dev/null 2>&1
-        sudo rm -rf /usr/lib/node_modules 2>/dev/null
-        success "nodejs و npm حذف شدند."
-    else
-        failure "خطا در حذف nodejs."
     fi
 }
 

@@ -1,7 +1,9 @@
 # ============================================================
 #   lib/appmgmt.sh — مدیریت و حذف کامل برنامه‌ها از همه منابع
 #   تشخیص برنامه‌های deb نصب‌شده در /opt (با dpkg -S)
-#   و حذف نمایش تکراری در لیست برنامه‌ها
+#   v5.4: offer_user_data_cleanup گسترش یافت — مسیرهای داده خاص
+#   Firefox و nodejs/npm (میراث purge_firefox/purge_nodejs حذف‌شده
+#   از packages.sh) به این‌جا منتقل شدند.
 # ============================================================
 
 # نام بسته deb مالک یک مسیر (خالی اگر متعلق به هیچ بسته نباشد)
@@ -184,10 +186,35 @@ offer_user_data_cleanup() {   # $1=نام برنامه
     fi
 
     # پوشه‌های خاص برنامه‌های معروف
+    # (v5.4: مسیرهای Firefox کامل شد و nodejs/npm اضافه شد —
+    #  جایگزین توابع purge_firefox/purge_nodejs حذف‌شده)
     case "${raw,,}" in
-        firefox|firefox-esr)    [ -d "$HOME/.mozilla" ] && dirs+=("$HOME/.mozilla") ;;
-        thunderbird)            [ -d "$HOME/.thunderbird" ] && dirs+=("$HOME/.thunderbird") ;;
+        firefox|firefox-esr)
+            for d in "$HOME/.mozilla" "$HOME/.cache/mozilla" \
+                     "$HOME/.config/firefox" "$HOME/.cache/firefox"; do
+                [ -d "$d" ] && dirs+=("$d")
+            done
+            ;;
+        thunderbird)
+            [ -d "$HOME/.thunderbird" ] && dirs+=("$HOME/.thunderbird")
+            ;;
+        nodejs|npm)
+            for d in "$HOME/.npm" "$HOME/.cache/npm"; do
+                [ -d "$d" ] && dirs+=("$d")
+            done
+            ;;
     esac
+
+    # بسته‌های سراسری npm — سیستمی است و نیازمند sudo
+    if [[ "${raw,,}" == "nodejs" || "${raw,,}" == "npm" ]] && [ -d /usr/lib/node_modules ]; then
+        info "بسته‌های سراسری npm: /usr/lib/node_modules"
+        if [ "$PURGE_DATA" = "1" ] || confirm_action "بسته‌های سراسری npm هم حذف شوند؟"; then
+            sudo rm -rf /usr/lib/node_modules
+            success "بسته‌های سراسری npm حذف شدند."
+        else
+            info "بسته‌های سراسری npm نگه داشته شدند."
+        fi
+    fi
 
     if [ ${#dirs[@]} -eq 0 ]; then
         info "داده کاربری مرتبطی پیدا نشد."

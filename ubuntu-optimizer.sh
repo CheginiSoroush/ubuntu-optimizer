@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # ============================================================
-#   Ubuntu Optimizer & Fixer - v5.3 (نسخه ماژولار)
+#   Ubuntu Optimizer & Fixer - v5.4 (نسخه ماژولار)
 #
 #   فایل اصلی: بارگذاری ماژول‌ها + حالت CLI + منوی اصلی
 #   جدید در v5.3:
@@ -47,7 +47,7 @@ ORIG_ARGS="$*"   # آرگومان‌های اصلی برای ثبت در لاگ 
 
 usage() {
     cat << 'EOF'
-Ubuntu Optimizer & Fixer - v5.3 (ماژولار)
+Ubuntu Optimizer & Fixer - v5.4 (ماژولار)
 
 استفاده:
   uo                          → منوی تعاملی
@@ -119,7 +119,7 @@ trap 'echo ""; warn "خروج..."; exit 130' INT TERM
 while [ $# -gt 0 ]; do
     case "$1" in
         -h|--help)        usage; exit 0 ;;
-        -V|--version)     echo "Ubuntu Optimizer & Fixer - v5.3"; exit 0 ;;
+        -V|--version)     echo "Ubuntu Optimizer & Fixer - v5.4"; exit 0 ;;
         -y|--yes)         ASSUME_YES=1; shift ;;
         --no-color)       RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; MAGENTA=''; BOLD=''; NC=''; shift ;;
         --no-log)         LOG_ENABLED=0; shift ;;
@@ -196,7 +196,7 @@ if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TA
     CLI_MODE=1
     log_session_start "cli" "$ORIG_ARGS"
     trap 'log_session_end; print_session_summary' EXIT
-    echo -e "${BOLD}Ubuntu Optimizer & Fixer v5.3 — حالت CLI${NC}"
+    echo -e "${BOLD}Ubuntu Optimizer & Fixer v5.4 — حالت CLI${NC}"
     cli_action=""
     for cli_action in "${CLI_ACTIONS[@]}"; do
         "${cli_action%%|*}"
