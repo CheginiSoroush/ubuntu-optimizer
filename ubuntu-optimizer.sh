@@ -1,15 +1,13 @@
 #!/bin/bash
 
 # ============================================================
-#   Ubuntu Optimizer & Fixer - v5.2 (نسخه ماژولار)
+#   Ubuntu Optimizer & Fixer - v5.3 (نسخه ماژولار)
 #
 #   فایل اصلی: بارگذاری ماژول‌ها + حالت CLI + منوی اصلی
-#   فیکس‌های این بازنگری (همچنان v5.2):
-#     + گزینه --install-targz FILE [NAME] برای نصب مستقیم از CLI
-#     + گزینه -V/--version
-#     + پیام پایان CLI اکنون واقعی است — اگر خطایی رخ داده باشد،
-#       دیگر ادعای «همه کارها انجام شد» نمی‌کند
-#     + فیکس باگ stdin در update_targz_apps (در lib/snapflatpak.sh)
+#   جدید در v5.3:
+#     + ماژول gitssh — ویزارد راه‌اندازی کلید SSH گیت‌هاب
+#       (ساخت کلید + راهنما + تست + بازنویسی خودکار URL)
+#   v5.2: رجیستری برنامه‌ها، حذف کامل چندمنبعی، گزارش، لاگ، نصاب
 #
 #   ماژول‌ها در پوشه lib/ کنار همین فایل قرار دارند.
 #   اجرای مستقیم فایل‌های lib/ ممکن نیست — همیشه از همین فایل اجرا کن.
@@ -19,7 +17,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # ---------- بارگذاری ماژول‌ها ----------
-for _lib in common network system fixnet packages targz appmgmt snapflatpak recovery report menus; do
+for _lib in common network system fixnet packages targz appmgmt snapflatpak recovery report gitssh menus; do
     _libfile="$SCRIPT_DIR/lib/${_lib}.sh"
     if [ -f "$_libfile" ]; then
         # shellcheck source=/dev/null
@@ -49,7 +47,7 @@ ORIG_ARGS="$*"   # آرگومان‌های اصلی برای ثبت در لاگ 
 
 usage() {
     cat << 'EOF'
-Ubuntu Optimizer & Fixer - v5.2 (ماژولار)
+Ubuntu Optimizer & Fixer - v5.3 (ماژولار)
 
 استفاده:
   uo                          → منوی تعاملی
@@ -62,6 +60,9 @@ Ubuntu Optimizer & Fixer - v5.2 (ماژولار)
   --no-color          خروجی بدون رنگ
 
   --report            گزارش وضعیت سیستم (فقط خواندنی)
+
+  --git-ssh           ویزارد راه‌اندازی کلید SSH گیت‌هاب (بدون رمز)
+  --git-ssh-status    وضعیت کلید SSH و احراز هویت گیت‌هاب
 
   --install-targz FILE [NAME]
                       نصب برنامه از فایل .tar.gz (اگر NAME ندهید،
@@ -93,6 +94,7 @@ Ubuntu Optimizer & Fixer - v5.2 (ماژولار)
 
 مثال‌ها:
   uo --report
+  uo --git-ssh
   uo --install-targz ~/Downloads/app.tar.gz myapp
   uo --optimize
   uo --update -y
@@ -117,11 +119,13 @@ trap 'echo ""; warn "خروج..."; exit 130' INT TERM
 while [ $# -gt 0 ]; do
     case "$1" in
         -h|--help)        usage; exit 0 ;;
-        -V|--version)     echo "Ubuntu Optimizer & Fixer - v5.2"; exit 0 ;;
+        -V|--version)     echo "Ubuntu Optimizer & Fixer - v5.3"; exit 0 ;;
         -y|--yes)         ASSUME_YES=1; shift ;;
         --no-color)       RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; MAGENTA=''; BOLD=''; NC=''; shift ;;
         --no-log)         LOG_ENABLED=0; shift ;;
         --report)         CLI_ACTIONS+=("system_report|گزارش وضعیت سیستم"); shift ;;
+        --git-ssh)        CLI_ACTIONS+=("gitssh_setup|راه‌اندازی SSH گیت‌هاب"); shift ;;
+        --git-ssh-status) CLI_ACTIONS+=("gitssh_status|وضعیت SSH گیت‌هاب"); shift ;;
         --install-targz)
             if [ $# -ge 2 ]; then
                 INSTALL_TARGZ_FILE="$2"
@@ -192,7 +196,7 @@ if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TA
     CLI_MODE=1
     log_session_start "cli" "$ORIG_ARGS"
     trap 'log_session_end; print_session_summary' EXIT
-    echo -e "${BOLD}Ubuntu Optimizer & Fixer v5.2 — حالت CLI${NC}"
+    echo -e "${BOLD}Ubuntu Optimizer & Fixer v5.3 — حالت CLI${NC}"
     cli_action=""
     for cli_action in "${CLI_ACTIONS[@]}"; do
         "${cli_action%%|*}"

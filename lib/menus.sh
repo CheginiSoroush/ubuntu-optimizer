@@ -6,7 +6,7 @@
 menu_loop() {
     local title="$1"; shift
     local warnings=()
-    while [ "$1" = "-w" ]; do
+    while [ "$1" = "-w" ]; then
         warnings+=("$2")
         shift 2
     done
@@ -65,7 +65,9 @@ menu_security() {
     menu_loop "🔐 امنیت و رمز عبور" \
         "افزایش زمان اعتبار رمز sudo|extend_sudo_timeout" \
         "ساخت قانون polkit|setup_polkit_rule" \
-        "اجرای هر دو|all_security_opts"
+        "اجرای هر دو|all_security_opts" \
+        "راه‌اندازی کلید SSH گیت‌هاب (بدون رمز)|gitssh_setup" \
+        "وضعیت SSH گیت‌هاب|gitssh_status"
 }
 
 menu_time() {
@@ -158,7 +160,7 @@ main_menu() {
         cat << "EOF"
     ╔══════════════════════════════════════════════════════╗
     ║                                                      ║
-    ║       Ubuntu Optimizer & Fixer - v5.2                ║
+    ║       Ubuntu Optimizer & Fixer - v5.3                ║
     ║       ابزار جامع بهینه‌سازی و رفع مشکلات اوبونتو     ║
     ║                                                      ║
     ╚══════════════════════════════════════════════════════╝

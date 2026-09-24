@@ -26,7 +26,7 @@ MAIN_SCRIPT="$SCRIPT_DIR/ubuntu-optimizer.sh"
 BIN_DIR="$HOME/.local/bin"
 BIN_LINK="$BIN_DIR/uo"
 
-REQUIRED_MODULES=(common network system fixnet packages targz appmgmt snapflatpak recovery report menus)
+REQUIRED_MODULES=(common network system fixnet packages targz appmgmt snapflatpak recovery report gitssh menus)
 
 version() { grep -m1 -oE 'v[0-9]+(\.[0-9]+)+' "$MAIN_SCRIPT" 2>/dev/null; }
 
