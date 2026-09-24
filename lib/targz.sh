@@ -1,7 +1,8 @@
 # ============================================================
 #   lib/targz.sh — نصب هوشمند برنامه‌های tar.gz
 #   (تشخیص اجرایی اصلی + بررسی معماری + نصب وابستگی‌ها + رجیستری)
-#   جدید: install_targz_cli برای نصب مستقیم از حالت CLI
+#   v5.5: پشتیبانی از UO_AUTO (حالت خودکار جریان گیت‌هاب) —
+#   بدون سؤال «نصب مجدد؟»، «اجرا؟» و «کدام اجرایی؟»
 # ============================================================
 
 # انتخاب هوشمند فایل اجرایی اصلی بسته (نه ابزارهای کمکی Electron/JVM)
@@ -52,7 +53,12 @@ pick_executable() {   # $1=پوشه‌ی بسته  $2=نام برنامه  →  
         return 0
     fi
 
-    # ۵) انتخاب دستی توسط کاربر
+    # ۵) چند کاندید مبهم — در حالت خودکار: اولین؛ وگرنه انتخاب کاربر
+    if [ "${UO_AUTO:-0}" = "1" ]; then
+        warn "چند فایل اجرایی هم‌ارزش — در حالت خودکار اولین انتخاب شد: $(basename "${all[0]}")"
+        SELECTED_EXEC="${all[0]}"
+        return 0
+    fi
     warn "چند فایل اجرایی پیدا شد؛ کدام‌یک برنامه اصلی است؟"
     i=1
     for f in "${all[@]}"; do
@@ -88,7 +94,6 @@ lib_pkg_candidates() {
 # بررسی ldd و نصب خودکار وابستگی‌های گمشده
 fix_binary_deps() {   # $1 = مسیر فایل اجرایی
     local bin="$1" out missing lib pkgs pkg sibling
-    # اگر فایل اسکریپت راه‌انداز است، باینری واقعی (.bin) کنارش را بررسی کن
     if head -c 2 "$bin" 2>/dev/null | grep -q '#!'; then
         sibling=$(find "$(dirname "$bin")" -maxdepth 1 -type f \
                   -name "$(basename "$bin").bin" 2>/dev/null | head -1)
@@ -115,7 +120,6 @@ fix_binary_deps() {   # $1 = مسیر فایل اجرایی
         done
     done
 
-    # بررسی نهایی
     missing=$(ldd "$bin" 2>/dev/null | grep "not found" | awk '{print $1}' | sort -u)
     if [ -z "$missing" ]; then
         success "همه وابستگی‌ها آماده‌اند."
@@ -203,8 +207,16 @@ targz_install_from_file() {   # $1=مسیر فایل  $2=نام برنامه
     local INSTALL_DIR="/opt/$APP_NAME"
     if [ -d "$INSTALL_DIR" ]; then
         warn "پوشه $INSTALL_DIR از قبل وجود دارد."
-        confirm_action "حذف و نصب مجدد شود؟" || { info "لغو شد."; rm -rf "$TEMP_DIR"; return 0; }
-        sudo rm -rf "$INSTALL_DIR"
+        if [ "${UO_AUTO:-0}" = "1" ]; then
+            info "(حذف و نصب مجدد خودکار — حالت خودکار)"
+            sudo rm -rf "$INSTALL_DIR"
+        elif confirm_action "حذف و نصب مجدد شود؟"; then
+            sudo rm -rf "$INSTALL_DIR"
+        else
+            info "لغو شد."
+            rm -rf "$TEMP_DIR"
+            return 0
+        fi
     fi
 
     sudo mv "$SRC_DIR" "$INSTALL_DIR"
@@ -213,7 +225,6 @@ targz_install_from_file() {   # $1=مسیر فایل  $2=نام برنامه
 
     local FINAL_EXEC="$INSTALL_DIR${EXEC_FILE#$SRC_DIR}"
 
-    # بررسی معماری قبل از ساخت میان‌برها
     if ! check_package_arch "$INSTALL_DIR" "$FINAL_EXEC"; then
         warn "نصب لغو شد؛ فایل‌های ناقص پاک می‌شوند."
         sudo rm -rf "$INSTALL_DIR"
@@ -221,13 +232,11 @@ targz_install_from_file() {   # $1=مسیر فایل  $2=نام برنامه
         return 1
     fi
 
-    # بررسی و نصب وابستگی‌های گمشده
     fix_binary_deps "$FINAL_EXEC"
 
     sudo ln -sf "$FINAL_EXEC" "/usr/local/bin/$APP_NAME"
     success "دستور اجرا: /usr/local/bin/$APP_NAME"
 
-    # آیکون: بزرگ‌ترین تصویر موجود در بسته
     local ICON_FILE
     ICON_FILE=$(find "$INSTALL_DIR" -type f \( -iname "*.png" -o -iname "*.svg" \) \
                 -printf '%s %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
@@ -257,7 +266,10 @@ EOF
     success "🎉 نصب/به‌روزرسانی $APP_NAME کامل شد."
     info "اجرای از ترمینال: $APP_NAME"
 
-    if confirm_action "همین حالا اجرا شود تا از کارکردش مطمئن شویم؟"; then
+    # اجرای آزمایشی فقط در حالت تعاملی — نه در جریان خودکار گیت‌هاب
+    if [ "${UO_AUTO:-0}" = "1" ]; then
+        info "(اجرای آزمایشی در حالت خودکار رد شد)"
+    elif confirm_action "همین حالا اجرا شود تا از کارکردش مطمئن شویم؟"; then
         (cd "$INSTALL_DIR" && nohup "$FINAL_EXEC" > /dev/null 2>&1 &)
         info "اگر پنجره‌ای باز نشد، در ترمینال «$APP_NAME» را اجرا کنید تا خطا را ببینید."
     fi
@@ -287,8 +299,7 @@ install_targz() {
 }
 
 # نصب tar.gz از حالت CLI — بدون منو
-# $1=مسیر فایل  $2=نام اختیاری (اگر داده نشود از نام فایل حدس زده می‌شود)
-install_targz_cli() {
+install_targz_cli() {   # $1=مسیر فایل  $2=نام اختیاری
     local TARGZ_PATH="$1" APP_NAME="$2"
 
     TARGZ_PATH=${TARGZ_PATH/#\~/$HOME}

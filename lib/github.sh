@@ -1,12 +1,11 @@
 # ============================================================
 #   lib/github.sh — نصب و به‌روزرسانی برنامه‌ها از GitHub Releases
-#   جریان: دریافت آخرین release → انتخاب خودکار هوشمند فایل
-#   (امتیازدهی معماری/فرمت — بدون سؤال در حالت عادی) → دانلود
-#   موقت → نصب → ثبت در github.db → حذف فایل دانلودی
 #
-#   فیکس v5.5: باگ فیلتر معماری — الگوهای armv5/armv6/armv7 و
-#   i386 و غیره به‌عنوان «خنثی» رد می‌شدند و لیست چندتایی
-#   ساخته می‌شد؛ حالا انتخاب کاملاً خودکار با امتیاز است.
+#   فلسفه تعامل (v5.5):
+#     • نصب (--github-install): کاملاً خودکار — صفر سؤال
+#     • به‌روزرسانی (--github-update): تنها یک سؤال به‌ازای هر برنامه
+#       («به‌روزرسانی شود؟ y/n») — بله: همه‌چیز خودکار، نه: برنامه بعدی
+#     • انتخاب فایل: همیشه خودکار با امتیازدهی معماری/فرمت
 # ============================================================
 
 readonly GITHUB_DB="$REGISTRY_DIR/github.db"
@@ -31,7 +30,6 @@ gh_db_remove() {   # $1=name
 }
 
 # ---------- دریافت اطلاعات آخرین release ----------
-# نتیجه: GH_TAG و آرایه GH_URLS (آدرس فایل‌های release)
 gh_fetch_latest() {   # $1 = OWNER/REPO یا URL کامل
     GH_TAG=""
     GH_URLS=()
@@ -81,21 +79,17 @@ gh_fetch_latest() {   # $1 = OWNER/REPO یا URL کامل
     return 0
 }
 
-# ---------- انتخاب خودکار فایل مناسب (امتیازدهی) ----------
-# امتیاز هر فایل:
-#   معماری:  +۴۰ نام معماری سیستم دقیق | +۳۰ معماری ۶۴ بیتی سازگار
-#            | -۲۰۰ معماری غیرسازگار (رد قطعی)
-#   فرمت:    +۱۰ .deb | +۵ .tar.gz/.tgz | -۲۰۰ سایر (رد قطعی)
-#   جریمه‌ها: -۱۵ بدون برچسب معماری (مثل universal) | -۸ musl
-# انتخاب: بالاترین امتیاز — فقط اگر چند فایل «امتیاز مساوی مثبت»
-# داشتند و اطلاعات کافی برای تمایز نبود، سؤال پرسیده می‌شود.
+# ---------- انتخاب خودکار فایل مناسب (امتیازدهی — بدون سؤال) ----------
+# امتیاز: معماری سازگار +۴۰ / فرمت deb +۱۰، tar.gz +۵ /
+#          معماری ناسازگار -۲۰۰ (رد) / بدون برچسب معماری -۱۵ / musl -۸
+# انتخاب: بالاترین امتیاز؛ در تساوی، اولین فایل — همیشه خودکار.
 gh_pick_asset() {
     GH_PICKED_URL=""
     local sys_arch
     sys_arch=$(uname -m)
 
     local -a urls=() scores=()
-    local u f low score best i choice
+    local u f low score best i
 
     for u in "${GH_URLS[@]}"; do
         f=$(basename "$u")
@@ -104,39 +98,34 @@ gh_pick_asset() {
 
         # --- فرمت ---
         case "$low" in
-            *.deb)      score=$((score + 10)) ;;
+            *.deb)          score=$((score + 10)) ;;
             *.tar.gz|*.tgz) score=$((score + 5)) ;;
-            *)          continue ;;   # فرمت نامعتبر — رد
+            *)              continue ;;
         esac
 
-        # --- معماری (چند الگو برای هر خانواده) ---
-        # سازگار با سیستم فعلی
+        # --- معماری ---
         if [ "$sys_arch" = "x86_64" ]; then
             case "$low" in
-                *amd64*|*x86_64*|*x64*)       score=$((score + 40)) ;;
-                *i386*|*i686*|*80386*|*x86*)   score=$((score + 20)) ;;
-                *arm64*|*aarch64*|*armv5*|*armv6*|*armv7*|*arm*|*riscv64*|*ppc64le*|*s390x*|*loong64*|*universal*|*all*) score=$((score - 200)) ;;
-                *)                             score=$((score - 15)) ;;  # بدون برچسب معماری
+                *amd64*|*x86_64*|*x64*)     score=$((score + 40)) ;;
+                *i386*|*i686*|*80386*|*x86*) score=$((score + 20)) ;;
+                *arm64*|*aarch64*|*armv5*|*armv6*|*armv7*|*arm*|*riscv64*|*ppc64le*|*s390x*|*loong64*) score=$((score - 200)) ;;
+                *)                          score=$((score - 15)) ;;
             esac
         elif [ "$sys_arch" = "aarch64" ]; then
             case "$low" in
-                *arm64*|*aarch64*)             score=$((score + 40)) ;;
-                *armv5*|*armv6*|*armv7*|*arm*)  score=$((score + 20)) ;;
+                *arm64*|*aarch64*)           score=$((score + 40)) ;;
+                *armv5*|*armv6*|*armv7*|*arm*) score=$((score + 20)) ;;
                 *amd64*|*x86_64*|*x64*|*i386*|*i686*|*riscv64*|*ppc64le*|*s390x*|*loong64*) score=$((score - 200)) ;;
-                *)                             score=$((score - 15)) ;;
+                *)                           score=$((score - 15)) ;;
             esac
         else
-            # معماری ناشناخته — فقط برچسب‌های خنثی مجاز
             case "$low" in
                 *arm64*|*aarch64*|*amd64*|*x86_64*|*x64*|*armv5*|*armv6*|*armv7*|*riscv64*|*ppc64le*|*s390x*|*loong64*)
                     score=$((score - 200)) ;;
             esac
         fi
 
-        # --- جریمه‌های ریز ---
         [[ "$low" == *musl* ]] && score=$((score - 8))
-
-        # --- رد قطعی‌ها ---
         [ "$score" -le -100 ] && continue
 
         urls+=("$u")
@@ -144,71 +133,27 @@ gh_pick_asset() {
     done
 
     if [ ${#urls[@]} -eq 0 ]; then
-        # هیچ فایل امتیاز مثبت نگرفت — انتخاب دستی از همه (آخرین راه نجات)
-        if [ ${#GH_URLS[@]} -eq 0 ]; then
-            failure "این release هیچ فایل نصبی (asset) ندارد — فقط سورس است."
-            return 1
-        fi
-        warn "هیچ فایل به‌طور خودکار قابل تشخیص نبود؛ همه فایل‌ها:"
-        i=1
+        failure "فایل نصبی سازگار با سیستم پیدا نشد."
+        info "فایل‌های این release (برای بررسی/نصب دستی):"
         for u in "${GH_URLS[@]}"; do
-            echo "   $i) $(basename "$u")"
-            ((i++))
+            echo "      • $(basename "$u")"
         done
-        read -r -p "   شماره (0=انصراف): " choice
-        if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#GH_URLS[@]} ]; then
-            u="${GH_URLS[$((choice-1))]}"
-            case "$(basename "$u")" in
-                *.deb|*.tar.gz|*.tgz|*.DEB|*.TAR.GZ|*.TGZ)
-                    GH_PICKED_URL="$u"
-                    return 0
-                    ;;
-                *)
-                    failure "این فرمت پشتیبانی نمی‌شود: $(basename "$u") (فقط .deb و .tar.gz)"
-                    return 1
-                    ;;
-            esac
-        fi
         return 1
     fi
 
-    # بالاترین امتیاز
+    # بالاترین امتیاز — در تساوی، اولین فایل
     best=0
     for i in "${!scores[@]}"; do
         [ "${scores[$i]}" -gt "${scores[$best]}" ] && best=$i
     done
-    GH_PICKED_URL="${urls[$best]}"
-
-    # اگر تنها فایلِ با بالاترین امتیاز نیست و رقیب هم‌امتیاز مثبت دارد → سؤال
     local -a ties=()
     for i in "${!scores[@]}"; do
         [ "${scores[$i]}" = "${scores[$best]}" ] && ties+=("$i")
     done
-    if [ ${#ties[@]} -eq 1 ]; then
-        return 0
-    fi
+    [ ${#ties[@]} -gt 1 ] && info "(چند فایل هم‌امتیاز — اولین انتخاب شد)"
 
-    # مساوی — در حالت -y اولین، وگرنه سؤال
-    if [ "$CLI_MODE" = "1" ] && [ "$ASSUME_YES" = "1" ]; then
-        info "(انتخاب خودکار اولین فایل هم‌امتیاز با -y)"
-        return 0
-    fi
-    info "چند فایل کاملاً هم‌ارزش پیدا شد؛ کدام نصب شود؟"
-    i=1
-    for idx in "${ties[@]}"; do
-        echo "   $i) $(basename "${urls[$idx]}")"
-        ((i++))
-    done
-    local -a tie_urls=()
-    for idx in "${ties[@]}"; do
-        tie_urls+=("${urls[$idx]}")
-    done
-    read -r -p "   شماره (0=انصراف): " choice
-    if [[ "$choice" =~ ^[0-9]+$ ]] && [ "$choice" -ge 1 ] && [ "$choice" -le ${#tie_urls[@]} ]; then
-        GH_PICKED_URL="${tie_urls[$((choice-1))]}"
-        return 0
-    fi
-    return 1
+    GH_PICKED_URL="${urls[$best]}"
+    return 0
 }
 
 # ---------- دانلود + نصب + ثبت + پاک‌کردن فایل موقت ----------
@@ -244,10 +189,13 @@ gh_download_and_install() {   # $1=url $2=name $3=repo $4=tag
             fi
         fi
     else
-        # tar.gz/tgz — نصب هوشمند (رجیستری + معماری + وابستگی‌ها)
+        # tar.gz/tgz — نصب هوشمند در حالت خودکار (UO_AUTO):
+        # تأیید «نصب مجدد» و «اجرا؟» خودکار مدیریت می‌شوند — بدون سؤال
+        UO_AUTO=1
         if targz_install_from_file "$tmpfile" "$name"; then
             installed=1
         fi
+        unset UO_AUTO
     fi
 
     if [ "$installed" = "1" ]; then
@@ -260,7 +208,7 @@ gh_download_and_install() {   # $1=url $2=name $3=repo $4=tag
     return 1
 }
 
-# ---------- نصب برنامه از گیت‌هاب ----------
+# ---------- نصب برنامه از گیت‌هاب (کاملاً خودکار — صفر سؤال) ----------
 github_install_repo() {   # $1=repo (اختیاری در منو)  $2=نام اختیاری
     header "🐙 نصب برنامه از گیت‌هاب"
 
@@ -300,7 +248,7 @@ github_install_repo() {   # $1=repo (اختیاری در منو)  $2=نام اخ
     gh_download_and_install "$GH_PICKED_URL" "$name" "$repo" "$GH_TAG"
 }
 
-# ---------- بررسی به‌روزرسانی برنامه‌های گیت‌هاب ----------
+# ---------- بررسی به‌روزرسانی — تنها یک سؤال به‌ازای هر برنامه ----------
 github_update_apps() {
     header "🔄 بررسی به‌روزرسانی برنامه‌های گیت‌هاب"
 
@@ -342,7 +290,14 @@ github_update_apps() {
             continue
         fi
 
-        info "نسخه جدید موجود است: $latest"
+        # ★ تنها سؤال مجاز: آپدیت شود یا نه؟
+        info "نسخه جدید موجود است: $latest (فعلی: ${tag:-نامشخص})"
+        if ! confirm_action "«$name» به $latest به‌روزرسانی شود؟"; then
+            info "رد شد — ادامه با برنامه بعدی."
+            continue
+        fi
+        # از این‌جا تا پایان: کاملاً خودکار
+
         if ! gh_pick_asset; then
             continue
         fi
