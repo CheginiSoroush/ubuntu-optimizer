@@ -1,13 +1,14 @@
 #!/bin/bash
 
 # ============================================================
-#   Ubuntu Optimizer & Fixer - v5.4 (نسخه ماژولار)
+#   Ubuntu Optimizer & Fixer - v5.5 (نسخه ماژولار)
 #
 #   فایل اصلی: بارگذاری ماژول‌ها + حالت CLI + منوی اصلی
-#   جدید در v5.3:
-#     + ماژول gitssh — ویزارد راه‌اندازی کلید SSH گیت‌هاب
-#       (ساخت کلید + راهنما + تست + بازنویسی خودکار URL)
-#   v5.2: رجیستری برنامه‌ها، حذف کامل چندمنبعی، گزارش، لاگ، نصاب
+#   جدید در v5.5:
+#     + ماژول github — نصب و به‌روزرسانی برنامه‌ها از GitHub
+#       Releases (انتخاب هوشمند فایل + فیلتر معماری + دانلود
+#       موقت + نصب خودکار + حذف فایل دانلودی)
+#   v5.4: رفع هم‌پوشانی منوها + گروه‌بندی بصری منوی اصلی
 #
 #   ماژول‌ها در پوشه lib/ کنار همین فایل قرار دارند.
 #   اجرای مستقیم فایل‌های lib/ ممکن نیست — همیشه از همین فایل اجرا کن.
@@ -17,7 +18,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # ---------- بارگذاری ماژول‌ها ----------
-for _lib in common network system fixnet packages targz appmgmt snapflatpak recovery report gitssh menus; do
+for _lib in common network system fixnet packages targz appmgmt snapflatpak recovery report github gitssh menus; do
     _libfile="$SCRIPT_DIR/lib/${_lib}.sh"
     if [ -f "$_libfile" ]; then
         # shellcheck source=/dev/null
@@ -39,6 +40,8 @@ CLEANUP_TARGET=""
 CLI_ACTIONS=()
 INSTALL_TARGZ_FILE=""
 INSTALL_TARGZ_NAME=""
+GITHUB_INSTALL_REPO=""
+GITHUB_INSTALL_NAME=""
 ORIG_ARGS="$*"   # آرگومان‌های اصلی برای ثبت در لاگ (قبل از مصرف توسط حلقه)
 
 # ============================================================
@@ -47,7 +50,7 @@ ORIG_ARGS="$*"   # آرگومان‌های اصلی برای ثبت در لاگ 
 
 usage() {
     cat << 'EOF'
-Ubuntu Optimizer & Fixer - v5.4 (ماژولار)
+Ubuntu Optimizer & Fixer - v5.5 (ماژولار)
 
 استفاده:
   uo                          → منوی تعاملی
@@ -64,6 +67,12 @@ Ubuntu Optimizer & Fixer - v5.4 (ماژولار)
   --git-ssh           ویزارد راه‌اندازی کلید SSH گیت‌هاب (بدون رمز)
   --git-ssh-status    وضعیت کلید SSH و احراز هویت گیت‌هاب
 
+  --github-install OWNER/REPO [NAME]
+                      نصب برنامه از آخرین release گیت‌هاب — انتخاب
+                      هوشمند فایل (فیلتر معماری) + حذف خودکار فایل دانلودی
+  --github-update     بررسی و نصب به‌روزرسانی همه برنامه‌های گیت‌هابی
+  --github-list       فهرست برنامه‌های ردیابی‌شده از گیت‌هاب
+
   --install-targz FILE [NAME]
                       نصب برنامه از فایل .tar.gz (اگر NAME ندهید،
                       از نام فایل حدس زده می‌شود) — هوشمند + رجیستری
@@ -77,7 +86,7 @@ Ubuntu Optimizer & Fixer - v5.4 (ماژولار)
   --fixnet-run        اجرای fixnet (رفع مشکل شبکه)
   --test              تست‌های شبکه (پینگ، DNS، سرعت)
 
-  --update            به‌روزرسانی همه منابع (apt, snap, flatpak, tar.gz)
+  --update            به‌روزرسانی همه منابع (apt, snap, flatpak, tar.gz, github)
   --update-apt        فقط apt
   --update-snap       فقط snap
   --update-flatpak    فقط flatpak
@@ -94,9 +103,9 @@ Ubuntu Optimizer & Fixer - v5.4 (ماژولار)
 
 مثال‌ها:
   uo --report
-  uo --git-ssh
+  uo --github-install junegunn/fzf fzf
+  uo --github-update
   uo --install-targz ~/Downloads/app.tar.gz myapp
-  uo --optimize
   uo --update -y
   uo --cleanup abdownloadmanager --purge-data
 EOF
@@ -119,18 +128,33 @@ trap 'echo ""; warn "خروج..."; exit 130' INT TERM
 while [ $# -gt 0 ]; do
     case "$1" in
         -h|--help)        usage; exit 0 ;;
-        -V|--version)     echo "Ubuntu Optimizer & Fixer - v5.4"; exit 0 ;;
+        -V|--version)     echo "Ubuntu Optimizer & Fixer - v5.5"; exit 0 ;;
         -y|--yes)         ASSUME_YES=1; shift ;;
         --no-color)       RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; MAGENTA=''; BOLD=''; NC=''; shift ;;
         --no-log)         LOG_ENABLED=0; shift ;;
         --report)         CLI_ACTIONS+=("system_report|گزارش وضعیت سیستم"); shift ;;
         --git-ssh)        CLI_ACTIONS+=("gitssh_setup|راه‌اندازی SSH گیت‌هاب"); shift ;;
         --git-ssh-status) CLI_ACTIONS+=("gitssh_status|وضعیت SSH گیت‌هاب"); shift ;;
+        --github-update)  CLI_ACTIONS+=("github_update_apps|به‌روزرسانی گیت‌هاب"); shift ;;
+        --github-list)    CLI_ACTIONS+=("github_list_apps|فهرست گیت‌هاب"); shift ;;
+        --github-install)
+            if [ $# -ge 2 ]; then
+                GITHUB_INSTALL_REPO="$2"
+                shift 2
+                # نام اختیاری — اگر آرگومان بعدی پرچم نیست، نام برنامه است
+                if [ $# -ge 1 ] && [[ "$1" != -* ]]; then
+                    GITHUB_INSTALL_NAME="$1"
+                    shift
+                fi
+            else
+                echo "گزینه --github-install نیاز به مخزن دارد: --github-install OWNER/REPO [نام]"
+                exit 1
+            fi
+            ;;
         --install-targz)
             if [ $# -ge 2 ]; then
                 INSTALL_TARGZ_FILE="$2"
                 shift 2
-                # نام اختیاری — اگر آرگومان بعدی پرچم نیست، نام برنامه است
                 if [ $# -ge 1 ] && [[ "$1" != -* ]]; then
                     INSTALL_TARGZ_NAME="$1"
                     shift
@@ -192,17 +216,20 @@ while [ $# -gt 0 ]; do
 done
 
 # ---------- اجرای حالت CLI ----------
-if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TARGZ_FILE" ]; then
+if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TARGZ_FILE" ] || [ -n "$GITHUB_INSTALL_REPO" ]; then
     CLI_MODE=1
     log_session_start "cli" "$ORIG_ARGS"
     trap 'log_session_end; print_session_summary' EXIT
-    echo -e "${BOLD}Ubuntu Optimizer & Fixer v5.4 — حالت CLI${NC}"
+    echo -e "${BOLD}Ubuntu Optimizer & Fixer v5.5 — حالت CLI${NC}"
     cli_action=""
     for cli_action in "${CLI_ACTIONS[@]}"; do
         "${cli_action%%|*}"
     done
     if [ -n "$INSTALL_TARGZ_FILE" ]; then
         install_targz_cli "$INSTALL_TARGZ_FILE" "$INSTALL_TARGZ_NAME"
+    fi
+    if [ -n "$GITHUB_INSTALL_REPO" ]; then
+        github_install_repo "$GITHUB_INSTALL_REPO" "$GITHUB_INSTALL_NAME"
     fi
     if [ -n "$CLEANUP_TARGET" ]; then
         cleanup_app "$CLEANUP_TARGET"

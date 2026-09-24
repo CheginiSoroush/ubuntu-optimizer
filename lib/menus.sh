@@ -1,7 +1,7 @@
 # ============================================================
 #   lib/menus.sh — موتور منو، منوهای فرعی و منوی اصلی
-#   v5.4: منوی ۷ فقط «نصب»، منوی ۱۰ فقط «مدیریت»
-#   v5.4.1: گروه‌بندی بصری منوی اصلی در ۴ دسته معنایی
+#   v5.5: گزینه‌های گیت‌هاب (نصب/به‌روزرسانی/فهرست)
+#   v5.4: گروه‌بندی بصری منوی اصلی + حذف هم‌پوشانی‌ها
 # ============================================================
 
 # استفاده: menu_loop "عنوان" [-w "هشدار"]... "توضیح|نام_تابع"...
@@ -99,6 +99,7 @@ menu_packages() {
         "نصب ابزارهای استخراج (unrar, p7zip, file-roller)|install_unrar" \
         "نصب فایل .deb|install_deb" \
         "نصب برنامه از فایل .tar.gz (هوشمند + ثبت در رجیستری)|install_targz" \
+        "نصب برنامه از گیت‌هاب (آخرین release)|github_install_repo" \
         "نصب nodejs و npm|install_nodejs" \
         "نصب AppClean|install_appclean"
 }
@@ -107,6 +108,7 @@ menu_appmgmt() {
     menu_loop "🧹 مدیریت و حذف کامل برنامه‌ها" \
         "لیست همه برنامه‌های نصب‌شده (همه منابع)|list_all_apps" \
         "حذف کامل یک برنامه از هر منبعی (با داده‌ها)|cleanup_app" \
+        "فهرست برنامه‌های ردیابی‌شده از گیت‌هاب|github_list_apps" \
         "پاک‌سازی تنظیمات باقی‌مانده بسته‌های deb|cleanup_deb_residuals" \
         "حذف فایل‌های desktop یتیم|cleanup_desktop_orphans"
 }
@@ -125,11 +127,12 @@ menu_snapflat() {
 
 menu_updates() {
     menu_loop "🔄 به‌روزرسانی برنامه‌ها" \
-        "به‌روزرسانی همه (apt + snap + flatpak + tar.gz)|update_all" \
+        "به‌روزرسانی همه (apt + snap + flatpak + tar.gz + github)|update_all" \
         "به‌روزرسانی apt (سیستم و بسته‌های deb)|update_apt" \
         "به‌روزرسانی snap|update_snap" \
         "به‌روزرسانی flatpak|update_flatpak" \
-        "بررسی به‌روزرسانی برنامه‌های tar.gz|update_targz_apps"
+        "بررسی به‌روزرسانی برنامه‌های tar.gz|update_targz_apps" \
+        "بررسی به‌روزرسانی برنامه‌های گیت‌هاب|github_update_apps"
 }
 
 menu_recovery() {
@@ -158,7 +161,7 @@ main_menu() {
         cat << "EOF"
     ╔══════════════════════════════════════════════════════╗
     ║                                                      ║
-    ║       Ubuntu Optimizer & Fixer - v5.4                ║
+    ║       Ubuntu Optimizer & Fixer - v5.5                ║
     ║       ابزار جامع بهینه‌سازی و رفع مشکلات اوبونتو     ║
     ║                                                      ║
     ╚══════════════════════════════════════════════════════╝

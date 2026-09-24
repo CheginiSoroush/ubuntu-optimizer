@@ -311,6 +311,7 @@ update_all() {
     update_snap
     update_flatpak
     update_targz_apps
+    github_update_apps
     echo ""
     success "چرخه به‌روزرسانی کامل شد."
     return 0
