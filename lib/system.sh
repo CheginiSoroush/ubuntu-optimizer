@@ -1,8 +1,6 @@
 # ============================================================
-#   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
 #   lib/system.sh — بهینه‌سازی سیستم/حافظه + امنیت + زمان
-#   بهبود v5.2: fix_time — همگام‌سازی از دیمن فعال (chronyc makestep)
-#   + پیام شفاف درباره مسدودی پورت NTP توسط ISP
+#   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
 # ============================================================
 
 optimize_memory() {
@@ -74,6 +72,7 @@ install_tlp() {
         return 0
     fi
     info "tlp بیشتر برای لپ‌تاپ‌ها مفید است."
+    # power-profiles-daemon با tlp تداخل دارد
     if pkg_installed power-profiles-daemon; then
         warn "power-profiles-daemon با tlp تداخل دارد؛ ابتدا حذف می‌شود..."
         sudo apt remove -y power-profiles-daemon > /dev/null 2>&1
@@ -110,6 +109,7 @@ extend_sudo_timeout() {
     fi
     echo "Defaults timestamp_timeout=120" | sudo tee "$SUDOERS_TIMEOUT_FILE" > /dev/null
     sudo chmod 440 "$SUDOERS_TIMEOUT_FILE"
+    # اعتبارسنجی قبل از اعمال — فایل نامعتبر خودکار حذف می‌شود
     if sudo visudo -c -f "$SUDOERS_TIMEOUT_FILE" > /dev/null 2>&1; then
         success "زمان اعتبار sudo به 120 دقیقه افزایش یافت."
     else
@@ -157,10 +157,9 @@ fix_time() {
 
     local synced=0 i
 
-    # روش ۱: درخواست همگام‌سازی فوری از دیمنِ در حال اجرا
+    # روش ۱: درخواست همگام‌سازی فوری از دیمن در حال اجرا
     if systemctl is-active --quiet chrony 2>/dev/null; then
         sudo chronyc makestep > /dev/null 2>&1
-        # چند ثانیه به دیمن فرصت می‌دهیم
         for i in 1 2 3 4 5; do
             if [ "$(timedatectl show -p NTPSynchronized --value 2>/dev/null)" = "yes" ]; then
                 synced=1
@@ -170,7 +169,7 @@ fix_time() {
         done
     fi
 
-    # روش ۲: همگام‌سازی یک‌باره مستقل (جایگزین ntpdate)
+    # روش ۲: همگام‌سازی مستقل یک‌باره
     if [ "$synced" = "0" ] && command -v chronyd > /dev/null 2>&1; then
         if sudo chronyd -q 'pool.ntp.org iburst' > /dev/null 2>&1; then
             synced=1
@@ -182,7 +181,7 @@ fix_time() {
     else
         warn "همگام‌سازی NTP در این لحظه ممکن نشد."
         warn "علت رایج: مسدود بودن پورت NTP (UDP 123) توسط ISP یا فایروال."
-        info "chrony در پس‌زمینه به تلاش ادامه می‌دهد و معمولاً خودش همگام می‌کند."
+        info "chrony در پس‌زمینه به تلاش ادامه می‌دهد."
     fi
 
     sudo hwclock --systohc 2>/dev/null

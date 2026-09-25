@@ -1,14 +1,9 @@
 # ============================================================
+#   lib/gitssh.sh — راه‌اندازی و مدیریت کلید SSH گیت‌هاب
 #   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
-#   lib/gitssh.sh — راه‌اندازی و مدیریت کلید SSH برای GitHub
-#   ساخت کلید ed25519 + راهنمای افزودن به GitHub + تست احراز
-#   هویت + فعال‌سازی بازنویسی خودکار URL (https → ssh)
-#
-#   نکته: gitssh_status از success/failure استفاده نمی‌کند تا
-#   گزارش وضعیت، لاگ را پر نکند (مشابه lib/report.sh)
 # ============================================================
 
-# مسیر کلید SSH خصوصی موجود — خالی اگر وجود نداشته باشد
+# مسیر نخستین کلید SSH موجود — خالی اگر وجود نداشته باشد
 ssh_key_file() {
     local t
     for t in id_ed25519 id_rsa; do
@@ -20,16 +15,16 @@ ssh_key_file() {
     return 1
 }
 
-# اتصال آزمایشی به GitHub — خروجی در GITSSH_OUT، کد ۰ = احراز هویت موفق
-# (accept-new: کلید میزبان github.com در اولین اتصال پذیرفته و برای
-#  همیشه ثبت می‌شود؛ BatchMode: بدون هیچ سؤال تعاملی معطل نمی‌ماند)
+# تست احراز هویت گیت‌هاب — خروجی در GITSSH_OUT؛ کد ۰ = موفق
+# accept-new: کلید میزبان github.com در نخستین اتصال پذیرفته می‌شود
+# BatchMode: بدون سؤال تعاملی معطل نمی‌ماند
 gitssh_probe() {
     GITSSH_OUT=$(ssh -o StrictHostKeyChecking=accept-new -o ConnectTimeout=10 \
                  -o BatchMode=yes -T git@github.com 2>&1)
     printf '%s' "$GITSSH_OUT" | grep -q "successfully authenticated"
 }
 
-# نام کاربر GitHub — باید بعد از gitssh_probe صدا زده شود
+# نام کاربر گیت‌هاب — باید پس از gitssh_probe صدا زده شود
 gitssh_github_user() {
     printf '%s' "$GITSSH_OUT" | grep -o 'Hi [^!]*' | awk '{print $2}'
 }
@@ -40,7 +35,7 @@ gitssh_rewrite_enabled() {
         | grep -qx "https://github.com/"
 }
 
-# فعال‌سازی بازنویسی URL با گارد ضد تکرار
+# فعال‌سازی بازنویسی URL — همه آدرس‌های https گیت‌هاب از SSH استفاده می‌کنند
 gitssh_enable_rewrite() {
     if gitssh_rewrite_enabled; then
         info "بازنویسی URL (https → ssh) از قبل فعال است."
@@ -55,7 +50,7 @@ gitssh_enable_rewrite() {
     return 0
 }
 
-# غیرفعال‌سازی بازنویسی URL (برای سیستم‌های بدون کلید SSH)
+# غیرفعال‌سازی بازنویسی URL — برای سیستم‌های بدون کلید SSH
 gitssh_disable_rewrite() {
     if git config --global --get-all url."git@github.com:".insteadOf > /dev/null 2>&1; then
         git config --global --unset url."git@github.com:".insteadOf
@@ -70,7 +65,7 @@ gitssh_disable_rewrite() {
 gitssh_setup() {
     header "🔑 راه‌اندازی SSH گیت‌هاب (بدون رمز)"
 
-    # ۱) پیش‌نیازها
+    # پیش‌نیازها
     if ! command -v git > /dev/null 2>&1; then
         info "نصب git..."
         sudo apt install -y git > /dev/null 2>&1 || { failure "خطا در نصب git."; return 1; }
@@ -81,7 +76,7 @@ gitssh_setup() {
             || { failure "خطا در نصب openssh-client."; return 1; }
     fi
 
-    # ۲) اگر از قبل احراز هویت شده — فقط تنظیمات باقی‌مانده را کامل کن
+    # اگر احراز هویت از قبل برقرار است، فقط تنظیمات ناقص تکمیل می‌شود
     if gitssh_probe; then
         local gh_user
         gh_user=$(gitssh_github_user)
@@ -92,7 +87,7 @@ gitssh_setup() {
         return 0
     fi
 
-    # ۳) کلید موجود یا ساخت کلید جدید
+    # کلید موجود یا ساخت کلید جدید
     local KEY
     KEY=$(ssh_key_file)
     if [ -n "$KEY" ]; then
@@ -119,7 +114,7 @@ gitssh_setup() {
         fi
     fi
 
-    # ۴) نمایش کلید عمومی + کپی در کلیپ‌بورد در صورت امکان
+    # نمایش کلید عمومی + کپی در کلیپ‌بورد در صورت امکان
     local PUBKEY="${KEY}.pub"
     echo ""
     echo -e "${BOLD}این کلید عمومی را به GitHub اضافه کنید:${NC}"
@@ -141,7 +136,7 @@ gitssh_setup() {
         info "برای کپی خودکار در کلیپ‌بورد: sudo apt install xclip"
     fi
 
-    # ۵) انتظار برای افزودن کلید + حلقه تست
+    # انتظار برای افزودن کلید و تست
     echo ""
     local tries=0
     while true; do
@@ -160,7 +155,6 @@ gitssh_setup() {
         info "در صفحه GitHub حتماً دکمه Add key را بزنید و چند ثانیه صبر کنید."
     done
 
-    # ۶) بازنویسی URL برای همه پروژه‌ها
     gitssh_enable_rewrite
 
     echo ""
@@ -189,7 +183,7 @@ gitssh_status() {
     else
         echo -e "   ${RED}✗${NC} احراز هویت GitHub برقرار نیست (کلید ساخته/افزوده نشده)"
         if [ -n "$KEY" ]; then
-            echo -e "   ${YELLOW}ℹ${NC} راهنما: کلید عمودی را در github.com → Settings → SSH keys بگذارید"
+            echo -e "   ${YELLOW}ℹ${NC} راهنما: کلید عمومی را در github.com → Settings → SSH keys بگذارید"
         fi
     fi
 

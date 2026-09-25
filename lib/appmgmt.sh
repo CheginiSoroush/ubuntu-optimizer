@@ -1,19 +1,19 @@
 # ============================================================
-#   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
 #   lib/appmgmt.sh — مدیریت و حذف کامل برنامه‌ها از همه منابع
-#   تشخیص برنامه‌های deb نصب‌شده در /opt (با dpkg -S)
-#   v5.4: offer_user_data_cleanup گسترش یافت — مسیرهای داده خاص
-#   Firefox و nodejs/npm (میراث purge_firefox/purge_nodejs حذف‌شده
-#   از packages.sh) به این‌جا منتقل شدند.
+#   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
+#
+#   منابع جستجو: رجیستری tar.gz، apt (دقیق و تقریبی)، snap،
+#   flatpak، پوشه‌های /opt و فایل‌های desktop. پوشه‌های متعلق به
+#   بسته‌های deb تشخیص داده می‌شوند تا حذف از مسیر درست انجام شود.
 # ============================================================
 
-# نام بسته deb مالک یک مسیر (خالی اگر متعلق به هیچ بسته نباشد)
+# نام بسته deb مالک یک مسیر — خالی اگر متعلق به هیچ بسته نباشد
 deb_owner_of() {   # $1=مسیر (مثل /opt/Obsidian)
     dpkg -S "$1" 2>/dev/null | head -1 | cut -d: -f1 | awk '{print $1}' | tr -d ','
 }
 
-# جستجوی برنامه در همه منابع → آرایه FOUND_LINES با فرمت ۴ فیلدی:
-#   "type|id|توضیح|مسیر_اختیاری"
+# جستجوی برنامه در همه منابع → آرایه FOUND_LINES
+# فرمت هر عضو: type|id|توضیح|مسیر_اختیاری
 # نوع‌ها: apt | snap | flatpak | targz | opt | manual
 find_app_instances() {
     FOUND_LINES=()
@@ -25,7 +25,7 @@ find_app_instances() {
     local rname rver rdir rexec rdesk rsrc n2 pn low name fn bn bnorm rn dup f d exec_path root owner fl
     local -a reg_names=() fuzzy=()
 
-    # ۱) رجیستری tar.gz (نصب‌شده با این اسکریپت)
+    # ۱) رجیستری tar.gz
     if [ -f "$REGISTRY_DB" ]; then
         while IFS='|' read -r rname rver rdir rexec rdesk rsrc; do
             [ -z "$rname" ] && continue
@@ -39,7 +39,7 @@ find_app_instances() {
         done < "$REGISTRY_DB"
     fi
 
-    # ۲) apt (دقیق + تقریبی)
+    # ۲) apt — تطبیق دقیق، در غیر این صورت جستجوی پیشوندی
     if pkg_installed "$raw"; then
         FOUND_LINES+=("apt|$raw|بسته deb نصب‌شده|")
     else
@@ -76,9 +76,8 @@ find_app_instances() {
         done < <(flatpak list --app --columns=application 2>/dev/null)
     fi
 
-    # ۵) پوشه‌های /opt — با تشخیص مالکیت deb
-    #    (اگر پوشه متعلق به بسته deb باشد، حذف باید از طریق apt انجام شود
-    #     تا بسته در وضعیت خراب باقی نماند)
+    # ۵) پوشه‌های /opt — پوشه متعلق به بسته deb باید از طریق apt حذف شود
+    #    تا بسته در وضعیت خراب باقی نماند
     for d in /opt/*/; do
         [ -d "$d" ] || continue
         d="${d%/}"
@@ -122,11 +121,11 @@ find_app_instances() {
     return 0
 }
 
-# حذف کامل یک برنامه نصب‌شده از پوشه (symlink ها + فایل desktop + رجیستری)
+# حذف کامل یک نصب پوشه‌ای: symlink ها + فایل‌های desktop + رجیستری
 remove_dir_app() {   # $1=مسیر ریشه نصب  $2=نام برنامه
     local dir="$1" name="$2"
 
-    # محافظت از مسیرهای حساس
+    # مسیرهای حساس قابل حذف نیستند
     case "$dir" in
         ""|"/"|"/opt"|"$HOME"|"$HOME"/)
             failure "مسیر حذف نامعتبر: $dir"
@@ -134,7 +133,7 @@ remove_dir_app() {   # $1=مسیر ریشه نصب  $2=نام برنامه
             ;;
     esac
 
-    # حذف symlink های /usr/local/bin که به داخل این پوشه اشاره می‌کنند
+    # حذف symlink های /usr/local/bin اشاره‌کننده به داخل این پوشه
     local l target removed_links=0
     for l in /usr/local/bin/*; do
         [ -L "$l" ] || continue
@@ -145,7 +144,7 @@ remove_dir_app() {   # $1=مسیر ریشه نصب  $2=نام برنامه
         fi
     done
 
-    # حذف فایل‌های desktop که به این مسیر اشاره می‌کنند
+    # حذف فایل‌های desktop اشاره‌کننده به این مسیر
     local f
     for f in /usr/share/applications/*.desktop "$HOME"/.local/share/applications/*.desktop; do
         [ -f "$f" ] || continue
@@ -154,7 +153,6 @@ remove_dir_app() {   # $1=مسیر ریشه نصب  $2=نام برنامه
         fi
     done
 
-    # حذف خود پوشه
     if [ -d "$dir" ]; then
         sudo rm -rf "$dir"
     else
@@ -186,9 +184,7 @@ offer_user_data_cleanup() {   # $1=نام برنامه
         done < <(find "$HOME/.var/app" -maxdepth 1 -type d -iname "*${raw}*" 2>/dev/null)
     fi
 
-    # پوشه‌های خاص برنامه‌های معروف
-    # (v5.4: مسیرهای Firefox کامل شد و nodejs/npm اضافه شد —
-    #  جایگزین توابع purge_firefox/purge_nodejs حذف‌شده)
+    # مسیرهای داده برنامه‌های شناخته‌شده
     case "${raw,,}" in
         firefox|firefox-esr)
             for d in "$HOME/.mozilla" "$HOME/.cache/mozilla" \
@@ -233,7 +229,7 @@ offer_user_data_cleanup() {   # $1=نام برنامه
     return 0
 }
 
-# حذف کامل یک برنامه از هر منبعی (منوی تعاملی یا آرگومان CLI)
+# حذف کامل یک برنامه از هر منبع — تعاملی یا از CLI با --cleanup
 cleanup_app() {   # $1 اختیاری = نام برنامه
     header "🧹 حذف کامل برنامه"
 
@@ -264,7 +260,6 @@ cleanup_app() {   # $1 اختیاری = نام برنامه
     echo "   0) انصراف"
     echo ""
 
-    # در حالت CLI با -y، همه موارد به‌صورت خودکار انتخاب می‌شوند
     local sel
     if [ "$CLI_MODE" = "1" ] && [ "$ASSUME_YES" = "1" ]; then
         sel="a"
@@ -423,11 +418,10 @@ cleanup_desktop_orphans() {
     return 0
 }
 
-# لیست همه برنامه‌ها از همه منابع
+# فهرست همه برنامه‌ها از همه منابع
 list_all_apps() {
     header "لیست برنامه‌های نصب‌شده (همه منابع)"
 
-    # نام‌های ثبت‌شده در رجیستری (برای جلوگیری از نمایش تکراری)
     local -a reg_names=()
     local rname rn
     if [ -s "$REGISTRY_DB" ]; then

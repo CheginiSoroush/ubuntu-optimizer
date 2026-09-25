@@ -1,6 +1,6 @@
 # ============================================================
+#   lib/fixnet.sh — ساخت و اجرای اسکریپت fixnet (دو زبانه)
 #   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
-#   lib/fixnet.sh — ساخت و اجرای اسکریپت fixnet (دو زبانه v2.0)
 # ============================================================
 
 create_fixnet_script() {
@@ -8,11 +8,8 @@ create_fixnet_script() {
 
     cat << 'FIXNET_EOF' > "$HOME/fix-network.sh"
 #!/bin/bash
-
-# ============================================
-# Fix Network Script - نسخه ۲.۰ (دو زبانه)
-# رفع مشکلات شبکه پس از قطع VPN در لینوکس
-# ============================================
+# Fix Network Script v2.0 — دو زبانه
+# رفع مشکلات شبکه پس از قطع VPN
 
 # تشخیص خودکار زبان سیستم
 case "${LANGUAGE:-${LANG:-en}}" in
@@ -20,9 +17,7 @@ case "${LANGUAGE:-${LANG:-en}}" in
     *)   LNG="en" ;;
 esac
 
-# ============================================
-# تعریف پیام‌ها (دو زبانه)
-# ============================================
+# ---------- پیام‌ها ----------
 if [ "$LNG" = "en" ]; then
     MSG_START="Starting network repair process..."
     MSG_DONE="Network repair completed!"
@@ -79,32 +74,29 @@ else
     MSG_REMOVED="حذف شد"
 fi
 
-# رنگ‌ها
+# ---------- رنگ‌ها ----------
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m'
 
-# ============================================
-# شروع اسکریپت
-# ============================================
 echo -e "${BLUE}========================================${NC}"
 echo -e "${BLUE}   $MSG_START${NC}"
 echo -e "${BLUE}========================================${NC}"
 
-# 1. حذف TUN
+# ۱) حذف اینترفیس‌های TUN باقی‌مانده از VPN
 echo -e "${YELLOW}[1/7] $MSG_REMOVE_TUN${NC}"
 for iface in $(ip link show | grep -o 'tun[0-9]*'); do
     sudo ip link delete "$iface" 2>/dev/null && echo -e "${GREEN}✓ $iface $MSG_REMOVED${NC}"
 done
 echo -e "${GREEN}✓ $MSG_TUN_CHECK${NC}"
 
-# 2. غیرفعال کردن پروکسی
+# ۲) غیرفعال کردن پروکسی سیستمی
 echo -e "${YELLOW}[2/7] $MSG_DISABLE_PROXY${NC}"
 gsettings set org.gnome.system.proxy mode 'none' 2>/dev/null && echo -e "${GREEN}✓ $MSG_PROXY_DISABLED${NC}"
 
-# 3. پاک کردن متغیرها
+# ۳) پاک کردن متغیرهای محیطی پروکسی
 echo -e "${YELLOW}[3/7] $MSG_CLEAR_ENV${NC}"
 unset http_proxy https_proxy all_proxy no_proxy HTTP_PROXY HTTPS_PROXY ALL_PROXY NO_PROXY
 export http_proxy=""
@@ -112,19 +104,19 @@ export https_proxy=""
 export all_proxy=""
 echo -e "${GREEN}✓ $MSG_ENV_CLEARED${NC}"
 
-# 4. ری‌استارت NetworkManager
+# ۴) ری‌استارت NetworkManager
 echo -e "${YELLOW}[4/7] $MSG_RESTART_NM${NC}"
 sudo systemctl daemon-reload
 sudo systemctl restart NetworkManager
 echo -e "${GREEN}✓ $MSG_NM_RESTARTED${NC}"
 
-# 5. تنظیم DNS
+# ۵) تنظیم DNS
 echo -e "${YELLOW}[5/7] $MSG_SET_DNS${NC}"
 sudo bash -c 'echo "nameserver 8.8.8.8" > /etc/resolv.conf'
 sudo bash -c 'echo "nameserver 1.1.1.1" >> /etc/resolv.conf'
 echo -e "${GREEN}✓ $MSG_DNS_SET${NC}"
 
-# 6. فلش کش DNS
+# ۶) فلش کش DNS
 echo -e "${YELLOW}[6/7] $MSG_FLUSH_DNS${NC}"
 if command -v resolvectl &> /dev/null; then
     sudo resolvectl flush-caches 2>/dev/null && echo -e "${GREEN}✓ $MSG_DNS_FLUSHED${NC}"
@@ -134,7 +126,7 @@ else
     echo -e "${YELLOW}⚠ $MSG_DNS_NOT_SUPPORTED${NC}"
 fi
 
-# 7. تست اتصال با Retry
+# ۷) تست اتصال با تلاش مجدد
 echo -e "${YELLOW}[7/7] $MSG_TESTING${NC}"
 echo -e "${YELLOW}⏳ $MSG_WAITING${NC}"
 sleep 3
@@ -167,30 +159,3 @@ fi
 echo -e "${BLUE}========================================${NC}"
 echo -e "${GREEN}$MSG_DONE${NC}"
 echo -e "${BLUE}========================================${NC}"
-FIXNET_EOF
-
-    chmod +x "$HOME/fix-network.sh"
-
-    # افزودن alias به شل کاربر (بدون sudo — چون gsettings باید
-    # به‌عنوان کاربر اجرا شود، نه root)
-    local rc
-    for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
-        [ -f "$rc" ] || continue
-        if ! grep -q "alias fixnet=" "$rc"; then
-            echo 'alias fixnet="$HOME/fix-network.sh"' >> "$rc"
-        fi
-    done
-
-    success "اسکریپت fixnet ساخته شد: ~/fix-network.sh"
-    info "دستور «fixnet» به شل اضافه شد."
-    info "برای فعال شدن: ترمینال را ببندید و باز کنید یا «source ~/.bashrc» بزنید."
-}
-
-run_fixnet() {
-    if [ -x "$HOME/fix-network.sh" ]; then
-        bash "$HOME/fix-network.sh"
-    else
-        failure "اسکریپت fixnet هنوز ساخته نشده است. اول گزینه «ساخت» را اجرا کنید."
-        return 1
-    fi
-}

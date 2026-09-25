@@ -1,15 +1,12 @@
 #!/bin/bash
-
 # ============================================================
-#   install.sh — نصب و مدیریت خودِ Ubuntu Optimizer & Fixer
-#
+#   install.sh — نصب و مدیریت Ubuntu Optimizer & Fixer
 #   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
 #
-#   اجرا:
-#     ./install.sh               → نصب کامل (سلامت + میان‌بر uo + alias + PATH)
-#     ./install.sh --check       → بررسی سلامت فایل‌ها و وضعیت نصب
-#     ./install.sh --update      → به‌روزرسانی از git (اگر مخزن git باشد)
-#     ./install.sh --uninstall   → حذف میان‌بر و alias (خود پروژه دست‌نخورده)
+#   ./install.sh              نصب: بررسی سلامت + میان‌بر uo + alias + PATH
+#   ./install.sh --check      بررسی سلامت فایل‌ها و وضعیت نصب
+#   ./install.sh --update     به‌روزرسانی از git (اگر مخزن git باشد)
+#   ./install.sh --uninstall  حذف میان‌بر و alias (بدون حذف خود پروژه)
 # ============================================================
 
 GREEN='\033[0;32m'
@@ -32,7 +29,7 @@ REQUIRED_MODULES=(common network system fixnet packages targz appmgmt snapflatpa
 
 version() { grep -m1 -oE 'v[0-9]+(\.[0-9]+)+' "$MAIN_SCRIPT" 2>/dev/null; }
 
-# ---------- بررسی سلامت همه فایل‌های پروژه ----------
+# ---------- بررسی سلامت فایل‌های پروژه ----------
 check_health() {
     echo -e "${BOLD}── بررسی سلامت فایل‌ها ──${NC}"
     if [ ! -f "$MAIN_SCRIPT" ]; then
@@ -67,7 +64,7 @@ check_health() {
     return 0
 }
 
-# ---------- وضعیت نصب فعلی ----------
+# ---------- وضعیت نصب ----------
 check_install_status() {
     echo -e "${BOLD}── وضعیت نصب ──${NC}"
     if [ -L "$BIN_LINK" ]; then
@@ -153,8 +150,7 @@ do_install() {
         ok "alias «uo» به ~/.zshrc اضافه شد."
     fi
 
-    # مسیر ~/.local/bin در فایل‌های شل — برای اینکه «uo» حتی بدون
-    # alias هم کار کند (مثلاً داخل اسکریپت‌ها یا شل‌های دیگر)
+    # مسیر ~/.local/bin برای در دسترس بودن «uo» بدون alias
     _add_path_block "$HOME/.bashrc"
     _add_path_block "$HOME/.zshrc"
     ok "مسیر $BIN_DIR در فایل‌های شل تنظیم شد."
@@ -165,7 +161,7 @@ do_install() {
     inf "استفاده:  uo   |   uo --report   |   uo --help"
 }
 
-# ---------- به‌روزرسانی ----------
+# ---------- به‌روزرسانی از git ----------
 do_update() {
     echo -e "${BOLD}${CYAN}به‌روزرسانی Ubuntu Optimizer & Fixer${NC}"
     echo ""
@@ -185,8 +181,7 @@ do_update() {
         fi
     else
         inf "این پوشه یک مخزن git نیست؛ به‌روزرسانی خودکار ممکن نیست."
-        inf "روش دستی: فایل‌های جدید را در همین پوشه جایگزین کنید، سپس:"
-        inf "  $0 --check"
+        inf "روش دستی: فایل‌های جدید را جایگزین کنید، سپس: $0 --check"
         exit 0
     fi
 }

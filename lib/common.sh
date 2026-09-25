@@ -1,7 +1,7 @@
 # ============================================================
+#   lib/common.sh — ثابت‌ها، توابع مشترک، رجیستری و سیستم لاگ
 #   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
-#   lib/common.sh — رنگ‌ها، توابع کمکی، رجیستری و سیستم لاگ
-#   (این فایل مستقیماً اجرا نمی‌شود؛ توسط فایل اصلی source می‌شود)
+#   این فایل مستقیماً اجرا نمی‌شود؛ توسط فایل اصلی source می‌شود.
 # ============================================================
 
 # ---------- ثابت‌ها ----------
@@ -12,10 +12,10 @@ readonly POLKIT_RULE_FILE="/etc/polkit-1/rules.d/10-disable-password-timeout.rul
 readonly REGISTRY_DIR="$HOME/.local/share/ubuntu-optimizer"
 readonly REGISTRY_DB="$REGISTRY_DIR/apps.db"
 
-# ---------- تنظیمات لاگ ----------
+# ---------- لاگ ----------
 readonly LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/ubuntu-optimizer"
 readonly LOG_FILE="$LOG_DIR/optimizer.log"
-readonly LOG_MAX_BYTES=1048576   # ۱ مگابایت — بزرگ‌تر شد، لاگ چرخش می‌کند
+readonly LOG_MAX_BYTES=1048576   # 1MB — پس از عبور، لاگ به .old منتقل می‌شود
 
 LOG_ENABLED=1
 LOG_OK_COUNT=0
@@ -33,7 +33,7 @@ BOLD='\033[1m'
 NC='\033[0m'
 
 # ============================================================
-#   هسته‌ی سیستم لاگ
+#   سیستم لاگ
 # ============================================================
 
 # حذف کدهای رنگ ANSI از متن قبل از ذخیره در لاگ
@@ -41,7 +41,7 @@ _strip_ansi() {
     printf '%s' "$1" | sed 's/\x1b\[[0-9;]*m//g'
 }
 
-# چرخش لاگ: اگر از ۱ مگابایت بزرگ‌تر شد، نسخه فعلی → .old
+# چرخش لاگ در صورت عبور از حد مجاز
 _log_rotate() {
     [ -f "$LOG_FILE" ] || return 0
     local size
@@ -52,14 +52,14 @@ _log_rotate() {
     return 0
 }
 
-# نوشتن یک خط در لاگ — $1=سطح (OK/ERROR/WARN/INFO/SECTION/SESSION)  $2=پیام
+# نوشتن یک خط در لاگ — $1=سطح  $2=پیام
 log_write() {
     [ "$LOG_ENABLED" = "1" ] || return 0
     mkdir -p "$LOG_DIR" 2>/dev/null || return 0
     printf '[%s] %-8s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" "$(_strip_ansi "$2")" >> "$LOG_FILE"
 }
 
-# شروع نشست — $1=نوع اجرا (cli / interactive)  بقیه پارامترها=آرگومان‌ها
+# شروع نشست — $1=نوع اجرا (cli/interactive)، بقیه=آرگومان‌ها
 log_session_start() {
     [ "$LOG_ENABLED" = "1" ] || return 0
     _log_rotate
@@ -70,14 +70,12 @@ log_session_start() {
     log_write "SESSION" "════ شروع نشست ($mode)$extra ════"
 }
 
-# پایان نشست — ثبت خلاصه در لاگ
 log_session_end() {
     [ "$LOG_ENABLED" = "1" ] || return 0
     log_write "SESSION" "خلاصه نشست: موفق=$LOG_OK_COUNT  خطا=$LOG_FAIL_COUNT  هشدار=$LOG_WARN_COUNT"
     log_write "SESSION" "════ پایان نشست ════"
 }
 
-# چاپ خلاصه پایان اجرا در ترمینال
 print_session_summary() {
     echo ""
     echo -e "${BOLD}── خلاصه این اجرا ──${NC}"
@@ -88,14 +86,13 @@ print_session_summary() {
     return 0
 }
 
-# نمایش آخرین خطوط لاگ (پرچم --log و گزینه ۱۳ منو)
 show_log() {
     header "📜 لاگ فعالیت‌ها (آخرین ۶۰ خط)"
     if [ -f "$LOG_FILE" ]; then
         tail -n 60 "$LOG_FILE"
         echo ""
         info "مسیر کامل: $LOG_FILE"
-        [ -f "$LOG_FILE.old" ] && info "لاگ قدیمی (چرخش‌یافته): $LOG_FILE.old"
+        [ -f "$LOG_FILE.old" ] && info "لاگ قدیمی: $LOG_FILE.old"
     else
         info "هنوز لاگی ثبت نشده است."
         info "لاگ در این مسیر ساخته می‌شود: $LOG_FILE"
@@ -141,7 +138,7 @@ press_enter() {
     read -r -p "   برای ادامه Enter بزنید..." _
 }
 
-# درخواست تأیید yes/no (در حالت -y خودکار تأیید می‌شود)
+# درخواست تأیید yes/no — در حالت -y خودکار تأیید می‌شود
 confirm_action() {
     if [ "$ASSUME_YES" = "1" ]; then
         info "(تأیید خودکار با -y)"
@@ -157,7 +154,7 @@ pkg_installed() {
     dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -q "install ok installed"
 }
 
-# تنظیم/به‌روزرسانی امن یک پارامتر sysctl در فایل اختصاصی اسکریپت
+# تنظیم/به‌روزرسانی یک پارامتر sysctl در فایل اختصاصی اسکریپت
 set_sysctl() {   # $1=کلید  $2=مقدار
     local key_esc=${1//./\\.}
     if sudo grep -qE "^[[:space:]]*${key_esc}[[:space:]]*=" "$SYSCTL_CONF" 2>/dev/null; then
@@ -171,8 +168,7 @@ apply_sysctl() {
     sudo sysctl --system > /dev/null 2>&1
 }
 
-# نام اتصال فعال NetworkManager (حلقه lo نادیده گرفته می‌شود)
-# $1 اختیاری: فیلتر نوع اتصال (مثلاً wireless)
+# نام اتصال فعال NetworkManager — $1 اختیاری: فیلتر نوع اتصال
 get_active_connection() {
     local name dev type
     while IFS=: read -r name dev type; do
@@ -191,7 +187,7 @@ normalize_name() {
     printf '%s' "$1" | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]'
 }
 
-# حدس نسخه از نام فایل (مثل 1.10.4)
+# استخراج نسخه از نام فایل (مثل 1.10.4)
 guess_version() {
     local base
     base=$(basename "$1")

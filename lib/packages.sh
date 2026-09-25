@@ -1,10 +1,6 @@
 # ============================================================
+#   lib/packages.sh — نصب بسته‌ها و برنامه‌ها از مخازن apt
 #   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
-#   lib/packages.sh — نصب بسته‌ها و برنامه‌ها (deb، ابزارها، nodejs)
-#   v5.4: حذف purge_firefox و purge_nodejs — این دو میراث v2.0
-#   بودند و با cleanup_app (منوی ۸ / --cleanup) هم‌پوشانی کامل داشتند.
-#   مسیرهای داده خاص‌شان به offer_user_data_cleanup در
-#   lib/appmgmt.sh منتقل شد تا هیچ قابلیتی از دست نرود.
 # ============================================================
 
 install_essential_tools() {

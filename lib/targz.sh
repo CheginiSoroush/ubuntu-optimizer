@@ -1,13 +1,17 @@
 # ============================================================
-#   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
 #   lib/targz.sh — نصب هوشمند برنامه‌های tar.gz
-#   (تشخیص اجرایی اصلی + بررسی معماری + نصب وابستگی‌ها + رجیستری)
-#   v5.5: پشتیبانی از UO_AUTO (حالت خودکار جریان گیت‌هاب) —
-#   بدون سؤال «نصب مجدد؟»، «اجرا؟» و «کدام اجرایی؟»
+#   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
+#
+#   تشخیص فایل اجرایی اصلی، بررسی معماری، نصب وابستگی‌های
+#   گمشده و ثبت در رجیستری. در حالت UO_AUTO=1 (جریان گیت‌هاب)
+#   بدون سؤال تعاملی اجرا می‌شود.
 # ============================================================
 
-# انتخاب هوشمند فایل اجرایی اصلی بسته (نه ابزارهای کمکی Electron/JVM)
-pick_executable() {   # $1=پوشه‌ی بسته  $2=نام برنامه  →  نتیجه در SELECTED_EXEC
+# انتخاب فایل اجرایی اصلی بسته
+# اولویت: AppImage → تطبیق کامل نام → تطبیق جزئی نام (بدون .bin) →
+# تنها کاندید → در حالت UO_AUTO نخستین کاندید، وگرنه انتخاب کاربر
+# ابزارهای کمکی Electron/JVM کنار گذاشته می‌شوند
+pick_executable() {   # $1=پوشه بسته  $2=نام برنامه  → خروجی: SELECTED_EXEC
     SELECTED_EXEC=""
     local dir="$1" app="$2" f base_norm app_norm choice i
     app_norm=$(normalize_name "$app")
@@ -19,18 +23,15 @@ pick_executable() {   # $1=پوشه‌ی بسته  $2=نام برنامه  →  
         ! -name "crashpad_handler" ! -name "jspawnhelper" 2>/dev/null)
     [ ${#all[@]} -gt 0 ] || return 1
 
-    # ۱) AppImage داخل بسته؟
     for f in "${all[@]}"; do
         basename "$f" | grep -qi appimage && { SELECTED_EXEC="$f"; return 0; }
     done
 
-    # ۲) نام باینری دقیقاً با نام برنامه یکی باشد؟
     for f in "${all[@]}"; do
         base_norm=$(normalize_name "$(basename "$f")")
         [ "$base_norm" = "$app_norm" ] && matched+=("$f")
     done
 
-    # ۳) نام باینری شامل نام برنامه باشد؟
     if [ ${#matched[@]} -eq 0 ]; then
         for f in "${all[@]}"; do
             base_norm=$(normalize_name "$(basename "$f")")
@@ -39,8 +40,7 @@ pick_executable() {   # $1=پوشه‌ی بسته  $2=نام برنامه  →  
     fi
 
     if [ ${#matched[@]} -ge 1 ]; then
-        # در صورت چندتایی: فایل بدون .bin ترجیح دارد
-        # (در Electron: «appname» راه‌انداز درست است و «appname.bin» باینری داخلی)
+        # در بسته‌های Electron، فایل بدون پسوند .bin راه‌انداز اصلی است
         for f in "${matched[@]}"; do
             [[ "$f" != *.bin ]] && { SELECTED_EXEC="$f"; return 0; }
         done
@@ -48,15 +48,13 @@ pick_executable() {   # $1=پوشه‌ی بسته  $2=نام برنامه  →  
         return 0
     fi
 
-    # ۴) فقط یک کاندید کلی؟
     if [ ${#all[@]} -eq 1 ]; then
         SELECTED_EXEC="${all[0]}"
         return 0
     fi
 
-    # ۵) چند کاندید مبهم — در حالت خودکار: اولین؛ وگرنه انتخاب کاربر
     if [ "${UO_AUTO:-0}" = "1" ]; then
-        warn "چند فایل اجرایی هم‌ارزش — در حالت خودکار اولین انتخاب شد: $(basename "${all[0]}")"
+        warn "چند فایل اجرایی هم‌ارزش — نخستین انتخاب شد: $(basename "${all[0]}")"
         SELECTED_EXEC="${all[0]}"
         return 0
     fi
@@ -74,7 +72,7 @@ pick_executable() {   # $1=پوشه‌ی بسته  $2=نام برنامه  →  
     return 1
 }
 
-# نگاشت کتابخانه گمشده به بسته (چند نام برای نسخه‌های مختلف اوبونتو)
+# نگاشت کتابخانه گمشده به بسته deb — چند نام برای نسخه‌های مختلف اوبونتو
 lib_pkg_candidates() {
     case "$1" in
         libwebkit2gtk-4.0*|libjavascriptcoregtk-4.0*) echo "libwebkit2gtk-4.0-37" ;;
@@ -92,9 +90,10 @@ lib_pkg_candidates() {
     esac
 }
 
-# بررسی ldd و نصب خودکار وابستگی‌های گمشده
+# بررسی وابستگی‌های گمشده با ldd و نصب خودکار
 fix_binary_deps() {   # $1 = مسیر فایل اجرایی
     local bin="$1" out missing lib pkgs pkg sibling
+    # اگر فایل اسکریپت راه‌انداز است، باینری واقعی (.bin) کنارش بررسی می‌شود
     if head -c 2 "$bin" 2>/dev/null | grep -q '#!'; then
         sibling=$(find "$(dirname "$bin")" -maxdepth 1 -type f \
                   -name "$(basename "$bin").bin" 2>/dev/null | head -1)
@@ -133,12 +132,13 @@ fix_binary_deps() {   # $1 = مسیر فایل اجرایی
 }
 
 # بررسی سازگاری معماری بسته با سیستم
-check_package_arch() {   # $1 = ریشه‌ی نصب  $2 = فایل اجرایی اصلی
+check_package_arch() {   # $1 = ریشه نصب  $2 = فایل اجرایی اصلی
     local root="$1" target="$2" f info arch sys_arch compatible
 
     command -v file > /dev/null 2>&1 || sudo apt install -y file > /dev/null 2>&1
     command -v file > /dev/null 2>&1 || { info "ابزار file در دسترس نیست؛ بررسی معماری رد شد."; return 0; }
 
+    # اگر اجرایی اصلی اسکریپت است، نخستین باینری ELF بسته بررسی می‌شود
     if head -c 2 "$target" 2>/dev/null | grep -q '#!'; then
         while IFS= read -r f; do
             if file -b "$f" 2>/dev/null | grep -q 'ELF'; then
@@ -169,16 +169,15 @@ check_package_arch() {   # $1 = ریشه‌ی نصب  $2 = فایل اجرایی
     [ "$compatible" = "yes" ] && return 0
 
     failure "ناسازگاری معماری بسته با سیستم!"
-    warn "معماری بسته: $arch  |  معماری سیستم شما: $sys_arch"
-    warn "نسخه‌ی اشتباهی از برنامه دانلود شده است (مثلاً arm64 به‌جای amd64)."
+    warn "معماری بسته: $arch  |  معماری سیستم: $sys_arch"
     case "$sys_arch" in
-        x86_64)  warn "→ فایل نسخه «amd64» یا «x64» برنامه را دانلود کنید." ;;
-        aarch64) warn "→ فایل نسخه «arm64» یا «aarch64» برنامه را دانلود کنید." ;;
+        x86_64)  warn "→ نسخه «amd64» یا «x64» برنامه را دانلود کنید." ;;
+        aarch64) warn "→ نسخه «arm64» یا «aarch64» برنامه را دانلود کنید." ;;
     esac
     return 1
 }
 
-# نصب/به‌روزرسانی برنامه از فایل tar.gz (منطق مشترک نصب و آپدیت)
+# نصب برنامه از فایل tar.gz — منطق مشترک نصب و به‌روزرسانی
 targz_install_from_file() {   # $1=مسیر فایل  $2=نام برنامه
     local TARGZ_PATH="$1" APP_NAME="$2"
 
@@ -188,6 +187,7 @@ targz_install_from_file() {   # $1=مسیر فایل  $2=نام برنامه
     tar -xzf "$TARGZ_PATH" -C "$TEMP_DIR" || { failure "خطا در استخراج فایل."; rm -rf "$TEMP_DIR"; return 1; }
     success "فایل استخراج شد."
 
+    # تشخیص ساختار آرشیو: پوشه ریشه تکی یا فایل‌های سطح بالا
     n=$(ls -A "$TEMP_DIR" | wc -l)
     first=$(ls -A "$TEMP_DIR" | head -1)
     if [ "$n" -eq 1 ] && [ -d "$TEMP_DIR/$first" ]; then
@@ -209,7 +209,7 @@ targz_install_from_file() {   # $1=مسیر فایل  $2=نام برنامه
     if [ -d "$INSTALL_DIR" ]; then
         warn "پوشه $INSTALL_DIR از قبل وجود دارد."
         if [ "${UO_AUTO:-0}" = "1" ]; then
-            info "(حذف و نصب مجدد خودکار — حالت خودکار)"
+            info "(حذف و نصب مجدد خودکار)"
             sudo rm -rf "$INSTALL_DIR"
         elif confirm_action "حذف و نصب مجدد شود؟"; then
             sudo rm -rf "$INSTALL_DIR"
@@ -238,6 +238,7 @@ targz_install_from_file() {   # $1=مسیر فایل  $2=نام برنامه
     sudo ln -sf "$FINAL_EXEC" "/usr/local/bin/$APP_NAME"
     success "دستور اجرا: /usr/local/bin/$APP_NAME"
 
+    # آیکون: بزرگ‌ترین تصویر موجود در بسته
     local ICON_FILE
     ICON_FILE=$(find "$INSTALL_DIR" -type f \( -iname "*.png" -o -iname "*.svg" \) \
                 -printf '%s %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2-)
@@ -260,14 +261,13 @@ EOF
 
     rm -rf "$TEMP_DIR"
 
-    # ★ ثبت در رجیستری برنامه‌ها (برای حذف تمیز و به‌روزرسانی)
     registry_add "$APP_NAME" "$(guess_version "$TARGZ_PATH")" \
                  "$INSTALL_DIR" "$FINAL_EXEC" "$DESKTOP_FILE" "$(basename "$TARGZ_PATH")"
 
     success "🎉 نصب/به‌روزرسانی $APP_NAME کامل شد."
     info "اجرای از ترمینال: $APP_NAME"
 
-    # اجرای آزمایشی فقط در حالت تعاملی — نه در جریان خودکار گیت‌هاب
+    # اجرای آزمایشی فقط در حالت تعاملی
     if [ "${UO_AUTO:-0}" = "1" ]; then
         info "(اجرای آزمایشی در حالت خودکار رد شد)"
     elif confirm_action "همین حالا اجرا شود تا از کارکردش مطمئن شویم؟"; then
@@ -277,13 +277,14 @@ EOF
     return 0
 }
 
+# نصب تعاملی از منو
 install_targz() {
     header "نصب برنامه از فایل .tar.gz"
     echo "   برای برنامه‌هایی که فقط فایل فشرده منتشر می‌کنند."
-    echo "   • فایل اجرایی اصلی به‌صورت هوشمند تشخیص داده می‌شود"
-    echo "   • معماری بسته با سیستم چک می‌شود (خطای arm64/amd64)"
-    echo "   • وابستگی‌های گمشده به‌صورت خودکار نصب می‌شوند"
-    echo "   • برنامه در رجیستری ثبت می‌شود (برای حذف/به‌روزرسانی بعدی)"
+    echo "   • تشخیص خودکار فایل اجرایی اصلی"
+    echo "   • بررسی معماری بسته با سیستم"
+    echo "   • نصب خودکار وابستگی‌های گمشده"
+    echo "   • ثبت در رجیستری (برای حذف و به‌روزرسانی بعدی)"
     echo ""
 
     local TARGZ_PATH APP_NAME
@@ -299,8 +300,8 @@ install_targz() {
     targz_install_from_file "$TARGZ_PATH" "$APP_NAME"
 }
 
-# نصب tar.gz از حالت CLI — بدون منو
-install_targz_cli() {   # $1=مسیر فایل  $2=نام اختیاری
+# نصب از حالت CLI — $1=مسیر فایل  $2=نام اختیاری
+install_targz_cli() {
     local TARGZ_PATH="$1" APP_NAME="$2"
 
     TARGZ_PATH=${TARGZ_PATH/#\~/$HOME}

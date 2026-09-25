@@ -1,23 +1,14 @@
 #!/bin/bash
-
 # ============================================================
-#   Ubuntu Optimizer & Fixer - v5.5 (نسخه ماژولار)
-#
+#   Ubuntu Optimizer & Fixer — v5.5
 #   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
 #   github.com/CheginiSoroush/ubuntu-optimizer
 #
-#   فایل اصلی: بارگذاری ماژول‌ها + حالت CLI + منوی اصلی
-#   جدید در v5.5:
-#     + ماژول github — نصب و به‌روزرسانی برنامه‌ها از GitHub
-#       Releases (انتخاب هوشمند فایل + فیلتر معماری + دانلود
-#       موقت + نصب خودکار + حذف فایل دانلودی)
-#   v5.4: رفع هم‌پوشانی منوها + گروه‌بندی بصری منوی اصلی
-#
-#   ماژول‌ها در پوشه lib/ کنار همین فایل قرار دارند.
-#   اجرای مستقیم فایل‌های lib/ ممکن نیست — همیشه از همین فایل اجرا کن.
+#   فایل اصلی پروژه: بارگذاری ماژول‌ها، پردازش آرگومان‌های CLI
+#   و اجرای منوی تعاملی. ماژول‌ها در lib/ کنار همین فایل قرار
+#   دارند و باید همیشه از همین فایل اجرا شوند.
 # ============================================================
 
-# مسیر پوشه‌ی اسکریپت (مستقل از اینکه از کجا اجرا شود یا symlink باشد)
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # ---------- بارگذاری ماژول‌ها ----------
@@ -28,8 +19,7 @@ for _lib in common network system fixnet packages targz appmgmt snapflatpak reco
         source "$_libfile"
     else
         echo "✗ ماژول پیدا نشد: lib/${_lib}.sh"
-        echo "  ℹ همه فایل‌ها باید در ساختار پوشه‌ای کنار هم باشند:"
-        echo "    ubuntu-optimizer.sh + lib/*.sh"
+        echo "  ℹ ساختار صحیح: ubuntu-optimizer.sh + lib/*.sh در یک پوشه"
         exit 1
     fi
 done
@@ -45,15 +35,11 @@ INSTALL_TARGZ_FILE=""
 INSTALL_TARGZ_NAME=""
 GITHUB_INSTALL_REPO=""
 GITHUB_INSTALL_NAME=""
-ORIG_ARGS="$*"   # آرگومان‌های اصلی برای ثبت در لاگ (قبل از مصرف توسط حلقه)
-
-# ============================================================
-#   راهنمای CLI
-# ============================================================
+ORIG_ARGS="$*"   # آرگومان‌های اصلی برای ثبت در لاگ
 
 usage() {
     cat << 'EOF'
-Ubuntu Optimizer & Fixer - v5.5 (ماژولار)
+Ubuntu Optimizer & Fixer - v5.5
 
 استفاده:
   uo                          → منوی تعاملی
@@ -62,23 +48,21 @@ Ubuntu Optimizer & Fixer - v5.5 (ماژولار)
 گزینه‌ها:
   -h, --help          نمایش این راهنما
   -V, --version       نمایش نسخه برنامه
-  -y, --yes           تأیید خودکار همه سؤال‌ها (با احتیاط!)
+  -y, --yes           تأیید خودکار همه سؤال‌ها
   --no-color          خروجی بدون رنگ
 
   --report            گزارش وضعیت سیستم (فقط خواندنی)
 
-  --git-ssh           ویزارد راه‌اندازی کلید SSH گیت‌هاب (بدون رمز)
+  --git-ssh           ویزارد راه‌اندازی کلید SSH گیت‌هاب
   --git-ssh-status    وضعیت کلید SSH و احراز هویت گیت‌هاب
 
   --github-install OWNER/REPO [NAME]
-                      نصب برنامه از آخرین release گیت‌هاب — انتخاب
-                      هوشمند فایل (فیلتر معماری) + حذف خودکار فایل دانلودی
-  --github-update     بررسی و نصب به‌روزرسانی همه برنامه‌های گیت‌هابی
+                      نصب برنامه از آخرین release گیت‌هاب
+  --github-update     بررسی و نصب به‌روزرسانی برنامه‌های گیت‌هابی
   --github-list       فهرست برنامه‌های ردیابی‌شده از گیت‌هاب
 
   --install-targz FILE [NAME]
-                      نصب برنامه از فایل .tar.gz (اگر NAME ندهید،
-                      از نام فایل حدس زده می‌شود) — هوشمند + رجیستری
+                      نصب برنامه از فایل .tar.gz
 
   --optimize          همه بهینه‌سازی‌های شبکه + سیستم
   --network           بهینه‌سازی شبکه (BBR, DNS, MTU, TCP)
@@ -107,7 +91,6 @@ Ubuntu Optimizer & Fixer - v5.5 (ماژولار)
 مثال‌ها:
   uo --report
   uo --github-install junegunn/fzf fzf
-  uo --github-update
   uo --install-targz ~/Downloads/app.tar.gz myapp
   uo --update -y
   uo --cleanup abdownloadmanager --purge-data
@@ -124,10 +107,9 @@ if [ "$EUID" -eq 0 ]; then
     exit 1
 fi
 
-# خروج تمیز با Ctrl+C
 trap 'echo ""; warn "خروج..."; exit 130' INT TERM
 
-# ---------- پردازش آرگومان‌ها (حالت CLI) ----------
+# ---------- پردازش آرگومان‌ها ----------
 while [ $# -gt 0 ]; do
     case "$1" in
         -h|--help)        usage; exit 0 ;;
@@ -144,7 +126,7 @@ while [ $# -gt 0 ]; do
             if [ $# -ge 2 ]; then
                 GITHUB_INSTALL_REPO="$2"
                 shift 2
-                # نام اختیاری — اگر آرگومان بعدی پرچم نیست، نام برنامه است
+                # نام اختیاری — آرگومان بعدی اگر پرچم نباشد نام برنامه است
                 if [ $# -ge 1 ] && [[ "$1" != -* ]]; then
                     GITHUB_INSTALL_NAME="$1"
                     shift
