@@ -177,6 +177,17 @@ check_package_arch() {   # $1 = ریشه نصب  $2 = فایل اجرایی اص
     return 1
 }
 
+# حذف رد‌های رجیستری که به مسیر نصب مشخصی اشاره می‌کنند ولی نامشان
+# متفاوت است — جلوگیری از رد‌های مرواریدی پس از نام‌گذاری متفاوت
+registry_remove_by_dir() {   # $1=مسیر نصب  $2=نام مجاز (حفظ می‌شود)
+    [ -f "$REGISTRY_DB" ] || return 0
+    local tmp="$REGISTRY_DB.tmp"
+    awk -F'|' -v dir="$1" -v keep="$2" \
+        '!($3 == dir && $1 != keep)' "$REGISTRY_DB" > "$tmp" 2>/dev/null
+    mv "$tmp" "$REGISTRY_DB"
+    return 0
+}
+
 # نصب برنامه از فایل tar.gz — منطق مشترک نصب و به‌روزرسانی
 targz_install_from_file() {   # $1=مسیر فایل  $2=نام برنامه
     local TARGZ_PATH="$1" APP_NAME="$2"
@@ -261,6 +272,8 @@ EOF
 
     rm -rf "$TEMP_DIR"
 
+    # پیش از ثبت، رد‌های مرواریدی با نام دیگر اما مسیر نصب یکسان حذف می‌شوند
+    registry_remove_by_dir "$INSTALL_DIR" "$APP_NAME"
     registry_add "$APP_NAME" "$(guess_version "$TARGZ_PATH")" \
                  "$INSTALL_DIR" "$FINAL_EXEC" "$DESKTOP_FILE" "$(basename "$TARGZ_PATH")"
 

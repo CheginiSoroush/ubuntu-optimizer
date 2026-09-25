@@ -216,6 +216,8 @@ update_apt() {
 }
 
 # بررسی به‌روزرسانی برنامه‌های tar.gz — اسکن Downloads + مسیر/URL دستی
+# خودترمیمی: رد‌های بی‌نسخه که مسیرشان با رد دیگری (دارای نسخه)
+# یکسان است، پیش از اسکن حذف می‌شوند
 update_targz_apps() {
     header "بررسی به‌روزرسانی برنامه‌های tar.gz"
 
@@ -225,6 +227,25 @@ update_targz_apps() {
         info "برای ردیابی به‌روزرسانی، یک‌بار دوباره نصبشان کنید."
         return 0
     fi
+
+    # خودترمیمی رد‌های مرواریدی
+    local -a db_lines=()
+    mapfile -t db_lines < "$REGISTRY_DB"
+    local l n1 v1 d1 n2 v2 d2 i clean_removed=0
+    for l in "${db_lines[@]}"; do
+        IFS='|' read -r n1 v1 d1 <<< "$l"
+        [ -z "$v1" ] || continue
+        for i in "${!db_lines[@]}"; do
+            IFS='|' read -r n2 v2 d2 <<< "${db_lines[$i]}"
+            if [ -n "$v2" ] && [ "$d2" = "$d1" ]; then
+                info "رد مرواریدی «$n1» (بی‌نسخه، مسیر تکراری) حذف شد."
+                registry_remove "$n1"
+                clean_removed=1
+                break
+            fi
+        done
+    done
+    [ "$clean_removed" = "1" ] && mapfile -t db_lines < "$REGISTRY_DB"
 
     # اسنپ‌شات کامل بانک پیش از حلقه — read های تعاملی داخل حلقه
     # نباید خطوط خود فایل را مصرف کنند و بازنویسی بانک در میانه
