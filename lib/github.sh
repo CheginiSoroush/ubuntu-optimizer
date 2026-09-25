@@ -29,6 +29,12 @@ gh_db_remove() {   # $1=name
     mv "$tmp" "$GITHUB_DB"
 }
 
+# آیا برنامه در بانک گیت‌هاب ثبت شده است؟
+gh_db_has() {   # $1=name
+    [ -f "$GITHUB_DB" ] || return 1
+    grep -q "^${1}|" "$GITHUB_DB" 2>/dev/null
+}
+
 # ---------- دریافت آخرین release ----------
 # خروجی: GH_TAG (نسخه) و آرایه GH_URLS (آدرس فایل‌های release)
 gh_fetch_latest() {   # $1 = OWNER/REPO یا URL کامل
@@ -246,6 +252,42 @@ github_install_repo() {   # $1=repo (اختیاری در منو)  $2=نام اخ
     info "فایل انتخاب‌شده: $(basename "$GH_PICKED_URL")"
 
     gh_download_and_install "$GH_PICKED_URL" "$name" "$repo" "$GH_TAG"
+}
+
+# ---------- حذف برنامه گیت‌هابی ----------
+# حذف خود برنامه از سیستم (تمام منابع) + حذف رد از بانک گیت‌هاب
+# در یک عملیات. رد tar.gz توسط cleanup_app خودکار حذف می‌شود.
+github_remove_app() {   # $1 اختیاری = نام برنامه
+    header "🐙 حذف برنامه از گیت‌هاب"
+
+    local raw
+    if [ -n "${1:-}" ]; then
+        raw="$1"
+    else
+        if [ -s "$GITHUB_DB" ]; then
+            info "برنامه‌های ردیابی‌شده:"
+            awk -F'|' '{printf "      • %s (%s) ← %s\n", $1, $3, $2}' "$GITHUB_DB"
+            echo ""
+        fi
+        read -r -p "   نام برنامه برای حذف: " raw
+    fi
+    [ -z "$raw" ] && { failure "نام وارد نشد."; return 1; }
+
+    if ! gh_db_has "$raw"; then
+        failure "برنامه‌ای با نام «$raw» در فهرست گیت‌هاب نیست."
+        info "فهرست فعلی: uo --github-list"
+        return 1
+    fi
+
+    # حذف خود برنامه از سیستم — همه منابع، با داده‌های کاربری
+    if ! cleanup_app "$raw"; then
+        warn "برنامه از سیستم حذف نشد — رد گیت‌هاب نگه داشته می‌شود."
+        return 1
+    fi
+
+    gh_db_remove "$raw"
+    success "رد «$raw» از فهرست ردیابی گیت‌هاب حذف شد."
+    return 0
 }
 
 # ---------- بررسی به‌روزرسانی ----------

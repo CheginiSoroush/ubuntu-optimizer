@@ -60,6 +60,7 @@ Ubuntu Optimizer & Fixer - v5.5
                       نصب برنامه از آخرین release گیت‌هاب
   --github-update     بررسی و نصب به‌روزرسانی برنامه‌های گیت‌هابی
   --github-list       فهرست برنامه‌های ردیابی‌شده از گیت‌هاب
+  --github-remove NAME  حذف کامل برنامه گیت‌هابی + رد ردیابی آن
 
   --install-targz FILE [NAME]
                       نصب برنامه از فایل .tar.gz
@@ -122,6 +123,7 @@ while [ $# -gt 0 ]; do
         --git-ssh-status) CLI_ACTIONS+=("gitssh_status|وضعیت SSH گیت‌هاب"); shift ;;
         --github-update)  CLI_ACTIONS+=("github_update_apps|به‌روزرسانی گیت‌هاب"); shift ;;
         --github-list)    CLI_ACTIONS+=("github_list_apps|فهرست گیت‌هاب"); shift ;;
+        --github-remove)  CLI_ACTIONS+=("github_remove_app|حذف برنامه گیت‌هاب"); shift ;;
         --github-install)
             if [ $# -ge 2 ]; then
                 GITHUB_INSTALL_REPO="$2"
