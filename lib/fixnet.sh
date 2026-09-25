@@ -159,3 +159,29 @@ fi
 echo -e "${BLUE}========================================${NC}"
 echo -e "${GREEN}$MSG_DONE${NC}"
 echo -e "${BLUE}========================================${NC}"
+FIXNET_EOF
+
+    chmod +x "$HOME/fix-network.sh"
+
+    # gsettings باید با کاربر عادی اجرا شود؛ به همین دلیل alias بدون sudo است
+    local rc
+    for rc in "$HOME/.bashrc" "$HOME/.zshrc"; do
+        [ -f "$rc" ] || continue
+        if ! grep -q "alias fixnet=" "$rc"; then
+            echo 'alias fixnet="$HOME/fix-network.sh"' >> "$rc"
+        fi
+    done
+
+    success "اسکریپت fixnet ساخته شد: ~/fix-network.sh"
+    info "دستور «fixnet» به شل اضافه شد."
+    info "برای فعال شدن: ترمینال را ببندید و باز کنید یا «source ~/.bashrc» بزنید."
+}
+
+run_fixnet() {
+    if [ -x "$HOME/fix-network.sh" ]; then
+        bash "$HOME/fix-network.sh"
+    else
+        failure "اسکریپت fixnet هنوز ساخته نشده است. اول گزینه «ساخت» را اجرا کنید."
+        return 1
+    fi
+}
