@@ -36,7 +36,6 @@ INSTALL_TARGZ_NAME=""
 GITHUB_INSTALL_REPO=""
 GITHUB_INSTALL_NAME=""
 GITHUB_REMOVE_TARGET=""
-GITHUB_REMOVE_TARGET=""
 ORIG_ARGS="$*"   # آرگومان‌های اصلی برای ثبت در لاگ
 
 usage() {
@@ -62,7 +61,8 @@ Ubuntu Optimizer & Fixer - v5.5
                       نصب برنامه از آخرین release گیت‌هاب
   --github-update     بررسی و نصب به‌روزرسانی برنامه‌های گیت‌هابی
   --github-list       فهرست برنامه‌های ردیابی‌شده از گیت‌هاب
-  --github-remove NAME  حذف کامل برنامه گیت‌هابی + رد ردیابی آن
+  --github-remove NAME
+                      حذف کامل برنامه گیت‌هابی + رد ردیابی آن
 
   --install-targz FILE [NAME]
                       نصب برنامه از فایل .tar.gz
@@ -94,6 +94,7 @@ Ubuntu Optimizer & Fixer - v5.5
 مثال‌ها:
   uo --report
   uo --github-install junegunn/fzf fzf
+  uo --github-remove karing
   uo --install-targz ~/Downloads/app.tar.gz myapp
   uo --update -y
   uo --cleanup abdownloadmanager --purge-data
@@ -125,22 +126,6 @@ while [ $# -gt 0 ]; do
         --git-ssh-status) CLI_ACTIONS+=("gitssh_status|وضعیت SSH گیت‌هاب"); shift ;;
         --github-update)  CLI_ACTIONS+=("github_update_apps|به‌روزرسانی گیت‌هاب"); shift ;;
         --github-list)    CLI_ACTIONS+=("github_list_apps|فهرست گیت‌هاب"); shift ;;
-        --github-remove)
-            if [ $# -ge 2 ]; then
-                GITHUB_REMOVE_TARGET="$2"; shift 2
-            else
-                echo "گزینه --github-remove نیاز به نام برنامه دارد: --github-remove <نام>"
-                exit 1
-            fi
-            ;;
-        --github-remove)
-            if [ $# -ge 2 ]; then
-                GITHUB_REMOVE_TARGET="$2"; shift 2
-            else
-                echo "گزینه --github-remove نیاز به نام برنامه دارد: --github-remove <نام>"
-                exit 1
-            fi
-            ;;
         --github-install)
             if [ $# -ge 2 ]; then
                 GITHUB_INSTALL_REPO="$2"
@@ -152,6 +137,14 @@ while [ $# -gt 0 ]; do
                 fi
             else
                 echo "گزینه --github-install نیاز به مخزن دارد: --github-install OWNER/REPO [نام]"
+                exit 1
+            fi
+            ;;
+        --github-remove)
+            if [ $# -ge 2 ]; then
+                GITHUB_REMOVE_TARGET="$2"; shift 2
+            else
+                echo "گزینه --github-remove نیاز به نام برنامه دارد: --github-remove <نام>"
                 exit 1
             fi
             ;;
@@ -220,7 +213,7 @@ while [ $# -gt 0 ]; do
 done
 
 # ---------- اجرای حالت CLI ----------
-if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TARGZ_FILE" ] || [ -n "$GITHUB_INSTALL_REPO" ]; then
+if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TARGZ_FILE" ] || [ -n "$GITHUB_INSTALL_REPO" ] || [ -n "$GITHUB_REMOVE_TARGET" ]; then
     CLI_MODE=1
     log_session_start "cli" "$ORIG_ARGS"
     trap 'log_session_end; print_session_summary' EXIT
