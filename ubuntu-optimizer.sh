@@ -35,6 +35,8 @@ INSTALL_TARGZ_FILE=""
 INSTALL_TARGZ_NAME=""
 GITHUB_INSTALL_REPO=""
 GITHUB_INSTALL_NAME=""
+GITHUB_REMOVE_TARGET=""
+GITHUB_REMOVE_TARGET=""
 ORIG_ARGS="$*"   # آرگومان‌های اصلی برای ثبت در لاگ
 
 usage() {
@@ -123,7 +125,22 @@ while [ $# -gt 0 ]; do
         --git-ssh-status) CLI_ACTIONS+=("gitssh_status|وضعیت SSH گیت‌هاب"); shift ;;
         --github-update)  CLI_ACTIONS+=("github_update_apps|به‌روزرسانی گیت‌هاب"); shift ;;
         --github-list)    CLI_ACTIONS+=("github_list_apps|فهرست گیت‌هاب"); shift ;;
-        --github-remove)  CLI_ACTIONS+=("github_remove_app|حذف برنامه گیت‌هاب"); shift ;;
+        --github-remove)
+            if [ $# -ge 2 ]; then
+                GITHUB_REMOVE_TARGET="$2"; shift 2
+            else
+                echo "گزینه --github-remove نیاز به نام برنامه دارد: --github-remove <نام>"
+                exit 1
+            fi
+            ;;
+        --github-remove)
+            if [ $# -ge 2 ]; then
+                GITHUB_REMOVE_TARGET="$2"; shift 2
+            else
+                echo "گزینه --github-remove نیاز به نام برنامه دارد: --github-remove <نام>"
+                exit 1
+            fi
+            ;;
         --github-install)
             if [ $# -ge 2 ]; then
                 GITHUB_INSTALL_REPO="$2"
@@ -217,6 +234,9 @@ if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TA
     fi
     if [ -n "$GITHUB_INSTALL_REPO" ]; then
         github_install_repo "$GITHUB_INSTALL_REPO" "$GITHUB_INSTALL_NAME"
+    fi
+    if [ -n "$GITHUB_REMOVE_TARGET" ]; then
+        github_remove_app "$GITHUB_REMOVE_TARGET"
     fi
     if [ -n "$CLEANUP_TARGET" ]; then
         cleanup_app "$CLEANUP_TARGET"
