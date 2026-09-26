@@ -172,7 +172,7 @@ check_package_arch() {   # $1 = ریشه نصب  $2 = فایل اجرایی اص
     warn "معماری بسته: $arch  |  معماری سیستم: $sys_arch"
     case "$sys_arch" in
         x86_64)  warn "→ نسخه «amd64» یا «x64» برنامه را دانلود کنید." ;;
-        aarch64) warn "→ نسخه «arm64» یا «aarch64» برنامه را دانلود کنید." ;;
+        aarch64) warn "→ فایل نسخه «arm64» یا «aarch64» برنامه را دانلود کنید." ;;
     esac
     return 1
 }
@@ -186,6 +186,12 @@ registry_remove_by_dir() {   # $1=مسیر نصب  $2=نام مجاز (حفظ م
         '!($3 == dir && $1 != keep)' "$REGISTRY_DB" > "$tmp" 2>/dev/null
     mv "$tmp" "$REGISTRY_DB"
     return 0
+}
+
+# Escape مسیر برای مقدار Exec در فایل desktop — طبق مشخصات
+# freedesktop: فاصله و کاراکترهای رزروشده با بک‌اسلش
+desktop_escape_path() {   # $1=مسیر
+    printf '%s' "$1" | sed 's|[\\"]|\\&|g' | sed 's|^| |;s|^ ||' 
 }
 
 # نصب برنامه از فایل tar.gz — منطق مشترک نصب و به‌روزرسانی
@@ -261,9 +267,9 @@ targz_install_from_file() {   # $1=مسیر فایل  $2=نام برنامه
 Type=Application
 Name=$APP_NAME
 Comment=Installed by Ubuntu Optimizer
-Exec="$FINAL_EXEC"
-Path="$INSTALL_DIR"
-Icon="$ICON_FILE"
+Exec=$FINAL_EXEC
+Path=$INSTALL_DIR
+Icon=$ICON_FILE
 Terminal=false
 Categories=Utility;
 EOF
@@ -306,7 +312,7 @@ install_targz() {
     [ -f "$TARGZ_PATH" ] || { failure "فایل پیدا نشد: $TARGZ_PATH"; return 1; }
     [[ "$TARGZ_PATH" =~ \.tar\.gz$ ]] || { failure "پسوند فایل باید .tar.gz باشد."; return 1; }
 
-    read -r -p "   نام برنامه (مثلاً abdownloadmanager): " APP_NAME
+    read -r -p "   نام برنامه (مثلاً ab-download-manager): " APP_NAME
     [ -n "$APP_NAME" ] || { failure "نام برنامه وارد نشد."; return 1; }
     APP_NAME=$(printf '%s' "$APP_NAME" | tr -cd '[:alnum:]_-')
 
