@@ -20,7 +20,8 @@ _glob_escape() {   # $1=raw string
 }
 
 # Extract the executable path from the Exec line of a desktop file
-# Quotes and escaped spaces (\ ) are supported
+# Quotes and escaped characters (\ , \(, \\ …) are supported per the
+# freedesktop spec — this parser round-trips desktop_escape_path output
 _desktop_exec_path() {   # $1=desktop file path → output: path or empty
     grep -m1 '^Exec=' "$1" 2>/dev/null | cut -d= -f2- | tr -d '"' | awk '
     {
@@ -36,7 +37,22 @@ _desktop_exec_path() {   # $1=desktop file path → output: path or empty
             } else break
         }
         print path
-    }'
+    }' | sed -e 's/\\\([()<>~|&;$*?#"'"'"'`]\)/\1/g' -e 's/\\\\/\\/g'
+}
+
+# Is the app still installed in any source? — exact name match
+# Shared by the removal flows to decide whether tracking entries can be dropped
+app_still_installed() {   # $1=app name
+    local n="$1"
+    if [ -f "$REGISTRY_DB" ] \
+       && awk -F'|' -v x="$n" '$1 == x { found = 1 } END { exit !found }' "$REGISTRY_DB" 2>/dev/null; then
+        return 0
+    fi
+    pkg_installed "$n" && return 0
+    if [ -d "/opt/$n" ] && [ -n "$(ls -A "/opt/$n" 2>/dev/null)" ]; then
+        return 0
+    fi
+    return 1
 }
 
 # Search for an app across all sources → FOUND_LINES array
@@ -390,6 +406,20 @@ cleanup_app() {   # $1 optional = app name
     echo ""
     info "Checking for leftover user data..."
     offer_user_data_cleanup "$raw"
+
+    # Also drop GitHub tracking entries of the removed items when the app is
+    # fully gone — the exact item ids are used (case-exact), not the raw input
+    if [ "$had_fail" = "0" ]; then
+        local rid
+        for line in "${todo[@]}"; do
+            IFS='|' read -r typ id desc extra <<< "$line"
+            if gh_db_has "$id" && ! app_still_installed "$id"; then
+                gh_db_remove "$id"
+                info "GitHub tracking entry for '$id' removed."
+            fi
+        done
+    fi
+
     if [ "$had_fail" = "1" ]; then
         warn "Finished, but some items could not be removed."
     else
@@ -474,9 +504,19 @@ list_all_apps() {
         done < "$REGISTRY_DB"
     fi
 
+    # GitHub-tracked names → annotated in the registry section below
+    # (dual-tracking awareness: these apps are updated by the GitHub flow)
+    local gh_list=""
+    if [ -s "$GITHUB_DB" ]; then
+        gh_list=$(awk -F'|' '{printf "%s%s", sep, $1; sep = "|"}' "$GITHUB_DB")
+    fi
+    local gh_pattern="__none__"
+    [ -n "$gh_list" ] && gh_pattern="^(${gh_list})$"
+
     echo -e "${BOLD}── Installed by this script (tar.gz / registry) ──${NC}"
     if [ -s "$REGISTRY_DB" ]; then
-        awk -F'|' '{printf "   %-24s %-12s %s\n", $1, ($2 == "" ? "-" : $2), $3}' "$REGISTRY_DB"
+        awk -F'|' -v ghp="$gh_pattern" \
+            '{printf "   %-24s %-12s %s%s\n", $1, ($2 == "" ? "-" : $2), $3, ($1 ~ ghp ? "   [GitHub-tracked]" : "")}' "$REGISTRY_DB"
     else
         echo "   (empty)"
     fi

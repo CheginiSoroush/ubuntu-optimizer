@@ -239,7 +239,8 @@ update_apt() {
 
 # Check tar.gz app updates — Downloads scan + manual path/URL
 # Self-healing: version-less entries whose path matches another (versioned)
-# entry are removed before the scan
+# entry are removed before the scan.
+# GitHub-tracked apps are skipped here: the GitHub flow checks them online.
 update_targz_apps() {
     header "Check tar.gz App Updates"
 
@@ -279,6 +280,20 @@ update_targz_apps() {
     for line in "${reg_lines[@]}"; do
         IFS='|' read -r name ver dir _ <<< "$line"
         [ -z "$name" ] && continue
+
+        # Self-healing: drop entries whose install directory no longer exists
+        if [ ! -d "$dir" ]; then
+            warn "'$name': install directory missing ($dir) — registry entry removed."
+            registry_remove "$name"
+            continue
+        fi
+
+        # GitHub-tracked apps are fully managed by the GitHub update flow —
+        # their online check and install happen in the GitHub section
+        if gh_db_has "$name"; then
+            info "App: $name — GitHub-tracked; handled by the GitHub update check."
+            continue
+        fi
 
         echo ""
         info "App: $name (version: $( [ -n "$ver" ] && echo "$ver" || echo "unknown")) → $dir"

@@ -17,7 +17,13 @@ for _lib in common network system fixnet packages targz appmgmt snapflatpak reco
     _libfile="$SCRIPT_DIR/lib/${_lib}.sh"
     if [ -f "$_libfile" ]; then
         # shellcheck source=/dev/null
-        source "$_libfile"
+        # A module with a syntax error must abort immediately —
+        # a half-loaded module causes cryptic "command not found" errors
+        if ! source "$_libfile"; then
+            echo "✗ Module failed to load: lib/${_lib}.sh (syntax error?)"
+            echo "  ℹ Check with: bash -n lib/${_lib}.sh"
+            exit 1
+        fi
     else
         echo "✗ Module not found: lib/${_lib}.sh"
         echo "  ℹ Expected layout: ubuntu-optimizer.sh + lib/*.sh in one folder"

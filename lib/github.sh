@@ -265,10 +265,10 @@ github_install_repo() {   # $1=repo (optional in the menu)  $2=optional name
 }
 
 # ---------- Remove a GitHub app ----------
-# Removes the app itself from the system (all sources) plus its GitHub db entry.
-# The entry is only dropped after the app is really gone — a user cancel
-# also keeps the entry. Since cleanup_app returns 0 even on cancel, the
-# actual app state is checked rather than the exit code.
+# Removes the app from the system (all sources, via cleanup_app) and drops
+# the GitHub db entry. cleanup_app removes the entry itself when the app is
+# fully gone; the still-installed check below covers cancelled/partial
+# removals (the entry is then kept for the update self-heal).
 github_remove_app() {   # $1 optional = app name
     header "🐙 Remove a GitHub App"
 
@@ -294,18 +294,8 @@ github_remove_app() {   # $1 optional = app name
     # Remove the app from the system — all sources, with user data
     cleanup_app "$raw"
 
-    # Verify actual removal: is the app still installed in any source? (exact name match)
-    local still=0
-    if [ -f "$REGISTRY_DB" ] \
-       && awk -F'|' -v n="$raw" '$1 == n { found = 1 } END { exit !found }' "$REGISTRY_DB" 2>/dev/null; then
-        still=1
-    fi
-    pkg_installed "$raw" && still=1
-    if [ -d "/opt/$raw" ] && [ -n "$(ls -A "/opt/$raw" 2>/dev/null)" ]; then
-        still=1
-    fi
-
-    if [ "$still" = "1" ]; then
+    # Verify actual removal (cleanup may have been cancelled)
+    if app_still_installed "$raw"; then
         warn "The app was not removed (or was cancelled) — the GitHub entry is kept."
         return 1
     fi
@@ -332,7 +322,7 @@ github_update_apps() {
     local -a lines=()
     mapfile -t lines < "$GITHUB_DB"
 
-    local line name repo tag latest in_registry
+    local line name repo tag latest
     for line in "${lines[@]}"; do
         IFS='|' read -r name repo tag <<< "$line"
         [ -z "$name" ] && continue
@@ -341,11 +331,7 @@ github_update_apps() {
         info "App: $name (installed: ${tag:-unknown}) ← $repo"
 
         # Self-healing: uninstalled apps are dropped from the tracking list
-        in_registry=0
-        if [ -f "$REGISTRY_DB" ]; then
-            awk -F'|' -v n="$name" '$1 == n { found = 1 } END { exit !found }' "$REGISTRY_DB" 2>/dev/null && in_registry=1
-        fi
-        if [ "$in_registry" = "0" ] && ! pkg_installed "$name" && [ ! -d "/opt/$name" ]; then
+        if ! app_still_installed "$name"; then
             warn "This app is no longer installed — removed from the tracking list."
             gh_db_remove "$name"
             continue
