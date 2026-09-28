@@ -1,31 +1,32 @@
 #!/bin/bash
 # ============================================================
-#   Ubuntu Optimizer & Fixer — v5.5
-#   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
+#   Ubuntu Optimizer & Fixer
+#   Author & Designer: Soroush Chegini (CheginiSoroush)
 #   github.com/CheginiSoroush/ubuntu-optimizer
 #
-#   فایل اصلی پروژه: بارگذاری ماژول‌ها، پردازش آرگومان‌های CLI
-#   و اجرای منوی تعاملی. ماژول‌ها در lib/ کنار همین فایل قرار
-#   دارند و باید همیشه از همین فایل اجرا شوند.
+#   Main project file: loads the modules, parses CLI arguments
+#   and runs the interactive menu. The modules live in lib/
+#   next to this file and must always be executed from this script.
+#   The version is defined solely in lib/common.sh (SCRIPT_VERSION).
 # ============================================================
 
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
-# ---------- بارگذاری ماژول‌ها ----------
+# ---------- Load modules ----------
 for _lib in common network system fixnet packages targz appmgmt snapflatpak recovery report github gitssh menus; do
     _libfile="$SCRIPT_DIR/lib/${_lib}.sh"
     if [ -f "$_libfile" ]; then
         # shellcheck source=/dev/null
         source "$_libfile"
     else
-        echo "✗ ماژول پیدا نشد: lib/${_lib}.sh"
-        echo "  ℹ ساختار صحیح: ubuntu-optimizer.sh + lib/*.sh در یک پوشه"
+        echo "✗ Module not found: lib/${_lib}.sh"
+        echo "  ℹ Expected layout: ubuntu-optimizer.sh + lib/*.sh in one folder"
         exit 1
     fi
 done
 unset _lib _libfile
 
-# ---------- وضعیت اجرا ----------
+# ---------- Run state ----------
 ASSUME_YES=0
 PURGE_DATA=0
 CLI_MODE=0
@@ -36,62 +37,61 @@ INSTALL_TARGZ_NAME=""
 GITHUB_INSTALL_REPO=""
 GITHUB_INSTALL_NAME=""
 GITHUB_REMOVE_TARGET=""
-ORIG_ARGS="$*"   # آرگومان‌های اصلی برای ثبت در لاگ
+ORIG_ARGS="$*"   # original arguments for logging
 
 usage() {
+    printf 'Ubuntu Optimizer & Fixer - v%s\n\n' "$SCRIPT_VERSION"
     cat << 'EOF'
-Ubuntu Optimizer & Fixer - v5.5
+Usage:
+  uo                          → interactive menu
+  uo [options]                → CLI mode (no menu)
 
-استفاده:
-  uo                          → منوی تعاملی
-  uo [گزینه‌ها]               → حالت CLI (بدون منو)
+Options:
+  -h, --help          show this help
+  -V, --version       show the version
+  -y, --yes           auto-confirm all questions
+  --no-color          disable colored output
+  --no-log            do not log this run
 
-گزینه‌ها:
-  -h, --help          نمایش این راهنما
-  -V, --version       نمایش نسخه برنامه
-  -y, --yes           تأیید خودکار همه سؤال‌ها
-  --no-color          خروجی بدون رنگ
+  --report            system status report (read-only)
 
-  --report            گزارش وضعیت سیستم (فقط خواندنی)
-
-  --git-ssh           ویزارد راه‌اندازی کلید SSH گیت‌هاب
-  --git-ssh-status    وضعیت کلید SSH و احراز هویت گیت‌هاب
+  --git-ssh           GitHub SSH key setup wizard
+  --git-ssh-status    SSH key / GitHub authentication status
 
   --github-install OWNER/REPO [NAME]
-                      نصب برنامه از آخرین release گیت‌هاب
-  --github-update     بررسی و نصب به‌روزرسانی برنامه‌های گیت‌هابی
-  --github-list       فهرست برنامه‌های ردیابی‌شده از گیت‌هاب
+                      install an app from the latest GitHub release
+  --github-update     check & install updates for GitHub apps
+  --github-list       list tracked GitHub apps
   --github-remove NAME
-                      حذف کامل برنامه گیت‌هابی + رد ردیابی آن
+                      fully remove a GitHub app + its tracking entry
 
   --install-targz FILE [NAME]
-                      نصب برنامه از فایل .tar.gz
+                      install an app from a .tar.gz file
 
-  --optimize          همه بهینه‌سازی‌های شبکه + سیستم
-  --network           بهینه‌سازی شبکه (BBR, DNS, MTU, TCP)
-  --system            بهینه‌سازی سیستم و حافظه
-  --security          تنظیمات sudo timeout + polkit
-  --time              همگام‌سازی زمان سیستم
-  --fixnet            ساخت اسکریپت fixnet
-  --fixnet-run        اجرای fixnet (رفع مشکل شبکه)
-  --test              تست‌های شبکه (پینگ، DNS، سرعت)
+  --optimize          all network + system optimizations
+  --network           network optimizations (BBR, DNS, MTU, TCP)
+  --system            system & memory optimizations
+  --security          sudo timeout + polkit settings
+  --time              sync system time
+  --fixnet            create the fixnet script
+  --fixnet-run        run fixnet (network repair)
+  --test              network tests (ping, DNS, speed)
 
-  --update            به‌روزرسانی همه منابع (apt, snap, flatpak, tar.gz, github)
-  --update-apt        فقط apt
-  --update-snap       فقط snap
-  --update-flatpak    فقط flatpak
-  --update-targz      بررسی به‌روزرسانی برنامه‌های tar.gz
+  --update            update all sources (apt, snap, flatpak, tar.gz, github)
+  --update-apt        apt only
+  --update-snap       snap only
+  --update-flatpak    flatpak only
+  --update-targz      check updates for tar.gz apps
 
-  --list-apps         لیست همه برنامه‌ها از همه منابع
-  --cleanup NAME      حذف کامل برنامه NAME از هر منبعی که باشد
-  --purge-data        (همراه --cleanup) حذف داده‌های کاربری هم
-  --snap-clean        پاک‌سازی نسخه‌های قدیمی snap + unused فلت‌پک
+  --list-apps         list all apps from all sources
+  --cleanup NAME      fully remove app NAME from any source
+  --purge-data        (with --cleanup) also remove user data
+  --snap-clean        clean old snap revisions + unused flatpaks
 
-  --log               نمایش آخرین خطوط لاگ فعالیت‌ها
-  --log-clear         حذف کامل فایل لاگ
-  --no-log            این اجرا در لاگ ثبت نشود
+  --log               show the last log lines
+  --log-clear         delete the log file
 
-مثال‌ها:
+Examples:
   uo --report
   uo --github-install junegunn/fzf fzf
   uo --github-remove karing
@@ -102,41 +102,51 @@ EOF
 }
 
 # ============================================================
-#   اجرای اصلی
+#   Main
 # ============================================================
 
+# Running directly as root is not allowed; sudo is requested only when needed
 if [ "$EUID" -eq 0 ]; then
-    echo -e "${RED}   ✗ این اسکریپت را بدون sudo اجرا کنید.${NC}"
-    echo -e "${YELLOW}   ℹ خودش هنگام نیاز، رمز sudo می‌پرسد.${NC}"
+    echo -e "${RED}   ✗ Do not run this script with sudo.${NC}"
+    echo -e "${YELLOW}   ℹ It asks for the sudo password itself when needed.${NC}"
     exit 1
 fi
 
-trap 'echo ""; warn "خروج..."; exit 130' INT TERM
+# Exit codes follow signal convention: SIGINT=130, SIGTERM=143
+trap 'echo ""; warn "Exiting..."; exit 130' INT
+trap 'echo ""; warn "Exiting..."; exit 143' TERM
 
-# ---------- پردازش آرگومان‌ها ----------
+# ---------- Parse arguments ----------
 while [ $# -gt 0 ]; do
     case "$1" in
         -h|--help)        usage; exit 0 ;;
-        -V|--version)     echo "Ubuntu Optimizer & Fixer - v5.5 — by CheginiSoroush"; exit 0 ;;
+        -V|--version)     echo "Ubuntu Optimizer & Fixer - v${SCRIPT_VERSION} — by CheginiSoroush"; exit 0 ;;
         -y|--yes)         ASSUME_YES=1; shift ;;
         --no-color)       RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; MAGENTA=''; BOLD=''; NC=''; shift ;;
         --no-log)         LOG_ENABLED=0; shift ;;
-        --report)         CLI_ACTIONS+=("system_report|گزارش وضعیت سیستم"); shift ;;
-        --git-ssh)        CLI_ACTIONS+=("gitssh_setup|راه‌اندازی SSH گیت‌هاب"); shift ;;
-        --git-ssh-status) CLI_ACTIONS+=("gitssh_status|وضعیت SSH گیت‌هاب"); shift ;;
-        --github-update)  CLI_ACTIONS+=("github_update_apps|به‌روزرسانی گیت‌هاب"); shift ;;
-        --github-list)    CLI_ACTIONS+=("github_list_apps|فهرست گیت‌هاب"); shift ;;
+        --report)         CLI_ACTIONS+=("system_report|system status report"); shift ;;
+        --git-ssh)        CLI_ACTIONS+=("gitssh_setup|GitHub SSH setup"); shift ;;
+        --git-ssh-status) CLI_ACTIONS+=("gitssh_status|GitHub SSH status"); shift ;;
+        --github-update)  CLI_ACTIONS+=("github_update_apps|GitHub updates"); shift ;;
+        --github-list)    CLI_ACTIONS+=("github_list_apps|GitHub app list"); shift ;;
         --github-install)
             if [ $# -ge 2 ]; then
-                GITHUB_INSTALL_REPO="$2"
+                case "$2" in
+                    */*) GITHUB_INSTALL_REPO="$2" ;;
+                    *)
+                        echo "Invalid repository format: $2"
+                        echo "  ℹ Correct format: --github-install OWNER/REPO [NAME]"
+                        exit 1
+                        ;;
+                esac
                 shift 2
-                # نام اختیاری — آرگومان بعدی اگر پرچم نباشد نام برنامه است
+                # optional name — the next argument is the app name unless it is a flag
                 if [ $# -ge 1 ] && [[ "$1" != -* ]]; then
                     GITHUB_INSTALL_NAME="$1"
                     shift
                 fi
             else
-                echo "گزینه --github-install نیاز به مخزن دارد: --github-install OWNER/REPO [نام]"
+                echo "--github-install requires a repository: --github-install OWNER/REPO [name]"
                 exit 1
             fi
             ;;
@@ -144,81 +154,91 @@ while [ $# -gt 0 ]; do
             if [ $# -ge 2 ]; then
                 GITHUB_REMOVE_TARGET="$2"; shift 2
             else
-                echo "گزینه --github-remove نیاز به نام برنامه دارد: --github-remove <نام>"
+                echo "--github-remove requires an app name: --github-remove <name>"
                 exit 1
             fi
             ;;
         --install-targz)
             if [ $# -ge 2 ]; then
+                if [ ! -f "$2" ]; then
+                    echo "File not found: $2"
+                    exit 1
+                fi
                 INSTALL_TARGZ_FILE="$2"
                 shift 2
+                # optional name — the next argument is the app name unless it is a flag
                 if [ $# -ge 1 ] && [[ "$1" != -* ]]; then
                     INSTALL_TARGZ_NAME="$1"
                     shift
                 fi
             else
-                echo "گزینه --install-targz نیاز به مسیر فایل دارد: --install-targz <فایل> [نام]"
+                echo "--install-targz requires a file path: --install-targz <file> [name]"
                 exit 1
             fi
             ;;
         --log)
             if [ -f "$LOG_FILE" ]; then
-                echo "── آخرین ۶۰ خط لاگ ──"
+                echo "── Last 60 log lines ──"
                 tail -n 60 "$LOG_FILE"
             else
-                echo "هنوز فایل لاگی وجود ندارد."
-                echo "مسیر لاگ: $LOG_FILE"
+                echo "No log file exists yet."
+                echo "Log path: $LOG_FILE"
             fi
             exit 0
             ;;
         --log-clear)
             if [ -f "$LOG_FILE" ]; then
                 rm -f "$LOG_FILE" "$LOG_FILE.old"
-                echo "لاگ حذف شد."
+                echo "Log deleted."
             else
-                echo "فایل لاگی برای حذف وجود ندارد."
+                echo "No log file to delete."
             fi
             exit 0
             ;;
-        --optimize)       CLI_ACTIONS+=("all_network_opts|بهینه‌سازی شبکه" "all_system_opts|بهینه‌سازی سیستم"); shift ;;
-        --network)        CLI_ACTIONS+=("all_network_opts|بهینه‌سازی شبکه"); shift ;;
-        --system)         CLI_ACTIONS+=("all_system_opts|بهینه‌سازی سیستم"); shift ;;
-        --security)       CLI_ACTIONS+=("all_security_opts|تنظیمات امنیتی"); shift ;;
-        --time)           CLI_ACTIONS+=("fix_time|همگام‌سازی زمان"); shift ;;
-        --fixnet)         CLI_ACTIONS+=("create_fixnet_script|ساخت fixnet"); shift ;;
-        --fixnet-run)     CLI_ACTIONS+=("run_fixnet|اجرای fixnet"); shift ;;
-        --test)           CLI_ACTIONS+=("all_tests|تست‌های شبکه"); shift ;;
-        --update)         CLI_ACTIONS+=("update_all|به‌روزرسانی همه"); shift ;;
-        --update-apt)     CLI_ACTIONS+=("update_apt|به‌روزرسانی apt"); shift ;;
-        --update-snap)    CLI_ACTIONS+=("update_snap|به‌روزرسانی snap"); shift ;;
-        --update-flatpak) CLI_ACTIONS+=("update_flatpak|به‌روزرسانی flatpak"); shift ;;
-        --update-targz)   CLI_ACTIONS+=("update_targz_apps|به‌روزرسانی tar.gz"); shift ;;
-        --list-apps)      CLI_ACTIONS+=("list_all_apps|لیست برنامه‌ها"); shift ;;
-        --snap-clean)     CLI_ACTIONS+=("clean_snap_flatpak_junk|پاک‌سازی snap/flatpak"); shift ;;
+        --optimize)       CLI_ACTIONS+=("all_network_opts|network optimization" "all_system_opts|system optimization"); shift ;;
+        --network)        CLI_ACTIONS+=("all_network_opts|network optimization"); shift ;;
+        --system)         CLI_ACTIONS+=("all_system_opts|system optimization"); shift ;;
+        --security)       CLI_ACTIONS+=("all_security_opts|security settings"); shift ;;
+        --time)           CLI_ACTIONS+=("fix_time|time sync"); shift ;;
+        --fixnet)         CLI_ACTIONS+=("create_fixnet_script|create fixnet"); shift ;;
+        --fixnet-run)     CLI_ACTIONS+=("run_fixnet|run fixnet"); shift ;;
+        --test)           CLI_ACTIONS+=("all_tests|network tests"); shift ;;
+        --update)         CLI_ACTIONS+=("update_all|update everything"); shift ;;
+        --update-apt)     CLI_ACTIONS+=("update_apt|apt update"); shift ;;
+        --update-snap)    CLI_ACTIONS+=("update_snap|snap update"); shift ;;
+        --update-flatpak) CLI_ACTIONS+=("update_flatpak|flatpak update"); shift ;;
+        --update-targz)   CLI_ACTIONS+=("update_targz_apps|tar.gz updates"); shift ;;
+        --list-apps)      CLI_ACTIONS+=("list_all_apps|app list"); shift ;;
+        --snap-clean)     CLI_ACTIONS+=("clean_snap_flatpak_junk|snap/flatpak cleanup"); shift ;;
         --purge-data)     PURGE_DATA=1; shift ;;
         --cleanup)
             if [ $# -ge 2 ]; then
                 CLEANUP_TARGET="$2"; shift 2
             else
-                echo "گزینه --cleanup نیاز به نام برنامه دارد: --cleanup <نام>"
+                echo "--cleanup requires an app name: --cleanup <name>"
                 exit 1
             fi
             ;;
         *)
-            echo "گزینه نامعتبر: $1"
+            echo "Invalid option: $1"
             usage
             exit 1
             ;;
     esac
 done
 
-# ---------- اجرای حالت CLI ----------
+# Cross-option validation
+if [ "$PURGE_DATA" = "1" ] && [ -z "$CLEANUP_TARGET" ]; then
+    echo "--purge-data is only valid together with --cleanup."
+    exit 1
+fi
+
+# ---------- CLI mode ----------
 if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TARGZ_FILE" ] || [ -n "$GITHUB_INSTALL_REPO" ] || [ -n "$GITHUB_REMOVE_TARGET" ]; then
     CLI_MODE=1
     log_session_start "cli" "$ORIG_ARGS"
     trap 'log_session_end; print_session_summary' EXIT
-    echo -e "${BOLD}Ubuntu Optimizer & Fixer v5.5 — حالت CLI${NC}"
-    cli_action=""
+    echo -e "${BOLD}Ubuntu Optimizer & Fixer v${SCRIPT_VERSION} — CLI mode${NC}"
     for cli_action in "${CLI_ACTIONS[@]}"; do
         "${cli_action%%|*}"
     done
@@ -236,14 +256,14 @@ if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TA
     fi
     echo ""
     if [ "$LOG_FAIL_COUNT" -gt 0 ]; then
-        warn "پایان — برخی مراحل با خطا همراه بود؛ جزئیات در لاگ."
+        warn "Finished — some steps had errors; see the log for details."
     else
-        success "پایان — همه کارهای درخواستی انجام شد."
+        success "Finished — all requested tasks completed."
     fi
     exit 0
 fi
 
-# ---------- اجرای منوی تعاملی ----------
+# ---------- Interactive menu ----------
 log_session_start "interactive"
 trap 'log_session_end; print_session_summary' EXIT
 main_menu

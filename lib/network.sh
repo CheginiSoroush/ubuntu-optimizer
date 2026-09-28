@@ -1,144 +1,222 @@
+# shellcheck shell=bash
 # ============================================================
-#   lib/network.sh — بهینه‌سازی شبکه و تست‌های شبکه
-#   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
+#   lib/network.sh — network optimization and network tests
+#   Author & Designer: Soroush Chegini (CheginiSoroush)
 # ============================================================
 
+# ---------- Optimization ----------
+
 disable_wifi_powersave() {
-    header "غیرفعال کردن Power Management وای‌فای"
-    local CONN
+    header "Disable Wi-Fi Power Management"
+    local CONN DEV
     CONN=$(get_active_connection wireless)
     if [ -z "$CONN" ]; then
-        failure "هیچ اتصال وای‌فای فعالی پیدا نشد."
+        failure "No active Wi-Fi connection found."
         return 1
     fi
-    info "اتصال فعال: $CONN"
-    info "شبکه چند ثانیه قطع و وصل می‌شود."
-    if sudo nmcli connection modify "$CONN" 802-11-wireless.powersave 2; then
-        sudo systemctl restart NetworkManager
-        success "Power Management وای‌فای غیرفعال شد."
-    else
-        failure "خطا در غیرفعال کردن Power Management."
+    DEV=$(nmcli -t -f DEVICE,TYPE device status 2>/dev/null | awk -F: '$2 == "wifi" {print $1; exit}')
+    info "Active connection: $CONN${DEV:+ (device: $DEV)}"
+    info "The network will go down and come back for a few seconds."
+    warn "Do not run this over an SSH session!"
+    if ! sudo nmcli connection modify "$CONN" 802-11-wireless.powersave 2; then
+        failure "Failed to disable power management."
+        return 1
     fi
+    # Apply by restarting the same connection — not the whole NetworkManager service
+    sudo nmcli connection down "$CONN" > /dev/null 2>&1
+    if ! sudo nmcli connection up "$CONN" > /dev/null 2>&1; then
+        failure "Wi-Fi reconnection failed."
+        warn "Check the network state or run fixnet."
+        return 1
+    fi
+    # Final verification of the powersave state (when iw is available)
+    if [ -n "$DEV" ] && command -v iw > /dev/null 2>&1; then
+        if iw dev "$DEV" get power_save 2>/dev/null | grep -q "off"; then
+            success "Wi-Fi power management disabled."
+        else
+            failure "Connection is up but power management is still enabled."
+            return 1
+        fi
+    else
+        success "Wi-Fi power management disabled."
+    fi
+    return 0
 }
 
 set_dns() {
-    header "تنظیم DNS روی 8.8.8.8 و 1.1.1.1"
+    header "Set DNS to 8.8.8.8 and 1.1.1.1"
     local CONN
-    CONN=$(get_active_connection)
+    # DNS must be set on the physical connection, not a VPN — priority: ethernet → wireless → any
+    CONN=$(get_active_connection ethernet)
+    [ -z "$CONN" ] && CONN=$(get_active_connection wireless)
+    [ -z "$CONN" ] && CONN=$(get_active_connection)
     if [ -z "$CONN" ]; then
-        failure "هیچ اتصال فعالی پیدا نشد."
+        failure "No active connection found."
         return 1
     fi
-    info "اتصال فعال: $CONN"
-    warn "اتصال برای چند ثانیه قطع و دوباره وصل می‌شود."
-    warn "اگر از طریق SSH متصل هستید، این گزینه را اجرا نکنید!"
+    info "Active connection: $CONN"
+    warn "The connection will drop and reconnect for a few seconds."
+    warn "Do not run this over an SSH session!"
     if sudo nmcli connection modify "$CONN" ipv4.dns "8.8.8.8 1.1.1.1" \
        && sudo nmcli connection modify "$CONN" ipv4.ignore-auto-dns yes \
        && sudo nmcli connection down "$CONN" > /dev/null 2>&1 \
        && sudo nmcli connection up "$CONN" > /dev/null 2>&1; then
-        success "DNS تنظیم شد."
+        success "DNS configured."
+        return 0
     else
-        failure "خطا در تنظیم DNS."
-        warn "در صورت قطع اتصال، از اسکریپت fixnet استفاده کنید."
+        failure "Failed to set DNS."
+        warn "If the connection is down, use the fixnet script."
+        return 1
     fi
 }
 
 enable_bbr() {
-    header "فعال‌سازی الگوریتم BBR"
+    header "Enable BBR Congestion Control"
+    # Load the module — if it is built-in, the modprobe error is irrelevant
     sudo modprobe tcp_bbr 2>/dev/null
     if ! grep -qw bbr /proc/sys/net/ipv4/tcp_available_congestion_control; then
-        failure "کرنل شما از BBR پشتیبانی نمی‌کند."
+        failure "Your kernel does not support BBR."
         return 1
     fi
     set_sysctl net.core.default_qdisc fq
     set_sysctl net.ipv4.tcp_congestion_control bbr
-    if apply_sysctl; then
-        local STATUS
-        STATUS=$(sysctl -n net.ipv4.tcp_congestion_control)
-        if [ "$STATUS" = "bbr" ]; then
-            success "BBR با موفقیت فعال شد."
-        else
-            failure "BBR فعال نشد. وضعیت فعلی: $STATUS"
-        fi
+    if ! apply_sysctl; then
+        failure "Failed to apply the sysctl settings."
+        return 1
+    fi
+    local STATUS
+    STATUS=$(sysctl -n net.ipv4.tcp_congestion_control)
+    if [ "$STATUS" = "bbr" ]; then
+        success "BBR enabled successfully."
+        return 0
     else
-        failure "خطا در اعمال تنظیمات sysctl."
+        failure "BBR was not enabled. Current value: $STATUS"
+        return 1
     fi
 }
 
 set_mtu() {
-    header "تنظیم MTU"
+    header "Set MTU"
     local IFACE
-    IFACE=$(ip -br link show 2>/dev/null | grep -v "^lo" | grep "UP" | head -1 | awk '{print $1}')
+    # Interface of the default route — correct on systems with docker/VMs
+    IFACE=$(ip route show default 2>/dev/null | awk '{for (i = 1; i <= NF; i++) if ($i == "dev") {print $(i + 1); exit}}')
     if [ -z "$IFACE" ]; then
-        failure "اینترفیس فعال پیدا نشد."
+        IFACE=$(ip -br link show 2>/dev/null | awk '$2 == "UP" && $1 != "lo" {print $1; exit}')
+    fi
+    if [ -z "$IFACE" ]; then
+        failure "No active interface found."
         return 1
     fi
-    info "اینترفیس فعال: $IFACE"
-    info "MTU فعلی: $(cat /sys/class/net/$IFACE/mtu)"
+    info "Active interface: $IFACE"
+    info "Current MTU: $(cat "/sys/class/net/$IFACE/mtu" 2>/dev/null)"
     local MTU_VAL
-    read -r -p "   مقدار MTU (Enter برای پیش‌فرض 1492): " MTU_VAL
-    MTU_VAL=${MTU_VAL:-1492}
-    if sudo ip link set dev "$IFACE" mtu "$MTU_VAL"; then
-        success "MTU روی $MTU_VAL تنظیم شد. (موقت — پس از ری‌استارت برمی‌گردد)"
-        info "برای دائمی‌کردن، مقدار mtu را در تنظیمات NetworkManager ست کنید."
+    # In CLI or -y mode no interactive prompt is shown; the default is applied
+    if [ "$CLI_MODE" = "1" ] || [ "$ASSUME_YES" = "1" ]; then
+        MTU_VAL=1492
+        info "Automatic mode: MTU will be set to 1492."
     else
-        failure "خطا در تنظیم MTU."
+        read -r -p "   MTU value (Enter for default 1492): " MTU_VAL
+        MTU_VAL=${MTU_VAL:-1492}
+    fi
+    if ! [[ "$MTU_VAL" =~ ^[0-9]+$ ]]; then
+        failure "Invalid MTU value: $MTU_VAL"
+        return 1
+    fi
+    if sudo ip link set dev "$IFACE" mtu "$MTU_VAL"; then
+        success "MTU set to $MTU_VAL. (temporary — reverts after a reboot)"
+        info "To make it permanent, set the mtu value in NetworkManager."
+        return 0
+    else
+        failure "Failed to set MTU."
+        return 1
     fi
 }
 
 optimize_tcp() {
-    header "بهینه‌سازی پارامترهای TCP"
+    header "Optimize TCP Parameters"
+    # The standard BBR companion set: unsent queue, fastopen, larger buffers
     set_sysctl net.ipv4.tcp_notsent_lowat 16384
-    if apply_sysctl; then
-        success "پارامترهای TCP بهینه شدند."
+    set_sysctl net.ipv4.tcp_fastopen 3
+    set_sysctl net.ipv4.tcp_slow_start_after_idle 0
+    set_sysctl net.core.rmem_max 16777216
+    set_sysctl net.core.wmem_max 16777216
+    set_sysctl net.ipv4.tcp_rmem "4096 87380 16777216"
+    set_sysctl net.ipv4.tcp_wmem "4096 65536 16777216"
+    if ! apply_sysctl; then
+        failure "Failed to apply the TCP settings."
+        return 1
+    fi
+    # Verify the representative parameter
+    local CUR
+    CUR=$(sysctl -n net.ipv4.tcp_notsent_lowat 2>/dev/null)
+    if [ "$CUR" = "16384" ]; then
+        success "TCP parameters optimized."
+        return 0
     else
-        failure "خطا در اعمال تنظیمات TCP."
+        failure "TCP settings could not be verified. Current notsent_lowat: ${CUR:-unknown}"
+        return 1
     fi
 }
 
-all_network_opts() { disable_wifi_powersave; set_dns; enable_bbr; set_mtu; optimize_tcp; }
+all_network_opts() {
+    disable_wifi_powersave
+    set_dns
+    enable_bbr
+    set_mtu
+    optimize_tcp
+}
 
 # ============================================================
-#   تست‌های شبکه
+#   Network tests
 # ============================================================
 
 test_ping() {
-    header "تست پینگ به 8.8.8.8"
-    if ping -c 4 8.8.8.8; then
-        success "پینگ موفق."
+    header "Ping Test to 8.8.8.8"
+    # -W: per-reply timeout — avoids long waits on a dead network
+    if ping -c 4 -W 3 -i 0.25 8.8.8.8; then
+        success "Ping successful."
+        return 0
     else
-        failure "پینگ ناموفق. اتصال برقرار نیست."
+        failure "Ping failed. No connectivity."
+        return 1
     fi
 }
 
 test_ping_dns() {
-    header "تست DNS با پینگ به google.com"
-    if ping -c 4 google.com; then
-        success "DNS درست کار می‌کند."
+    header "DNS Test (ping google.com)"
+    if ping -c 4 -W 3 -i 0.25 google.com; then
+        success "DNS is working."
+        return 0
     else
-        failure "DNS مشکل دارد."
+        failure "DNS is broken."
+        return 1
     fi
 }
 
 test_speed() {
-    header "تست سرعت اینترنت"
+    header "Internet Speed Test"
     if ! command -v speedtest-cli > /dev/null 2>&1; then
-        info "نصب speedtest-cli..."
-        sudo apt install -y speedtest-cli > /dev/null 2>&1 || { failure "خطا در نصب speedtest-cli."; return 1; }
+        info "Installing speedtest-cli..."
+        if ! sudo apt install -y speedtest-cli > /dev/null 2>&1; then
+            failure "Failed to install speedtest-cli."
+            return 1
+        fi
     fi
     if speedtest-cli; then
-        success "تست سرعت انجام شد."
+        success "Speed test completed."
+        return 0
     else
-        failure "خطا در تست سرعت."
+        failure "Speed test failed."
+        return 1
     fi
 }
 
 show_network_info() {
-    header "اطلاعات شبکه"
-    echo -e "${BOLD}اینترفیس‌ها:${NC}"
+    header "Network Info"
+    echo -e "${BOLD}Interfaces:${NC}"
     ip -br addr
     echo ""
-    echo -e "${BOLD}مسیریابی:${NC}"
+    echo -e "${BOLD}Routing:${NC}"
     ip route
     echo ""
     echo -e "${BOLD}DNS:${NC}"
@@ -147,6 +225,12 @@ show_network_info() {
     else
         grep nameserver /etc/resolv.conf
     fi
+    return 0
 }
 
-all_tests() { test_ping; test_ping_dns; test_speed; show_network_info; }
+all_tests() {
+    test_ping
+    test_ping_dns
+    test_speed
+    show_network_info
+}

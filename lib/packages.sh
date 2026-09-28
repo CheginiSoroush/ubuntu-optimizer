@@ -1,75 +1,100 @@
+# shellcheck shell=bash
 # ============================================================
-#   lib/packages.sh — نصب بسته‌ها و برنامه‌ها از مخازن apt
-#   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
+#   lib/packages.sh — install packages and apps from apt repos
+#   Author & Designer: Soroush Chegini (CheginiSoroush)
 # ============================================================
 
 install_essential_tools() {
-    header "نصب ابزارهای ضروری"
+    header "Install Essential Tools"
     if sudo apt install -y curl wget git synaptic iw net-tools gnome-tweaks; then
-        success "ابزارهای ضروری نصب شدند."
+        success "Essential tools installed."
+        return 0
     else
-        failure "خطا در نصب ابزارها."
+        failure "Failed to install the tools."
+        return 1
     fi
 }
 
 install_unrar() {
-    header "نصب ابزارهای استخراج (unrar, p7zip, file-roller)"
+    header "Install Archive Tools (unrar, p7zip, file-roller)"
     if sudo apt install -y unrar p7zip-full file-roller; then
-        success "ابزارهای استخراج نصب شدند."
-    else
-        failure "خطا در نصب ابزارها."
+        success "Archive tools installed."
+        return 0
     fi
+    failure "Failed to install the tools."
+    # The unrar package is only in the multiverse repository
+    if ! apt-cache show unrar > /dev/null 2>&1; then
+        info "The unrar package is not in the enabled repos — enable multiverse:"
+        info "  sudo add-apt-repository multiverse && sudo apt update"
+    fi
+    return 1
 }
 
 install_deb() {
-    header "نصب فایل .deb"
+    header "Install a .deb File"
     local DEB_PATH
-    read -r -p "   مسیر کامل فایل .deb را وارد کنید: " DEB_PATH
+    # EOF (Ctrl+D) → cancel
+    read -r -p "   Full path of the .deb file: " DEB_PATH || return 1
     DEB_PATH=${DEB_PATH/#\~/$HOME}
 
+    # A path without '/' is interpreted as a package name — prefix ./ for a file
+    [[ "$DEB_PATH" == */* ]] || DEB_PATH="./$DEB_PATH"
+
     if [ ! -f "$DEB_PATH" ]; then
-        failure "فایل پیدا نشد: $DEB_PATH"
+        failure "File not found: $DEB_PATH"
         return 1
     fi
     if [[ ! "$DEB_PATH" =~ \.deb$ ]]; then
-        failure "فایل باید با پسوند .deb باشد."
+        failure "The file must have a .deb extension."
         return 1
     fi
 
-    info "نصب بسته..."
+    info "Installing the package..."
     if sudo apt install -y "$DEB_PATH"; then
-        success "بسته با موفقیت نصب شد."
-    else
-        warn "نصب با apt ناموفق بود. تلاش با dpkg..."
-        if sudo dpkg -i "$DEB_PATH"; then
-            sudo apt --fix-broken install -y > /dev/null 2>&1
-            success "بسته نصب شد (با رفع وابستگی‌ها)."
-        else
-            failure "خطا در نصب بسته."
-            return 1
-        fi
+        success "Package installed successfully."
+        return 0
     fi
+    warn "apt install failed; trying dpkg..."
+    if sudo dpkg -i "$DEB_PATH"; then
+        sudo apt --fix-broken install -y > /dev/null 2>&1
+        success "Package installed (with dependencies fixed)."
+        return 0
+    fi
+    failure "Failed to install the package."
+    return 1
 }
 
 install_appclean() {
-    header "نصب AppClean"
+    header "Install AppClean"
     if ! command -v node > /dev/null 2>&1; then
-        failure "nodejs نصب نیست. اول nodejs را از همین منو نصب کنید."
+        failure "nodejs is not installed. Install nodejs from this menu first."
+        return 1
+    fi
+    if ! command -v npm > /dev/null 2>&1; then
+        failure "npm is not installed. Install nodejs and npm from this menu first."
         return 1
     fi
     if sudo npm install -g appclean@2.0.0 > /dev/null 2>&1; then
-        success "AppClean نصب شد. برای اجرا: appclean gui"
+        success "AppClean installed. Run with: appclean gui"
+        return 0
     else
-        failure "خطا در نصب AppClean."
+        failure "Failed to install AppClean."
+        return 1
     fi
 }
 
 install_nodejs() {
-    header "نصب nodejs و npm"
-    if sudo apt install -y nodejs npm; then
-        success "nodejs و npm نصب شدند."
-        info "نسخه‌ها: node $(node --version 2>/dev/null) | npm $(npm --version 2>/dev/null)"
-    else
-        failure "خطا در نصب nodejs."
+    header "Install nodejs and npm"
+    if pkg_installed nodejs && pkg_installed npm; then
+        info "nodejs and npm are already installed."
+        info "Versions: node $(node --version 2>/dev/null) | npm $(npm --version 2>/dev/null)"
+        return 0
     fi
+    if sudo apt install -y nodejs npm; then
+        success "nodejs and npm installed."
+        info "Versions: node $(node --version 2>/dev/null) | npm $(npm --version 2>/dev/null)"
+        return 0
+    fi
+    failure "Failed to install nodejs."
+    return 1
 }

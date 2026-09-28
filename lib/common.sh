@@ -1,10 +1,14 @@
+# shellcheck shell=bash
 # ============================================================
-#   lib/common.sh — ثابت‌ها، توابع مشترک، رجیستری و سیستم لاگ
-#   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
-#   این فایل مستقیماً اجرا نمی‌شود؛ توسط فایل اصلی source می‌شود.
+#   lib/common.sh — constants, shared helpers, registry, logging
+#   Author & Designer: Soroush Chegini (CheginiSoroush)
+#   This file is never executed directly; it is sourced by the main script.
 # ============================================================
 
-# ---------- ثابت‌ها ----------
+# ---------- Version (single source of truth for the whole project) ----------
+readonly SCRIPT_VERSION="6.0"
+
+# ---------- Constants ----------
 readonly SYSCTL_CONF="/etc/sysctl.d/99-ubuntu-optimizer.conf"
 readonly JOURNALD_DROPIN="/etc/systemd/journald.conf.d/99-optimizer.conf"
 readonly SUDOERS_TIMEOUT_FILE="/etc/sudoers.d/99-optimizer-timeout"
@@ -12,17 +16,21 @@ readonly POLKIT_RULE_FILE="/etc/polkit-1/rules.d/10-disable-password-timeout.rul
 readonly REGISTRY_DIR="$HOME/.local/share/ubuntu-optimizer"
 readonly REGISTRY_DB="$REGISTRY_DIR/apps.db"
 
-# ---------- لاگ ----------
+# ---------- Logging ----------
 readonly LOG_DIR="${XDG_STATE_HOME:-$HOME/.local/state}/ubuntu-optimizer"
 readonly LOG_FILE="$LOG_DIR/optimizer.log"
-readonly LOG_MAX_BYTES=1048576   # 1MB — پس از عبور، لاگ به .old منتقل می‌شود
+readonly LOG_MAX_BYTES=1048576   # 1MB — beyond this the log rotates to .old
 
 LOG_ENABLED=1
 LOG_OK_COUNT=0
 LOG_FAIL_COUNT=0
 LOG_WARN_COUNT=0
 
-# ---------- رنگ‌ها ----------
+# extglob for the ANSI-strip pattern in log_write —
+# must be enabled before the functions below are parsed
+shopt -s extglob
+
+# ---------- Colors ----------
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -32,16 +40,21 @@ MAGENTA='\033[0;35m'
 BOLD='\033[1m'
 NC='\033[0m'
 
+# Non-interactive output (pipe/redirect): colors are disabled automatically
+if [ ! -t 1 ]; then
+    RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; MAGENTA=''; BOLD=''; NC=''
+fi
+
 # ============================================================
-#   سیستم لاگ
+#   Logging system
 # ============================================================
 
-# حذف کدهای رنگ ANSI از متن قبل از ذخیره در لاگ
+# Strip ANSI color codes from text (no sed fork)
 _strip_ansi() {
-    printf '%s' "$1" | sed 's/\x1b\[[0-9;]*m//g'
+    printf '%s' "${1//$'\e'\[*([0-9;])m/}"
 }
 
-# چرخش لاگ در صورت عبور از حد مجاز
+# Rotate the log file when it exceeds the size limit
 _log_rotate() {
     [ -f "$LOG_FILE" ] || return 0
     local size
@@ -52,55 +65,59 @@ _log_rotate() {
     return 0
 }
 
-# نوشتن یک خط در لاگ — $1=سطح  $2=پیام
+# Append one line to the log — $1=level  $2=message
+# Fully built-in Bash: no date or sed fork
 log_write() {
     [ "$LOG_ENABLED" = "1" ] || return 0
-    mkdir -p "$LOG_DIR" 2>/dev/null || return 0
-    printf '[%s] %-8s %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$1" "$(_strip_ansi "$2")" >> "$LOG_FILE"
+    [ -d "$LOG_DIR" ] || mkdir -p "$LOG_DIR" 2>/dev/null || return 0
+    printf '[%(%Y-%m-%d %H:%M:%S)T] %-8s %s\n' -1 "$1" "${2//$'\e'\[*([0-9;])m/}" >> "$LOG_FILE"
 }
 
-# شروع نشست — $1=نوع اجرا (cli/interactive)، بقیه=آرگومان‌ها
+# Start a session — $1=mode (cli/interactive), rest=arguments
 log_session_start() {
     [ "$LOG_ENABLED" = "1" ] || return 0
     _log_rotate
     local mode="$1"
     shift
     local extra=""
-    [ $# -gt 0 ] && extra=" | آرگومان‌ها: $*"
-    log_write "SESSION" "════ شروع نشست ($mode)$extra ════"
+    [ $# -gt 0 ] && extra=" | args: $*"
+    log_write "SESSION" "════ session start ($mode)$extra ════"
 }
 
+# End the session and log the counter summary
 log_session_end() {
     [ "$LOG_ENABLED" = "1" ] || return 0
-    log_write "SESSION" "خلاصه نشست: موفق=$LOG_OK_COUNT  خطا=$LOG_FAIL_COUNT  هشدار=$LOG_WARN_COUNT"
-    log_write "SESSION" "════ پایان نشست ════"
+    log_write "SESSION" "session summary: ok=$LOG_OK_COUNT  errors=$LOG_FAIL_COUNT  warnings=$LOG_WARN_COUNT"
+    log_write "SESSION" "════ session end ════"
 }
 
+# Print this run's counter summary to the terminal
 print_session_summary() {
     echo ""
-    echo -e "${BOLD}── خلاصه این اجرا ──${NC}"
-    echo -e "   ✓ موفق: $LOG_OK_COUNT     ✗ خطا: $LOG_FAIL_COUNT     ⚠ هشدار: $LOG_WARN_COUNT"
+    echo -e "${BOLD}── Session summary ──${NC}"
+    echo -e "   ✓ OK: $LOG_OK_COUNT     ✗ Errors: $LOG_FAIL_COUNT     ⚠ Warnings: $LOG_WARN_COUNT"
     if [ "$LOG_ENABLED" = "1" ]; then
-        echo -e "   ℹ لاگ کامل: $LOG_FILE"
+        echo -e "   ℹ Full log: $LOG_FILE"
     fi
     return 0
 }
 
+# Show the last log lines (interactive menu)
 show_log() {
-    header "📜 لاگ فعالیت‌ها (آخرین ۶۰ خط)"
+    header "📜 Activity log (last 60 lines)"
     if [ -f "$LOG_FILE" ]; then
         tail -n 60 "$LOG_FILE"
         echo ""
-        info "مسیر کامل: $LOG_FILE"
-        [ -f "$LOG_FILE.old" ] && info "لاگ قدیمی: $LOG_FILE.old"
+        info "Full path: $LOG_FILE"
+        [ -f "$LOG_FILE.old" ] && info "Older log: $LOG_FILE.old"
     else
-        info "هنوز لاگی ثبت نشده است."
-        info "لاگ در این مسیر ساخته می‌شود: $LOG_FILE"
+        info "Nothing has been logged yet."
+        info "The log is created at: $LOG_FILE"
     fi
     return 0
 }
 
-# ---------- خروجی (چاپ در ترمینال + ثبت همزمان در لاگ) ----------
+# ---------- Output (terminal + simultaneous logging) ----------
 success() {
     echo -e "${GREEN}   ✓ $1${NC}"
     LOG_OK_COUNT=$((LOG_OK_COUNT + 1))
@@ -135,59 +152,89 @@ header() {
 press_enter() {
     if [ "$CLI_MODE" = "1" ]; then echo; return 0; fi
     echo ""
-    read -r -p "   برای ادامه Enter بزنید..." _
+    read -r -p "   Press Enter to continue..." _ || true
+    return 0
 }
 
-# درخواست تأیید yes/no — در حالت -y خودکار تأیید می‌شود
+# Ask a yes/no question — auto-confirmed in -y mode
+# Uses a local variable so the caller's REPLY is not overwritten
 confirm_action() {
     if [ "$ASSUME_YES" = "1" ]; then
-        info "(تأیید خودکار با -y)"
+        info "(auto-confirmed with -y)"
         return 0
     fi
-    read -r -p "   $1 (y/n): " -n 1 -r
+    local reply=""
+    read -r -n 1 -p "   $1 (y/n): " reply || true
     echo
-    [[ $REPLY =~ ^[Yy]$ ]]
+    [[ $reply =~ ^[Yy]$ ]]
 }
 
-# آیا بسته deb نصب است؟
+# Abort immediately with a logged error — $1=message  $2=exit code (default 1)
+die() {
+    failure "$1"
+    exit "${2:-1}"
+}
+
+# Check whether a command exists in PATH — logs an error and returns 1 if missing
+require_cmd() {   # $1=command  $2=optional detail
+    if command -v "$1" > /dev/null 2>&1; then
+        return 0
+    fi
+    failure "Command '$1' not found${2:+ — $2}"
+    return 1
+}
+
+# ---------- System helpers ----------
+
+# Is the deb package installed?
 pkg_installed() {
     dpkg-query -W -f='${Status}' "$1" 2>/dev/null | grep -q "install ok installed"
 }
 
-# تنظیم/به‌روزرسانی یک پارامتر sysctl در فایل اختصاصی اسکریپت
-set_sysctl() {   # $1=کلید  $2=مقدار
-    local key_esc=${1//./\\.}
+# Set/update a sysctl parameter in the script's dedicated config file
+set_sysctl() {   # $1=key  $2=value
+    local key_esc value_esc
+    key_esc=${1//./\\.}
+    value_esc=${2//&/\\&}
     if sudo grep -qE "^[[:space:]]*${key_esc}[[:space:]]*=" "$SYSCTL_CONF" 2>/dev/null; then
-        sudo sed -i "s|^[[:space:]]*${key_esc}[[:space:]]*=.*|$1 = $2|" "$SYSCTL_CONF"
+        sudo sed -i "s|^[[:space:]]*${key_esc}[[:space:]]*=.*|$1 = $value_esc|" "$SYSCTL_CONF"
     else
-        echo "$1 = $2" | sudo tee -a "$SYSCTL_CONF" > /dev/null
+        printf '%s = %s\n' "$1" "$2" | sudo tee -a "$SYSCTL_CONF" > /dev/null
     fi
 }
 
+# Apply all sysctl parameters
 apply_sysctl() {
     sudo sysctl --system > /dev/null 2>&1
 }
 
-# نام اتصال فعال NetworkManager — $1 اختیاری: فیلتر نوع اتصال
+# Name of the active NetworkManager connection — $1: optional connection type filter
+# Short names are accepted: wireless/wifi → 802-11-wireless, ethernet → 802-3-ethernet
+# (nmcli's type string differs from the short name; a direct comparison would never match)
+# shellcheck disable=SC2162  # read without -r on purpose: nmcli escapes are processed
 get_active_connection() {
-    local name dev type
-    while IFS=: read -r name dev type; do
+    local name dev type want="$1"
+    case "$want" in
+        wireless|wifi) want="802-11-wireless" ;;
+        ethernet)      want="802-3-ethernet" ;;
+    esac
+    while IFS=: read name dev type; do
         [ "$dev" = "lo" ] && continue
-        if [ -n "$1" ] && [ "$type" != "$1" ]; then continue; fi
+        if [ -n "$want" ] && [ "$type" != "$want" ]; then continue; fi
         echo "$name"
         return 0
     done < <(nmcli -t -f NAME,DEVICE,TYPE con show --active 2>/dev/null)
     return 1
 }
 
-# ---------- کمکی‌های نام/نسخه ----------
+# ---------- Name/version helpers ----------
 
-# نرمال‌سازی نام برای مقایسه (حذف فاصله/خط تیره/حروف بزرگ)
+# Normalize a name for comparison (strip spaces/dashes/uppercase)
 normalize_name() {
     printf '%s' "$1" | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]'
 }
 
-# استخراج نسخه از نام فایل (مثل 1.10.4)
+# Extract a version from a file name (e.g. 1.10.4)
 guess_version() {
     local base
     base=$(basename "$1")
@@ -197,7 +244,7 @@ guess_version() {
     fi
 }
 
-# استخراج نام برنامه از نام فایل آرشیو (حذف نسخه/پلتفرم)
+# Extract the application name from an archive file name (strip version/platform)
 name_from_archive() {
     local base
     base=$(basename "$1")
@@ -207,7 +254,7 @@ name_from_archive() {
     printf '%s' "$base" | tr -cd '[:alnum:]' | tr '[:upper:]' '[:lower:]'
 }
 
-# ریشه نصب از مسیر فایل اجرایی (مثل /opt/app/bin/x → /opt/app)
+# Derive the install root from an executable path (e.g. /opt/app/bin/x → /opt/app)
 derive_install_root() {
     local root
     root=$(dirname "$1")
@@ -217,15 +264,15 @@ derive_install_root() {
     printf '%s' "$root"
 }
 
-# ---------- رجیستری برنامه‌های tar.gz ----------
-# فرمت هر خط: name|version|install_dir|exec_path|desktop_file|source_archive
+# ---------- tar.gz application registry ----------
+# Line format: name|version|install_dir|exec_path|desktop_file|source_archive
 
 registry_add() {   # $1=name $2=version $3=dir $4=exec $5=desktop $6=source
     mkdir -p "$REGISTRY_DIR"
     touch "$REGISTRY_DB"
     local tmp="$REGISTRY_DB.tmp"
     awk -F'|' -v n="$1" '$1 != n' "$REGISTRY_DB" > "$tmp" 2>/dev/null
-    echo "$1|$2|$3|$4|$5|$6" >> "$tmp"
+    printf '%s|%s|%s|%s|%s|%s\n' "$1" "$2" "$3" "$4" "$5" "$6" >> "$tmp"
     mv "$tmp" "$REGISTRY_DB"
 }
 

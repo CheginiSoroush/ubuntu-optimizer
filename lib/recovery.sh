@@ -1,69 +1,90 @@
+# shellcheck shell=bash
 # ============================================================
-#   lib/recovery.sh — بازیابی سیستم و ابزارهای پیشرفته
-#   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
+#   lib/recovery.sh — system recovery and advanced tools
+#   Author & Designer: Soroush Chegini (CheginiSoroush)
 # ============================================================
 
 fix_broken() {
-    header "بازیابی بسته‌های خراب"
+    header "Fix Broken Packages"
     local ok=1
     sudo apt --fix-broken install -y || ok=0
     sudo dpkg --configure -a || ok=0
     if [ "$ok" -eq 1 ]; then
-        success "بازیابی انجام شد."
+        success "Repair completed."
+        return 0
     else
-        failure "بازیابی ناقص ماند. خروجی بالا را بررسی کنید."
+        failure "Repair incomplete. Check the output above."
+        return 1
     fi
 }
 
 reinstall_desktop() {
-    header "نصب مجدد محیط دسکتاپ"
-    warn "این کار ممکن است چند دقیقه طول بکشد..."
+    header "Reinstall the Desktop Environment"
+    warn "This may take several minutes..."
     if sudo apt install --reinstall -y ubuntu-desktop ubuntu-desktop-minimal gnome-shell gdm3 nautilus gnome-terminal; then
-        success "محیط دسکتاپ مجدداً نصب شد."
-        info "لطفاً سیستم را ری‌استارت کنید."
+        success "Desktop environment reinstalled."
+        info "Please reboot the system."
+        return 0
     else
-        failure "خطا در نصب مجدد محیط دسکتاپ."
+        failure "Failed to reinstall the desktop environment."
+        return 1
     fi
 }
 
 fix_dpkg_configure() {
-    header "بررسی و پیکربندی بسته‌ها با dpkg"
+    header "Configure Pending Packages with dpkg"
     if sudo dpkg --configure -a; then
-        success "پیکربندی بسته‌ها انجام شد."
+        success "Package configuration completed."
+        return 0
     else
-        failure "خطا در پیکربندی بسته‌ها."
+        failure "Failed to configure packages."
+        return 1
     fi
 }
 
 install_veet() {
-    header "نصب VEET (ابزار حذف عمیق)"
-    warn "⚠ هشدار: VEET می‌تواند بسته‌های سیستمی را اشتباهاً حذف کند!"
-    warn "⚠ فقط برنامه‌های کاربردی را با آن حذف کنید، نه بسته‌های سیستمی."
-    confirm_action "ادامه می‌کنید؟" || { info "لغو شد."; return 0; }
+    header "Install VEET (Deep Removal Tool)"
+    warn "⚠ Warning: VEET can accidentally remove system packages!"
+    warn "⚠ Only remove user applications with it, never system packages."
+    confirm_action "Continue?" || { info "Cancelled."; return 0; }
 
     if ! command -v go > /dev/null 2>&1; then
-        info "نصب golang..."
-        sudo apt install -y golang > /dev/null 2>&1 || { failure "خطا در نصب golang."; return 1; }
+        info "Installing golang..."
+        sudo apt install -y golang > /dev/null 2>&1 || { failure "Failed to install golang."; return 1; }
+    fi
+    if ! command -v make > /dev/null 2>&1; then
+        info "Installing make..."
+        sudo apt install -y make > /dev/null 2>&1 || { failure "Failed to install make."; return 1; }
     fi
 
     if [ ! -d "$HOME/veet/.git" ]; then
-        info "دانلود سورس VEET..."
+        info "Downloading the VEET source..."
         git clone https://github.com/swadhinbiswas/veet.git "$HOME/veet" \
-            || { failure "خطا در دانلود (اینترنت یا آدرس ریپو را بررسی کنید)."; return 1; }
+            || { failure "Download failed (check your internet or the repo URL)."; return 1; }
+    else
+        # The existing source is updated (best-effort)
+        info "Updating the VEET source..."
+        git -C "$HOME/veet" pull --ff-only > /dev/null 2>&1 \
+            || warn "Update failed — continuing with the existing version."
     fi
 
-    info "ساخت برنامه (ممکن است طول بکشد)..."
-    if (cd "$HOME/veet" && make build && sudo make install); then
-        if [ -x /usr/local/bin/veet ]; then
-            success "VEET نصب شد. برای اجرا: sudo veet"
-        elif [ -f "$HOME/veet/veet" ]; then
+    info "Building the program (may take a while)..."
+    if ! (cd "$HOME/veet" && make build); then
+        failure "Failed to build VEET."
+        return 1
+    fi
+
+    # Install: make install or a manual binary copy — existence is verified at the end
+    if ! sudo make -C "$HOME/veet" install > /dev/null 2>&1 || [ ! -x /usr/local/bin/veet ]; then
+        if [ -f "$HOME/veet/veet" ]; then
             sudo cp "$HOME/veet/veet" /usr/local/bin/veet
             sudo chmod +x /usr/local/bin/veet
-            success "VEET نصب شد. برای اجرا: sudo veet"
-        else
-            failure "باینری ساخته نشد."
         fi
-    else
-        failure "خطا در ساخت VEET."
     fi
+    if [ -x /usr/local/bin/veet ]; then
+        success "VEET installed. Run with: sudo veet"
+        return 0
+    fi
+    failure "The VEET binary was not built/installed."
+    return 1
 }

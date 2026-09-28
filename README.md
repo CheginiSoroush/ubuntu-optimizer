@@ -1,204 +1,260 @@
-
 # 🐧 Ubuntu Optimizer & Fixer
 
-ابزار جامع بهینه‌سازی، مدیریت برنامه‌ها و رفع مشکلات اوبونتو — به زبان فارسی
+An all-in-one Ubuntu optimization, app management and repair toolkit.
 
-**نویسنده و طراح:** Soroush Chegini ([CheginiSoroush](https://github.com/CheginiSoroush))
+**Author & Designer:** Soroush Chegini ([CheginiSoroush](https://github.com/CheginiSoroush))
 
-**نسخه:** 5.5 | **ساختار:** ماژولار (Bash) | **پیش‌نیاز:** Ubuntu 20.04+ و bash نسخه 4+
+**Version:** 6.0 | **Architecture:** modular Bash | **Requires:** Ubuntu 20.04+ and Bash 4.3+
+
+> 📖 [Persian documentation (مستندات فارسی)](README.fa.md)
+>
+> **Optional:** `jq` — faster GitHub API parsing (everything works without it).
 
 ---
 
-## ✨ امکانات
+## ✨ Features
 
-| حوزه | قابلیت‌ها |
+| Area | Capabilities |
 |---|---|
-| 🌐 شبکه | فعال‌سازی BBR، تنظیم DNS، MTU، بهینه‌سازی TCP، غیرفعال‌کردن پاورسیو وای‌فای |
-| 💾 سیستم | تنظیم swappiness و vfs_cache_pressure، noatime، نصب preload و tlp، محدودسازی لاگ |
-| 🔐 امنیت | افزایش زمان اعتبار sudo، قانون polkit (اختیاری) |
-| 🕐 زمان | همگام‌سازی زمان با chrony (جایگزین ntpdate) |
-| 🛠 fixnet | اسکریپت مستقل دو‌زبانه برای رفع مشکل اینترنت بعد از قطع VPN |
-| 📊 تست | پینگ، DNS، سرعت اینترنت، اطلاعات کامل شبکه |
-| 📦 نصب | بسته‌های deb، **نصب هوشمند tar.gz** (تشخیص اجرایی اصلی + بررسی معماری + نصب خودکار وابستگی‌ها) |
-| 🧹 حذف | **حذف کامل هر برنامه از هر منبعی** (apt/snap/flatpak/tar.gz/دستی) + داده‌های کاربری |
-| 🔄 به‌روزرسانی | apt + snap + flatpak + برنامه‌های tar.gz (اسکن Downloads یا URL) |
-| 🧩 snap/flatpak | لیست، نصب، حذف، پاک‌سازی نسخه‌های قدیمی و ران‌تایم‌های unused |
-| 🚑 بازیابی | رفع بسته‌های خراب، نصب مجدد دسکتاپ |
-| 📜 لاگ | ثبت خودکار همه عملیات + خلاصه پایان هر اجرا |
-| 📊 گزارش | گزارش وضعیت سیستم و سلامت بهینه‌سازی‌ها (فقط خواندنی) |
+| 🌐 Network | BBR, DNS, MTU, full TCP tuning (fastopen, buffers), Wi-Fi power management off |
+| 💾 System | swappiness & vfs_cache_pressure, noatime (applied immediately via remount), preload & tlp, journal size limit |
+| 🔐 Security | extended sudo timeout, polkit rule (optional — local sessions only) |
+| 🕐 Time | chrony sync with an independent emergency fallback |
+| 🛠 fixnet | standalone bilingual script that repairs connectivity after a VPN disconnect — restores resolv.conf and waits for the network to return |
+| 📊 Tests | ping, DNS, internet speed, full network info |
+| 📦 Install | deb packages, **smart tar.gz/tgz install** (main-executable detection + architecture check + automatic dependencies) |
+| 🐙 GitHub | install / update / remove apps from GitHub Releases — automatic architecture-aware asset pick |
+| 🧹 Removal | **fully remove any app from any source** (apt/snap/flatpak/tar.gz/manual) + user data |
+| 🔄 Updates | apt + snap + flatpak + tar.gz (Downloads scan or URL) + GitHub — fully automatic with `-y` |
+| 🧩 snap/flatpak | list, install, remove, clean old revisions & unused runtimes |
+| 🚑 Recovery | fix broken packages, reinstall the desktop environment |
+| 📜 Logging | every action logged + a summary at the end of each run |
+| 📊 Report | read-only system status & optimization report |
 
 ---
 
-## 🚀 نصب
+## 🆕 What's new in 6.0
+
+**International release**
+- English-first codebase: every message, comment and log line is now English
+- Persian documentation lives on in [README.fa.md](README.fa.md)
+- The generated fixnet script keeps its bilingual (EN/FA) runtime messages
+- All-ASCII terminal output — banner and tables align perfectly everywhere
+
+**Reliability**
+- Wi-Fi power management never actually applied before (nmcli connection-type mismatch) — fixed
+- Guard against dangerous `/opt` removal with invalid app names
+- User-data cleanup never offers base directories (`~/.config`, …)
+- Infinite loops fixed: menu on Ctrl+D, `-y` in tar.gz updates and the SSH wizard
+- Emergency NTP sync (incomplete chronyd directive) — fixed
+- noatime false-positives fixed; now applied immediately via remount
+- Orphan desktop-file false deletions on escaped paths — fixed
+- `-y` mode is truly non-interactive (dpkg conffile prompts included)
+
+**Security**
+- polkit rule restricted to local active sessions (SSH sessions not covered)
+- GitHub downloads go through a secure mktemp directory (symlink-safe)
+- freedesktop-compliant `Exec` escaping in .desktop files
+
+**Quality & performance**
+- ShellCheck clean: zero findings across the whole project + CI workflow included
+- Fork-free logging; single `systemctl` call in service scanning; deterministic finds
+- TCP fastopen + 16MB buffers; fixnet waits for the default route after an NM restart
+- Signal exit codes (130/143); `install.sh --check` is CI/script-friendly
+
+---
+
+## 🚀 Installation
 
 ```bash
-# ۱. پوشه پروژه را در خانه خود بگذارید
-mv ubuntu-optimizer ~/.   # مسیر پیشنهادی: ~/ubuntu-optimizer
+# 1. Put the project folder in your home directory
+mv ubuntu-optimizer ~/.   # recommended path: ~/ubuntu-optimizer
 
-# ۲. اجرای نصب‌کننده
+# 2. Run the installer
 cd ~/ubuntu-optimizer
 ./install.sh
 ```
 
-نصب‌کننده:
-- سلامت syntax همه فایل‌ها را با `bash -n` بررسی می‌کند
-- میان‌بر `uo` در `~/.local/bin` می‌سازد و به PATH اضافه می‌کند
-- alias `uo` را در `~/.bashrc` (و `~/.zshrc` اگر موجود باشد) اضافه می‌کند
+The installer:
+- checks the syntax of every file with `bash -n` (and reads the version from a single source)
+- creates the `uo` shortcut in `~/.local/bin` and adds it to PATH
+- adds a `uo` alias to `~/.bashrc` (and `~/.zshrc` if present)
 
-سپس یک‌بار `source ~/.bashrc` بزنید یا ترمینال را باز کنید. از این پس:
+Then run `source ~/.bashrc` once (or open a new terminal):
 
 ```bash
-uo              # منوی تعاملی
-uo --report     # گزارش وضعیت سیستم
-uo --help       # راهنمای کامل
+uo              # interactive menu
+uo --report     # system status report
+uo --help       # full help
 ```
 
-> ⚠️ اسکریپت را **بدون sudo** اجرا کنید — خودش هنگام نیاز رمز می‌پرسد.
+> ⚠️ Run the script **without sudo** — it asks for the sudo password itself when needed.
 
-### مدیریت نصب
+### Managing the installation
 
 ```bash
-./install.sh --check       # بررسی سلامت فایل‌ها و وضعیت نصب
-./install.sh --update      # به‌روزرسانی از git (اگر مخزن git باشد)
-./install.sh --uninstall   # حذف میان‌بر و alias (بدون حذف خود پروژه)
+./install.sh --check       # file health & install status (CI-friendly exit code)
+./install.sh --update      # update from git (if a git repository)
+./install.sh --uninstall   # remove shortcut and alias (project files stay)
 ```
 
 ---
 
-## ⌨️ حالت CLI (غیرتعاملی)
+## ⌨️ CLI (non-interactive)
 
-| دستور | کار |
+| Command | Action |
 |---|---|
-| `uo --report` | گزارش وضعیت سیستم (فقط خواندنی) |
-| `uo --git-ssh` | ویزارد راه‌اندازی کلید SSH گیت‌هاب (بدون رمز) |
-| `uo --git-ssh-status` | وضعیت کلید SSH و احراز هویت گیت‌هاب |
-| `uo --github-install OWNER/REPO [NAME]` | نصب برنامه از آخرین release گیت‌هاب (انتخاب هوشمند فایل + معماری) |
-| `uo --github-update` | بررسی و نصب به‌روزرسانی همه برنامه‌های گیت‌هابی |
-| `uo --github-list` | فهرست برنامه‌های ردیابی‌شده از گیت‌هاب |
-| `uo --github-remove NAME` | حذف کامل برنامه گیت‌هابی (برنامه + رد ردیابی) |
-| `uo --optimize` | همه بهینه‌سازی‌های شبکه + سیستم |
-| `uo --network` | فقط بهینه‌سازی شبکه |
-| `uo --system` | فقط بهینه‌سازی سیستم |
-| `uo --security` | sudo timeout + polkit |
-| `uo --time` | همگام‌سازی زمان |
-| `uo --fixnet` / `--fixnet-run` | ساخت / اجرای اسکریپت fixnet |
-| `uo --test` | تست‌های شبکه |
-| `uo --update` | به‌روزرسانی همه منابع |
-| `uo --update-apt / --update-snap / --update-flatpak / --update-targz` | به‌روزرسانی منبع خاص |
-| `uo --list-apps` | لیست همه برنامه‌ها از همه منابع |
-| `uo --cleanup نام --purge-data` | حذف کامل برنامه + داده‌های کاربری |
-| `uo --snap-clean` | پاک‌سازی snap/flatpak قدیمی |
-| `uo --log` / `--log-clear` | نمایش / حذف لاگ |
-| `uo -y` | تأیید خودکار همه سؤال‌ها |
-| `uo --no-log` | این اجرا لاگ نشود |
-| `uo --no-color` | خروجی بدون رنگ |
+| `uo --report` | system status report (read-only) |
+| `uo --github-install OWNER/REPO [NAME]` | install an app from the latest GitHub release |
+| `uo --install-targz FILE [NAME]` | install an app from a .tar.gz file (name optional — auto-detected) |
+| `uo --github-update` | check & install updates for GitHub apps |
+| `uo --github-list` | list tracked GitHub apps |
+| `uo --github-remove NAME` | fully remove a GitHub app + its tracking entry |
+| `uo --git-ssh` | GitHub SSH key setup wizard (passwordless) |
+| `uo --git-ssh-status` | SSH key / GitHub authentication status |
+| `uo --optimize` | all network + system optimizations |
+| `uo --network` | network optimizations (BBR, DNS, MTU, TCP) |
+| `uo --system` | system & memory optimizations |
+| `uo --security` | sudo timeout + polkit settings |
+| `uo --time` | sync system time |
+| `uo --fixnet` / `--fixnet-run` | create / run the fixnet script |
+| `uo --test` | network tests (ping, DNS, speed) |
+| `uo --update` | update all sources |
+| `uo --update-apt / --update-snap / --update-flatpak / --update-targz` | update a single source |
+| `uo --list-apps` | list all apps from all sources |
+| `uo --cleanup NAME --purge-data` | fully remove an app + user data |
+| `uo --snap-clean` | clean old snap revisions + unused flatpaks |
+| `uo --log` / `--log-clear` | show / delete the log |
+| `uo -y` | auto-confirm all questions — fully non-interactive |
+| `uo --no-log` | do not log this run |
+| `uo --no-color` | disable colors (automatic in pipes) |
 
-### مثال‌های واقعی
+### Real-world examples
 
 ```bash
-uo --optimize                                   # بعد از نصب تازه اوبونتو
-uo --update -y                                  # آپدیت همه‌چیز بدون سؤال
-uo --cleanup abdownloadmanager --purge-data -y  # حذف کامل یک برنامه
-uo --report                                     # چک سلامت سیستم
+uo --optimize                                   # after a fresh Ubuntu install
+uo --update -y                                  # update everything, no questions
+uo --install-targz ~/Downloads/app.tar.gz myapp # install from an archive
+uo --github-install junegunn/fzf                # install from GitHub
+uo --cleanup abdownloadmanager --purge-data -y  # fully remove an app
+uo --report                                     # health check
 ```
 
 ---
 
-## 🧠 نحوه نصب/حذف هوشمند
+## 🧠 How smart install/removal works
 
-### نصب tar.gz (`uo` ← گزینه ۷ ← ۴)
+### tar.gz install (`uo` → option 7 → 4)
 
-1. فایل استخراج می‌شود و **فایل اجرایی اصلی** تشخیص داده می‌شود (با اولویت‌بندی: تطبیق نام → AppImage → انتخاب دستی) — ابزارهای کمکی Electron/JVM (`chrome_crashpad_handler`، `jspawnhelper` و...) نادیده گرفته می‌شوند
-2. **معماری بسته با سیستم چک می‌شود** — دانلود اشتباه (مثل arm64 روی x86_64) قبل از نصب شناسایی می‌شود
-3. **وابستگی‌های گمشده** با `ldd` پیدا و خودکار نصب می‌شوند
-4. برنامه در `/opt/نام` نصب و میان‌بر ترمینال + فایل desktop ساخته می‌شود
-5. در **رجیستری** ثبت می‌شود (برای حذف تمیز و ردیابی به‌روزرسانی)
+1. The archive is extracted and the **main executable** is detected (priority: AppImage → name match → single candidate → manual choice) — Electron/JVM helper tools (`chrome_crashpad_handler`, `jspawnhelper`, …) are skipped
+2. The **package architecture** is checked against the system — wrong downloads (e.g. arm64 on x86_64) are detected before install
+3. **Missing dependencies** are found with `ldd` and installed automatically
+4. The app is installed to `/opt/<name>` with a terminal shortcut and a desktop file (spec-compliant escaping)
+5. It is registered in the **registry** (for clean removal & update tracking)
 
-### حذف کامل (`--cleanup نام`)
+### Full removal (`--cleanup NAME`)
 
-همه منابع جستجو می‌شود: رجیستری، apt (دقیق و تقریبی)، snap، flatpak، پوشه‌های `/opt`، فایل‌های desktop. جالب اینکه پوشه‌های `/opt` متعلق به بسته‌های deb (مثل Obsidian) تشخیص داده می‌شوند تا حذف از **مسیر درست** (apt) انجام شود.
+All sources are searched: registry, apt (exact and fuzzy), snap, flatpak, `/opt` directories, desktop files. `/opt` directories owned by deb packages (like Obsidian) are detected so removal goes through the **right path** (apt).
 
-### به‌روزرسانی tar.gz
+### tar.gz updates
 
-پوشه `~/Downloads` برای نسخه جدید اسکن می‌شود (تفاوت نسخه تشخیص داده می‌شود)، یا مسیر/URL دستی می‌دهید و خودش جایگزین می‌کند.
+`~/Downloads` is scanned for a new version, or you provide a path/URL — with `-y` it is fully automatic.
 
 ---
 
-## 📁 ساختار پروژه
+## 📁 Project structure
 
 ```
 ubuntu-optimizer/
-├── ubuntu-optimizer.sh   ← فایل اصلی (CLI + منو) — فقط این اجرا می‌شود
-├── install.sh            ← نصب/به‌روزرسانی/حذف نصب خود پروژه
-├── README.md
+├── ubuntu-optimizer.sh   ← main file (CLI + menu) — only this is executed
+├── install.sh            ← install/update/uninstall of the project itself
+├── README.md / README.fa.md
+├── .shellcheckrc         ← project lint configuration
+├── .github/workflows/lint.yml  ← CI: shellcheck + syntax on every commit
 └── lib/
-    ├── common.sh         ← رنگ‌ها، توابع کمکی، رجیستری، سیستم لاگ
-    ├── network.sh        ← بهینه‌سازی و تست شبکه
-    ├── system.sh         ← سیستم، حافظه، امنیت، زمان
-    ├── fixnet.sh         ← ساخت و اجرای fixnet دو‌زبانه
-    ├── packages.sh       ← نصب deb و ابزارها
-    ├── targz.sh          ← نصب هوشمند tar.gz
-    ├── appmgmt.sh        ← حذف کامل برنامه‌ها از همه منابع
-    ├── snapflatpak.sh    ← snap/flatpak + به‌روزرسانی‌ها
-    ├── recovery.sh       ← بازیابی سیستم + ابزارهای خطرناک
-    ├── report.sh         ← گزارش وضعیت سیستم
-    ├── gitssh.sh     ← راه‌اندازی SSH گیت‌هاب
-    └── menus.sh          ← موتور منو و همه منوها
+    ├── common.sh         ← colors, helpers, registry, logging system
+    ├── network.sh        ← network optimization and tests
+    ├── system.sh         ← system, memory, security, time
+    ├── fixnet.sh         ← creates and runs the bilingual fixnet script
+    ├── packages.sh       ← deb and tool installation
+    ├── targz.sh          ← smart tar.gz installer
+    ├── github.sh         ← install/updates from GitHub Releases
+    ├── appmgmt.sh        ← full app removal from all sources
+    ├── snapflatpak.sh    ← snap/flatpak + updates
+    ├── recovery.sh       ← system recovery + advanced tools
+    ├── report.sh         ← system status report
+    ├── gitssh.sh         ← GitHub SSH setup
+    └── menus.sh          ← menu engine and all menus
 ```
 
-> فایل‌های `lib/` را مستقیم اجرا نکنید — همیشه از `ubuntu-optimizer.sh` (یا `uo`).
+> Never execute the `lib/` files directly — always go through `ubuntu-optimizer.sh` (or `uo`).
 
-### برای توسعه‌دهنده
+### For developers
 
-- **افزودن گزینه جدید به منو:** فقط یک تابع در ماژول مربوطه تعریف کنید و یک خط به `menu_loop` در `lib/menus.sh` اضافه کنید: `"عنوان|نام_تابع"`
-- **افزودن دستور CLI جدید:** یک خط به حلقه پردازش آرگومان‌ها در فایل اصلی اضافه کنید
-- **سلامت فایل‌ها را همیشه چک کنید:** `bash -n lib/فایل.sh` — بدون خروجی یعنی سالم
+- **Add a menu option:** define a function in the relevant module and add one line to `menu_loop` in `lib/menus.sh`: `"Title|function_name"`
+- The menu only runs defined functions (`declare -F` guard) — a forgotten function is reported with a clear message
+- **Add a CLI option:** add one line to the argument loop in the main script
+- **The version lives in one place:** `SCRIPT_VERSION` in `lib/common.sh`
+- **Always check file health:** `bash -n lib/<file>.sh` — no output means healthy
 
 ---
 
-## 📍 فایل‌ها و مسیرهایی که اسکریپت می‌سازد/تغییر می‌دهد
+## 📍 Files and paths created/modified
 
-| مسیر | توضیح |
+| Path | Purpose |
 |---|---|
-| `/etc/sysctl.d/99-ubuntu-optimizer.conf` | پارامترهای کرنل (BBR، swappiness و...) |
-| `/etc/systemd/journald.conf.d/99-optimizer.conf` | محدودیت حجم لاگ سیستم |
-| `/etc/sudoers.d/99-optimizer-timeout` | زمان اعتبار sudo (۱۲۰ دقیقه) |
-| `/etc/polkit-1/rules.d/10-disable-password-timeout.rules` | قانون polkit (فقط با تأیید کاربر) |
-| `/opt/<نام>` | محل نصب برنامه‌های tar.gz |
-| `~/.local/share/ubuntu-optimizer/apps.db` | رجیستری برنامه‌های tar.gz |
-| `~/.local/state/ubuntu-optimizer/optimizer.log` | لاگ فعالیت‌ها |
-| `~/fix-network.sh` | اسکریپت fixnet + alias `fixnet` در شل |
-| `~/.local/bin/uo` | میان‌بر اجرای اسکریپت |
+| `/etc/sysctl.d/99-ubuntu-optimizer.conf` | kernel parameters (BBR, swappiness, …) |
+| `/etc/systemd/journald.conf.d/99-optimizer.conf` | system journal size limit |
+| `/etc/sudoers.d/99-optimizer-timeout` | sudo timeout (120 minutes) |
+| `/etc/polkit-1/rules.d/10-disable-password-timeout.rules` | polkit rule (only with user consent) |
+| `/opt/<name>` | install location for tar.gz apps |
+| `~/.local/share/ubuntu-optimizer/apps.db` | tar.gz app registry |
+| `~/.local/share/ubuntu-optimizer/github.db` | GitHub app database |
+| `~/.local/state/ubuntu-optimizer/optimizer.log` | activity log |
+| `~/fix-network.sh` | fixnet script + `fixnet` shell alias |
+| `~/.local/bin/uo` | run shortcut |
 
-بک‌آپ‌های ایجادشده: `/etc/fstab.bak` (قبل از افزودن noatime)
-
----
-
-## 🔒 نکات امنیتی و ایمنی
-
-- اسکریپت با کاربر عادی اجرا می‌شود؛ sudo فقط برای عملیات لازم درخواست می‌شود
-- ویرایش sudoers از طریق فایل جداگانه با اعتبارسنجی `visudo -c -f` — در صورت خطا خودکار حذف می‌شود
-- عملیات‌های مخرب (حذف برنامه‌ها، polkit، VEET) همیشه تأیید می‌گیرند (مگر با `-y`)
-- مسیرهای حساس در حذف (`/`، `$HOME` و...) مسدود شده‌اند
-- `set_dns` اتصال را ری‌استارت می‌کند — روی SSH احتیاط کنید
-- گزارش وضعیت (`--report`) کاملاً فقط‌خواندنی است
+Backup created: `/etc/fstab.bak` (before adding noatime)
 
 ---
 
-## ⚠️ سلب مسئولیت
+## 🔒 Security & safety notes
 
-این ابزار تنظیمات سیستمی را تغییر می‌دهد. باگ‌ها با دقت رفع شده‌اند، اما:
-- قبل از اعمال تغییرات عمده، سیستم شما مسئولیت استفاده را بر عهده دارد
-- بخش «ابزارهای خطرناک» (مثل VEET) با هشدار صریح جدا شده است
-- برای undo کامل تنظیمات: فایل‌های جدول بالا را حذف کنید و ری‌استارت بزنید
+- The script runs as a regular user; sudo is requested only for the operations that need it
+- sudoers edits go through a separate file validated with `visudo -c -f` — removed automatically on error
+- The polkit rule (if enabled) covers **local active sessions only** — SSH/remote sessions are not covered
+- GitHub release downloads go through a secure temporary directory (mktemp)
+- App names are sanitized before every operation — sensitive paths (`/`, `/opt`, `$HOME`, …) are blocked from removal
+- Destructive operations (app removal, polkit, VEET) always ask for confirmation (unless `-y`)
+- `set_dns` and Wi-Fi power management restart the connection — be careful over SSH
+- The status report (`--report`) is completely read-only
 
-## ✅ تست نهایی پروژه
+---
+
+## ⚠️ Disclaimer
+
+This tool changes system settings. All known bugs have been carefully fixed, but the final responsibility for its use is yours:
+- The "advanced tools" section (like VEET) is separated with explicit warnings
+- To fully undo the settings: delete the files in the table above and reboot
+
+---
+
+## 🗺 Roadmap
+
+- [x] GitHub Actions: shellcheck + `bash -n` on every commit
+- [ ] bash completion for CLI options
+- [ ] automated tests (bats) for `lib/common.sh`
+- [ ] `--dry-run` mode
+- [ ] GitHub API token support (rate-limit relief)
+
+---
+
+## ✅ Final project test
 
 ```bash
-uo --report          # گزارش
-uo --list-apps       # لیست برنامه‌ها
-uo --log             # لاگ
-uo                   # منوی کامل — یک دور بگرد و ببین!
+uo --report          # status & optimization report
+uo --list-apps       # apps from all sources
+uo --test            # network tests
+uo --log             # activity log
+uo                   # full menu — take a tour!
 ```
-
----

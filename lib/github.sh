@@ -1,24 +1,25 @@
+# shellcheck shell=bash
 # ============================================================
-#   lib/github.sh — نصب و به‌روزرسانی برنامه‌ها از GitHub Releases
-#   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
+#   lib/github.sh — install & update apps from GitHub Releases
+#   Author & Designer: Soroush Chegini (CheginiSoroush)
 #
-#   جریان نصب: دریافت آخرین release → انتخاب خودکار فایل →
-#   دانلود موقت → نصب → ثبت در github.db → حذف فایل دانلودی.
-#   به‌روزرسانی: تنها یک سؤال به‌ازای هر برنامه؛ پس از تأیید،
-#   بقیه مراحل خودکار است.
+#   Install flow: fetch the latest release → automatic asset pick →
+#   temporary download → install → register in github.db → cleanup.
+#   Updates: one question per app; after confirmation everything
+#   else is automatic.
 # ============================================================
 
 readonly GITHUB_DB="$REGISTRY_DIR/github.db"
 
-# ---------- بانک برنامه‌های گیت‌هاب ----------
-# فرمت هر خط: name|owner/repo|installed_tag
+# ---------- GitHub app database ----------
+# Line format: name|owner/repo|installed_tag
 
 gh_db_add() {   # $1=name $2=repo $3=tag
     mkdir -p "$REGISTRY_DIR"
     touch "$GITHUB_DB"
     local tmp="$GITHUB_DB.tmp"
     awk -F'|' -v n="$1" '$1 != n' "$GITHUB_DB" > "$tmp" 2>/dev/null
-    echo "$1|$2|$3" >> "$tmp"
+    printf '%s|%s|%s\n' "$1" "$2" "$3" >> "$tmp"
     mv "$tmp" "$GITHUB_DB"
 }
 
@@ -29,45 +30,50 @@ gh_db_remove() {   # $1=name
     mv "$tmp" "$GITHUB_DB"
 }
 
-# آیا برنامه در بانک گیت‌هاب ثبت شده است؟
+# Is the app registered in the GitHub database? — exact field match
 gh_db_has() {   # $1=name
     [ -f "$GITHUB_DB" ] || return 1
-    grep -q "^${1}|" "$GITHUB_DB" 2>/dev/null
+    awk -F'|' -v n="$1" '$1 == n { found = 1 } END { exit !found }' "$GITHUB_DB" 2>/dev/null
 }
 
-# ---------- دریافت آخرین release ----------
-# خروجی: GH_TAG (نسخه) و آرایه GH_URLS (آدرس فایل‌های release)
-gh_fetch_latest() {   # $1 = OWNER/REPO یا URL کامل
+# ---------- Fetch the latest release ----------
+# Output: GH_TAG (version) and the GH_URLS array (asset URLs)
+gh_fetch_latest() {   # $1 = OWNER/REPO or a full URL
     GH_TAG=""
     GH_URLS=()
 
     if ! command -v curl > /dev/null 2>&1; then
-        info "نصب curl..."
-        sudo apt install -y curl > /dev/null 2>&1 || { failure "خطا در نصب curl."; return 1; }
+        info "Installing curl..."
+        sudo apt install -y curl > /dev/null 2>&1 || { failure "Failed to install curl."; return 1; }
     fi
 
     local repo="$1" resp
     repo=${repo#https://github.com/}
     repo=${repo#git@github.com:}
     repo=${repo%/}
+    repo=${repo%.git}
 
     if ! [[ "$repo" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
-        failure "قالب مخزن نامعتبر: «$repo»"
-        info "قالب صحیح: OWNER/REPO یا https://github.com/OWNER/REPO"
+        failure "Invalid repository format: '$repo'"
+        info "Correct format: OWNER/REPO or https://github.com/OWNER/REPO"
         return 1
     fi
 
-    info "بررسی آخرین release از $repo ..."
-    resp=$(curl -sSL --connect-timeout 15 --max-time 30 \
-        "https://api.github.com/repos/${repo}/releases/latest" 2>&1)
+    info "Checking the latest release of $repo ..."
+    # stderr is kept separate so a curl failure shows as an empty response, not broken JSON
+    if ! resp=$(curl -sSL --connect-timeout 15 --max-time 30 \
+        "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null) || [ -z "$resp" ]; then
+        failure "Failed to get a response from the GitHub API — check your internet connection."
+        return 1
+    fi
 
     if printf '%s' "$resp" | grep -q '"message": *"Not Found"'; then
-        failure "مخزن پیدا نشد یا release عمومی ندارد (404)."
-        info "نام مخزن را بررسی کنید: $repo"
+        failure "Repository not found or has no public release (404)."
+        info "Check the repository name: $repo"
         return 1
     fi
     if printf '%s' "$resp" | grep -qi 'rate limit'; then
-        warn "محدودیت API گیت‌هاب (۶۰ درخواست در ساعت بدون توکن) — بعداً تلاش کنید."
+        warn "GitHub API rate limit (60 requests/hour without a token) — try again later."
         return 1
     fi
 
@@ -80,17 +86,17 @@ gh_fetch_latest() {   # $1 = OWNER/REPO یا URL کامل
     fi
 
     if [ -z "$GH_TAG" ]; then
-        failure "پاسخ API قابل پردازش نبود (مخزن خصوصی؟)."
+        failure "The API response could not be parsed (private repository?)."
         return 1
     fi
     return 0
 }
 
-# ---------- انتخاب خودکار فایل مناسب ----------
-# امتیازدهی:
-#   معماری مطابق سیستم +40 | فرمت deb +10 | tar.gz/tgz +5
-#   بدون برچسب معماری -15  | musl -8       | معماری ناسازگار -200
-# بالاترین امتیاز انتخاب می‌شود؛ در تساوی، نخستین فایل.
+# ---------- Automatic asset pick ----------
+# Scoring:
+#   matching arch +40 | deb format +10 | tar.gz/tgz +5
+#   no arch tag -15   | musl -8        | incompatible arch -200
+# The highest score wins; on a tie the first file.
 gh_pick_asset() {
     GH_PICKED_URL=""
     local sys_arch
@@ -104,14 +110,14 @@ gh_pick_asset() {
         low=${f,,}
         score=0
 
-        # فرمت
+        # Format
         case "$low" in
             *.deb)          score=$((score + 10)) ;;
             *.tar.gz|*.tgz) score=$((score + 5)) ;;
             *)              continue ;;
         esac
 
-        # معماری
+        # Architecture
         if [ "$sys_arch" = "x86_64" ]; then
             case "$low" in
                 *amd64*|*x86_64*|*x64*)     score=$((score + 40)) ;;
@@ -141,8 +147,8 @@ gh_pick_asset() {
     done
 
     if [ ${#urls[@]} -eq 0 ]; then
-        failure "فایل نصبی سازگار با سیستم پیدا نشد."
-        info "فایل‌های این release (برای بررسی/نصب دستی):"
+        failure "No compatible installable file found."
+        info "Assets of this release (for manual inspection/install):"
         for u in "${GH_URLS[@]}"; do
             echo "      • $(basename "$u")"
         done
@@ -157,16 +163,16 @@ gh_pick_asset() {
     for i in "${!scores[@]}"; do
         [ "${scores[$i]}" = "${scores[$best]}" ] && ties+=("$i")
     done
-    [ ${#ties[@]} -gt 1 ] && info "(چند فایل هم‌امتیاز — نخستین انتخاب شد)"
+    [ ${#ties[@]} -gt 1 ] && info "(multiple equally-scored files — picked the first)"
 
     GH_PICKED_URL="${urls[$best]}"
     return 0
 }
 
-# ---------- دانلود، نصب، ثبت و پاک‌کردن فایل موقت ----------
+# ---------- Download, install, register and clean up ----------
 gh_download_and_install() {   # $1=url $2=name $3=repo $4=tag
     local url="$1" name="$2" repo="$3" tag="$4"
-    local base ext tmpfile installed=0
+    local base ext d tmpfile installed=0
 
     base=$(basename "$url")
     case "${base,,}" in
@@ -174,29 +180,33 @@ gh_download_and_install() {   # $1=url $2=name $3=repo $4=tag
         *.tgz) ext=".tgz" ;;
         *)     ext=".tar.gz" ;;
     esac
-    tmpfile="/tmp/uo-github-${name}${ext}"
 
-    info "دانلود $base ..."
+    # Download into a mktemp dir — a predictable /tmp path is a symlink risk;
+    # the original file name is kept so version detection still works
+    d=$(mktemp -d) || return 1
+    tmpfile="$d/$base"
+
+    info "Downloading $base ..."
     if ! curl -fL --connect-timeout 15 --progress-bar -o "$tmpfile" "$url"; then
-        failure "دانلود ناموفق بود."
-        rm -f "$tmpfile"
+        failure "Download failed."
+        rm -rf "$d"
         return 1
     fi
-    success "دانلود کامل شد."
+    success "Download complete."
 
     if [ "$ext" = ".deb" ]; then
-        info "نصب بسته deb ..."
+        info "Installing the deb package..."
         if sudo apt install -y "$tmpfile" > /dev/null 2>&1; then
             installed=1
         else
-            warn "نصب با apt ناموفق؛ تلاش با dpkg ..."
+            warn "apt install failed; trying dpkg..."
             if sudo dpkg -i "$tmpfile" 2>/dev/null; then
                 sudo apt --fix-broken install -y > /dev/null 2>&1
                 installed=1
             fi
         fi
     else
-        # نصب tar.gz در حالت خودکار — بدون سؤال تعاملی
+        # tar.gz install in automatic mode — no interactive questions
         UO_AUTO=1
         if targz_install_from_file "$tmpfile" "$name"; then
             installed=1
@@ -206,150 +216,155 @@ gh_download_and_install() {   # $1=url $2=name $3=repo $4=tag
 
     if [ "$installed" = "1" ]; then
         gh_db_add "$name" "$repo" "$tag"
-        rm -f "$tmpfile"
-        success "فایل دانلودی پاک شد: $tmpfile"
+        rm -rf "$d"
+        success "Downloaded file removed: $tmpfile"
         return 0
     fi
-    failure "نصب ناموفق بود — فایل برای بررسی نگه داشته شد: $tmpfile"
+    failure "Install failed — the file is kept for inspection: $tmpfile"
     return 1
 }
 
-# ---------- نصب برنامه از گیت‌هاب (کاملاً خودکار) ----------
-github_install_repo() {   # $1=repo (اختیاری در منو)  $2=نام اختیاری
-    header "🐙 نصب برنامه از گیت‌هاب"
+# ---------- Install an app from GitHub (fully automatic) ----------
+github_install_repo() {   # $1=repo (optional in the menu)  $2=optional name
+    header "🐙 Install an App from GitHub"
 
     local repo="$1" name="$2"
 
     if [ -z "$repo" ]; then
-        read -r -p "   مخزن (OWNER/REPO یا لینک کامل github.com/OWNER/REPO): " repo
+        read -r -p "   Repository (OWNER/REPO or a full github.com/OWNER/REPO link): " repo || return 1
     fi
-    [ -z "$repo" ] && { failure "مخزن وارد نشد."; return 1; }
+    [ -z "$repo" ] && { failure "No repository entered."; return 1; }
 
     repo=${repo#https://github.com/}
     repo=${repo#git@github.com:}
     repo=${repo%/}
+    repo=${repo%.git}
 
     if ! [[ "$repo" =~ ^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$ ]]; then
-        failure "قالب مخزن نامعتبر: «$repo»"
-        info "مثال درست: amir1376/ab-download-manager"
+        failure "Invalid repository format: '$repo'"
+        info "Correct example: amir1376/ab-download-manager"
         return 1
     fi
 
     if [ -z "$name" ]; then
         name=$(basename "$repo")
-        info "نام برنامه (از مخزن): $name"
+        info "App name (from the repo): $name"
     fi
-    name=$(printf '%s' "$name" | tr -cd '[:alnum:]_-')
 
     if ! gh_fetch_latest "$repo"; then
         return 1
     fi
-    info "آخرین نسخه: $GH_TAG"
+    info "Latest version: $GH_TAG"
 
     if ! gh_pick_asset; then
         return 1
     fi
-    info "فایل انتخاب‌شده: $(basename "$GH_PICKED_URL")"
+    info "Selected file: $(basename "$GH_PICKED_URL")"
 
-    gh_download_and_install "$GH_PICKED_URL" "$name" "$repo" "$GH_TAG"
+    gh_download_and_install "$GH_PICKED_URL" "$(sanitize_app_name "$name")" "$repo" "$GH_TAG"
 }
 
-# ---------- حذف برنامه گیت‌هابی ----------
-# حذف خود برنامه از سیستم (تمام منابع) + حذف رد از بانک گیت‌هاب.
-# رد گیت‌هاب فقط پس از تأییدِ حذف واقعی برنامه پاک می‌شود —
-# لغو توسط کاربر نیز رد را حفظ می‌کند. چون cleanup_app در لغو هم
-# کد خروج 0 می‌دهد، وضعیت واقعی برنامه بررسی می‌شود نه کد خروج.
-github_remove_app() {   # $1 اختیاری = نام برنامه
-    header "🐙 حذف برنامه از گیت‌هاب"
+# ---------- Remove a GitHub app ----------
+# Removes the app itself from the system (all sources) plus its GitHub db entry.
+# The entry is only dropped after the app is really gone — a user cancel
+# also keeps the entry. Since cleanup_app returns 0 even on cancel, the
+# actual app state is checked rather than the exit code.
+github_remove_app() {   # $1 optional = app name
+    header "🐙 Remove a GitHub App"
 
     local raw
     if [ -n "${1:-}" ]; then
         raw="$1"
     else
         if [ -s "$GITHUB_DB" ]; then
-            info "برنامه‌های ردیابی‌شده:"
+            info "Tracked apps:"
             awk -F'|' '{printf "      • %s (%s) ← %s\n", $1, $3, $2}' "$GITHUB_DB"
             echo ""
         fi
-        read -r -p "   نام برنامه برای حذف: " raw
+        read -r -p "   App name to remove: " raw || return 1
     fi
-    [ -z "$raw" ] && { failure "نام وارد نشد."; return 1; }
+    [ -z "$raw" ] && { failure "No name entered."; return 1; }
 
     if ! gh_db_has "$raw"; then
-        failure "برنامه‌ای با نام «$raw» در فهرست گیت‌هاب نیست."
-        info "فهرست فعلی: uo --github-list"
+        failure "No app named '$raw' in the GitHub list."
+        info "Current list: uo --github-list"
         return 1
     fi
 
-    # حذف خود برنامه از سیستم — همه منابع، با داده‌های کاربری
+    # Remove the app from the system — all sources, with user data
     cleanup_app "$raw"
 
-    # تأیید حذف واقعی: برنامه هنوز در هر منبعی نصب است؟
+    # Verify actual removal: is the app still installed in any source? (exact name match)
     local still=0
-    grep -q "^${raw}|" "$REGISTRY_DB" 2>/dev/null && still=1
+    if [ -f "$REGISTRY_DB" ] \
+       && awk -F'|' -v n="$raw" '$1 == n { found = 1 } END { exit !found }' "$REGISTRY_DB" 2>/dev/null; then
+        still=1
+    fi
     pkg_installed "$raw" && still=1
     if [ -d "/opt/$raw" ] && [ -n "$(ls -A "/opt/$raw" 2>/dev/null)" ]; then
         still=1
     fi
 
     if [ "$still" = "1" ]; then
-        warn "برنامه از سیستم حذف نشد (یا لغو شد) — رد گیت‌هاب نگه داشته می‌شود."
+        warn "The app was not removed (or was cancelled) — the GitHub entry is kept."
         return 1
     fi
 
     gh_db_remove "$raw"
-    success "رد «$raw» از فهرست ردیابی گیت‌هاب حذف شد."
+    success "Entry '$raw' removed from the GitHub tracking list."
     return 0
 }
 
-# ---------- بررسی به‌روزرسانی ----------
-# تنها سؤال به‌ازای هر برنامه: «به‌روزرسانی شود؟» — پس از تأیید،
-# دانلود و نصب خودکار است و در صورت رد، برنامه بعدی بررسی می‌شود
+# ---------- Update check ----------
+# One question per app: "update?" — after confirmation the download
+# and install are automatic; declining moves on to the next app
 github_update_apps() {
-    header "🔄 بررسی به‌روزرسانی برنامه‌های گیت‌هاب"
+    header "🔄 Check GitHub App Updates"
 
     if [ ! -s "$GITHUB_DB" ]; then
-        info "هنوز برنامه‌ای از گیت‌هاب نصب/ردیابی نشده است."
-        info "نصب: uo --github-install OWNER/REPO"
+        info "No GitHub apps installed/tracked yet."
+        info "Install with: uo --github-install OWNER/REPO"
         return 0
     fi
 
-    # اسنپ‌شات کامل بانک پیش از حلقه — read های تعاملی نباید
-    # خطوط خود فایل را مصرف کنند
+    # Full snapshot of the db before the loop — interactive reads must not
+    # consume the file's own lines
     local -a lines=()
     mapfile -t lines < "$GITHUB_DB"
 
-    local line name repo tag latest
+    local line name repo tag latest in_registry
     for line in "${lines[@]}"; do
         IFS='|' read -r name repo tag <<< "$line"
         [ -z "$name" ] && continue
 
         echo ""
-        info "برنامه: $name (نصب‌شده: ${tag:-نامشخص}) ← $repo"
+        info "App: $name (installed: ${tag:-unknown}) ← $repo"
 
-        # خودترمیمی: برنامه حذف‌شده از فهرست ردیابی خارج می‌شود
-        if ! grep -q "^${name}|" "$REGISTRY_DB" 2>/dev/null \
-           && ! pkg_installed "$name" \
-           && [ ! -d "/opt/$name" ]; then
-            warn "این برنامه دیگر نصب نیست — از فهرست ردیابی حذف شد."
+        # Self-healing: uninstalled apps are dropped from the tracking list
+        in_registry=0
+        if [ -f "$REGISTRY_DB" ]; then
+            awk -F'|' -v n="$name" '$1 == n { found = 1 } END { exit !found }' "$REGISTRY_DB" 2>/dev/null && in_registry=1
+        fi
+        if [ "$in_registry" = "0" ] && ! pkg_installed "$name" && [ ! -d "/opt/$name" ]; then
+            warn "This app is no longer installed — removed from the tracking list."
             gh_db_remove "$name"
             continue
         fi
 
         if ! gh_fetch_latest "$repo"; then
-            warn "دریافت اطلاعات $repo ناموفق — رد شد."
+            warn "Failed to fetch info for $repo — skipped."
             continue
         fi
         latest=$GH_TAG
 
         if [ "${latest#v}" = "${tag#v}" ]; then
-            success "به‌روز است ($latest)."
+            success "Up to date ($latest)."
             continue
         fi
 
-        info "نسخه جدید موجود است: $latest (فعلی: ${tag:-نامشخص})"
-        if ! confirm_action "«$name» به $latest به‌روزرسانی شود؟"; then
-            info "رد شد — ادامه با برنامه بعدی."
+        info "New version available: $latest (current: ${tag:-unknown})"
+        if ! confirm_action "Update '$name' to $latest?"; then
+            info "Declined — continuing with the next app."
             continue
         fi
 
@@ -361,11 +376,11 @@ github_update_apps() {
     return 0
 }
 
-# ---------- فهرست برنامه‌های گیت‌هابی ----------
+# ---------- List GitHub apps ----------
 github_list_apps() {
-    header "🐙 برنامه‌های ردیابی‌شده از گیت‌هاب"
+    header "🐙 Tracked GitHub Apps"
     if [ ! -s "$GITHUB_DB" ]; then
-        info "(خالی) — نصب با: uo --github-install OWNER/REPO"
+        info "(empty) — install with: uo --github-install OWNER/REPO"
         return 0
     fi
     awk -F'|' '{printf "   %-24s %-14s %s\n", $1, ($3 == "" ? "-" : $3), $2}' "$GITHUB_DB"

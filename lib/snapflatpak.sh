@@ -1,195 +1,214 @@
+# shellcheck shell=bash
 # ============================================================
-#   lib/snapflatpak.sh — مدیریت snap/flatpak و به‌روزرسانی‌ها
-#   نویسنده و طراح: Soroush Chegini (CheginiSoroush)
+#   lib/snapflatpak.sh — snap/flatpak management and updates
+#   Author & Designer: Soroush Chegini (CheginiSoroush)
 # ============================================================
 
 snap_list_apps() {
-    header "لیست برنامه‌های snap"
+    header "List Snap Apps"
     if ! command -v snap > /dev/null 2>&1; then
-        info "snap روی سیستم نصب نیست."
+        info "snap is not installed on this system."
         return 0
     fi
     local out
     out=$(snap list 2>/dev/null)
     if [ -n "$out" ]; then
+        # shellcheck disable=SC2001  # sed is the right tool for prefixing multi-line output
         echo "$out" | sed 's/^/   /'
     else
-        echo "   (هیچ snap نصب نیست)"
+        echo "   (no snaps installed)"
     fi
     return 0
 }
 
 update_snap() {
-    header "به‌روزرسانی همه snap ها"
+    header "Update All Snaps"
     if ! command -v snap > /dev/null 2>&1; then
-        info "snap روی سیستم نصب نیست."
+        info "snap is not installed on this system."
         return 0
     fi
     if sudo snap refresh; then
-        success "همه snap ها به‌روزرسانی شدند."
+        success "All snaps updated."
+        return 0
     else
-        failure "خطا در به‌روزرسانی snap."
+        failure "Failed to update snaps."
+        info "If an app is running (e.g. snap-store), close it and try again."
         return 1
     fi
-    return 0
 }
 
 snap_install_app() {
-    header "نصب برنامه snap"
+    header "Install a Snap"
     if ! command -v snap > /dev/null 2>&1; then
-        info "snap روی سیستم نصب نیست."
+        info "snap is not installed on this system."
         return 0
     fi
     local name
-    read -r -p "   نام snap (مثلاً spotify): " name
-    [ -z "$name" ] && { failure "نام وارد نشد."; return 1; }
+    # EOF (Ctrl+D) → cancel
+    read -r -p "   Snap name (e.g. spotify): " name || return 1
+    [ -z "$name" ] && { failure "No name entered."; return 1; }
     if sudo snap install "$name"; then
-        success "snap نصب شد."
+        success "Snap installed."
+        return 0
     else
-        failure "خطا در نصب snap."
-        info "اگر برنامه حالت classic لازم دارد: sudo snap install $name --classic"
+        failure "Failed to install the snap."
+        info "If the app needs classic confinement: sudo snap install $name --classic"
+        return 1
     fi
-    return 0
 }
 
 snap_remove_app() {
-    header "حذف برنامه snap"
+    header "Remove a Snap"
     if ! command -v snap > /dev/null 2>&1; then
-        info "snap روی سیستم نصب نیست."
+        info "snap is not installed on this system."
         return 0
     fi
     local name
-    read -r -p "   نام snap برای حذف: " name
-    [ -z "$name" ] && { failure "نام وارد نشد."; return 1; }
-    if ! snap list 2>/dev/null | awk 'NR > 1 {print $1}' | grep -qx "$name"; then
-        failure "این snap نصب نیست."
+    # EOF (Ctrl+D) → cancel
+    read -r -p "   Snap name to remove: " name || return 1
+    [ -z "$name" ] && { failure "No name entered."; return 1; }
+    # Exact fixed-string match (-F) — the input name is not a regex
+    if ! snap list 2>/dev/null | awk 'NR > 1 {print $1}' | grep -qxF "$name"; then
+        failure "This snap is not installed."
         return 1
     fi
-    confirm_action "snap «$name» کامل حذف شود؟" || { info "لغو شد."; return 0; }
+    confirm_action "Fully remove snap '$name'?" || { info "Cancelled."; return 0; }
     if sudo snap remove --purge "$name"; then
-        success "حذف شد."
+        success "Removed."
+        return 0
     else
-        failure "خطا در حذف."
+        failure "Failed to remove."
+        return 1
     fi
-    return 0
 }
 
 snap_clean_revisions() {
-    header "پاک‌سازی نسخه‌های قدیمی snap (بازیابی فضای دیسک)"
+    header "Clean Old Snap Revisions (Reclaim Disk Space)"
     if ! command -v snap > /dev/null 2>&1; then
-        info "snap روی سیستم نصب نیست."
+        info "snap is not installed on this system."
         return 0
     fi
     local disabled
     disabled=$(snap list --all 2>/dev/null | awk '/disabled/ {print $1" "$3}')
     if [ -z "$disabled" ]; then
-        success "نسخه قدیمی snap برای حذف وجود ندارد."
+        success "No old snap revisions to remove."
         return 0
     fi
     local count
     count=$(echo "$disabled" | wc -l)
-    info "این نسخه‌های قدیمی قابل حذف‌اند:"
+    info "These old revisions can be removed:"
+    # shellcheck disable=SC2001  # sed is the right tool for prefixing multi-line output
     echo "$disabled" | sed 's/^/      • /'
-    if ! confirm_action "$count نسخه حذف شوند؟"; then
-        info "لغو شد."
+    if ! confirm_action "Remove $count revision(s)?"; then
+        info "Cancelled."
         return 0
     fi
-    local name rev
+    local name rev had_fail=0
     while read -r name rev; do
         [ -z "$name" ] && continue
         if sudo snap remove "$name" --revision="$rev" > /dev/null 2>&1; then
-            success "$name (نسخه $rev) حذف شد."
+            success "$name (revision $rev) removed."
         else
-            failure "حذف $name نسخه $rev ناموفق بود."
+            failure "Failed to remove $name revision $rev."
+            had_fail=1
         fi
     done <<< "$disabled"
+    [ "$had_fail" = "1" ] && warn "Some revisions could not be removed."
     return 0
 }
 
 flatpak_list_apps() {
-    header "لیست برنامه‌های flatpak"
+    header "List Flatpak Apps"
     if ! command -v flatpak > /dev/null 2>&1; then
-        info "flatpak روی سیستم نصب نیست."
+        info "flatpak is not installed on this system."
         return 0
     fi
     local out
     out=$(flatpak list --app 2>/dev/null)
     if [ -n "$out" ]; then
+        # shellcheck disable=SC2001  # sed is the right tool for prefixing multi-line output
         echo "$out" | sed 's/^/   /'
     else
-        echo "   (هیچ برنامه flatpak نصب نیست)"
+        echo "   (no flatpak apps installed)"
     fi
     return 0
 }
 
 update_flatpak() {
-    header "به‌روزرسانی همه flatpak ها"
+    header "Update All Flatpaks"
     if ! command -v flatpak > /dev/null 2>&1; then
-        info "flatpak روی سیستم نصب نیست."
+        info "flatpak is not installed on this system."
         return 0
     fi
     if flatpak update -y; then
-        success "همه flatpak ها به‌روزرسانی شدند."
+        success "All flatpaks updated."
+        return 0
     else
-        failure "خطا در به‌روزرسانی flatpak."
+        failure "Failed to update flatpaks."
+        info "In an SSH session polkit may deny access — run from the desktop."
         return 1
     fi
-    return 0
 }
 
 flatpak_install_app() {
-    header "نصب برنامه flatpak"
+    header "Install a Flatpak"
     if ! command -v flatpak > /dev/null 2>&1; then
-        info "flatpak روی سیستم نصب نیست."
+        info "flatpak is not installed on this system."
         return 0
     fi
     local id
-    read -r -p "   شناسه برنامه (مثلاً org.mozilla.firefox): " id
-    [ -z "$id" ] && { failure "شناسه وارد نشد."; return 1; }
+    # EOF (Ctrl+D) → cancel
+    read -r -p "   App ID (e.g. org.mozilla.firefox): " id || return 1
+    [ -z "$id" ] && { failure "No ID entered."; return 1; }
     if flatpak install -y flathub "$id"; then
-        success "flatpak نصب شد."
+        success "Flatpak installed."
+        return 0
     else
-        failure "خطا در نصب flatpak."
-        info "اگر مخزن flathub اضافه نشده:"
+        failure "Failed to install the flatpak."
+        info "If the flathub remote is missing:"
         info "  flatpak remote-add --if-not-exists flathub https://flathub.org/repo/flathub.flatpakrepo"
+        return 1
     fi
-    return 0
 }
 
 flatpak_remove_app() {
-    header "حذف برنامه flatpak"
+    header "Remove a Flatpak"
     if ! command -v flatpak > /dev/null 2>&1; then
-        info "flatpak روی سیستم نصب نیست."
+        info "flatpak is not installed on this system."
         return 0
     fi
     local id
-    read -r -p "   شناسه برنامه برای حذف: " id
-    [ -z "$id" ] && { failure "شناسه وارد نشد."; return 1; }
-    if ! flatpak list --app --columns=application 2>/dev/null | grep -qx "$id"; then
-        failure "این برنامه flatpak نصب نیست."
+    # EOF (Ctrl+D) → cancel
+    read -r -p "   App ID to remove: " id || return 1
+    [ -z "$id" ] && { failure "No ID entered."; return 1; }
+    # Exact fixed-string match (-F)
+    if ! flatpak list --app --columns=application 2>/dev/null | grep -qxF "$id"; then
+        failure "This flatpak app is not installed."
         return 1
     fi
-    confirm_action "«$id» همراه داده‌هایش حذف شود؟" || { info "لغو شد."; return 0; }
+    confirm_action "Remove '$id' including its data?" || { info "Cancelled."; return 0; }
     if flatpak uninstall -y --delete-data "$id"; then
-        success "حذف شد."
+        success "Removed."
+        return 0
     else
-        failure "خطا در حذف."
+        failure "Failed to remove."
+        return 1
     fi
-    return 0
 }
 
 flatpak_clean_unused() {
-    header "پاک‌سازی ران‌تایم‌ها و بسته‌های بدون استفاده flatpak"
+    header "Clean Unused Flatpak Runtimes and Packages"
     if ! command -v flatpak > /dev/null 2>&1; then
-        info "flatpak روی سیستم نصب نیست."
+        info "flatpak is not installed on this system."
         return 0
     fi
     if flatpak uninstall --unused -y; then
-        success "پاک‌سازی انجام شد."
+        success "Cleanup complete."
+        return 0
     else
-        failure "خطا در پاک‌سازی."
+        failure "Cleanup failed."
+        return 1
     fi
-    return 0
 }
 
 clean_snap_flatpak_junk() {
@@ -198,37 +217,40 @@ clean_snap_flatpak_junk() {
 }
 
 # ============================================================
-#   به‌روزرسانی برنامه‌ها
+#   App updates
 # ============================================================
 
 update_apt() {
-    header "به‌روزرسانی apt (سیستم و بسته‌های deb)"
-    info "بررسی به‌روزرسانی‌ها..."
-    sudo apt update || { failure "خطا در apt update."; return 1; }
-    if sudo apt upgrade -y; then
-        success "به‌روزرسانی apt انجام شد."
-        sudo apt autoremove -y > /dev/null 2>&1
-    else
-        failure "خطا در به‌روزرسانی بسته‌ها."
+    header "Update apt (System & deb Packages)"
+    info "Checking for updates..."
+    sudo apt update || { failure "apt update failed."; return 1; }
+    # In -y mode, dpkg questions (config file conflicts) get the default answer
+    local -a upgrade_cmd=(apt upgrade -y)
+    [ "$ASSUME_YES" = "1" ] && upgrade_cmd=(env DEBIAN_FRONTEND=noninteractive apt upgrade -y)
+    if ! sudo "${upgrade_cmd[@]}"; then
+        failure "Failed to upgrade packages."
         return 1
     fi
+    success "apt update complete."
+    info "Cleaning unused dependencies (autoremove)..."
+    sudo apt autoremove -y > /dev/null 2>&1
     return 0
 }
 
-# بررسی به‌روزرسانی برنامه‌های tar.gz — اسکن Downloads + مسیر/URL دستی
-# خودترمیمی: رد‌های بی‌نسخه که مسیرشان با رد دیگری (دارای نسخه)
-# یکسان است، پیش از اسکن حذف می‌شوند
+# Check tar.gz app updates — Downloads scan + manual path/URL
+# Self-healing: version-less entries whose path matches another (versioned)
+# entry are removed before the scan
 update_targz_apps() {
-    header "بررسی به‌روزرسانی برنامه‌های tar.gz"
+    header "Check tar.gz App Updates"
 
     if [ ! -s "$REGISTRY_DB" ]; then
-        info "هیچ برنامه‌ای در رجیستری ثبت نشده است."
-        info "برنامه‌های نصب‌شده با نسخه‌های قبلی اسکریپت رجیستری ندارند؛"
-        info "برای ردیابی به‌روزرسانی، یک‌بار دوباره نصبشان کنید."
+        info "No apps are registered yet."
+        info "Apps installed with older script versions have no registry entry;"
+        info "reinstall them once to enable update tracking."
         return 0
     fi
 
-    # خودترمیمی رد‌های مرواریدی
+    # Stale-entry self-healing
     local -a db_lines=()
     mapfile -t db_lines < "$REGISTRY_DB"
     local l n1 v1 d1 n2 v2 d2 i clean_removed=0
@@ -238,7 +260,7 @@ update_targz_apps() {
         for i in "${!db_lines[@]}"; do
             IFS='|' read -r n2 v2 d2 <<< "${db_lines[$i]}"
             if [ -n "$v2" ] && [ "$d2" = "$d1" ]; then
-                info "رد مرواریدی «$n1» (بی‌نسخه، مسیر تکراری) حذف شد."
+                info "Stale entry '$n1' (no version, duplicate path) removed."
                 registry_remove "$n1"
                 clean_removed=1
                 break
@@ -247,89 +269,116 @@ update_targz_apps() {
     done
     [ "$clean_removed" = "1" ] && mapfile -t db_lines < "$REGISTRY_DB"
 
-    # اسنپ‌شات کامل بانک پیش از حلقه — read های تعاملی داخل حلقه
-    # نباید خطوط خود فایل را مصرف کنند و بازنویسی بانک در میانه
-    # حلقه (موقع نصب نسخه جدید) ایمن انجام می‌شود
+    # Full db snapshot before the loop — interactive reads must not
+    # consume the file's own lines, and rewriting the db mid-loop
+    # (while installing a new version) stays safe
     local -a reg_lines=()
     mapfile -t reg_lines < "$REGISTRY_DB"
 
-    local line name ver dir sel f idx j
+    local line name ver dir sel f idx j mark
     for line in "${reg_lines[@]}"; do
         IFS='|' read -r name ver dir _ <<< "$line"
         [ -z "$name" ] && continue
 
         echo ""
-        info "برنامه: $name (نسخه: $( [ -n "$ver" ] && echo "$ver" || echo "نامشخص")) → $dir"
+        info "App: $name (version: $( [ -n "$ver" ] && echo "$ver" || echo "unknown")) → $dir"
 
-        # اسکن پوشه Downloads برای نسخه جدید
+        # Scan the Downloads folder for a new version (tar.gz and tgz)
         local -a match=() mver=()
-        local n1 n2 fname_clean
-        n1=$(normalize_name "$name")
-        while IFS= read -r f; do
-            [ -f "$f" ] || continue
-            fname_clean=$(name_from_archive "$f")
-            n2="$fname_clean"
-            if [[ "$n2" == *"$n1"* ]] || [[ "$n1" == *"$n2"* ]]; then
-                match+=("$f")
-                mver+=("$(guess_version "$f")")
+        local sname fbase fpath
+        sname=$(normalize_name "$name")
+        while IFS= read -r fpath; do
+            [ -f "$fpath" ] || continue
+            fbase=$(name_from_archive "$fpath")
+            if [[ "$fbase" == *"$sname"* ]] || [[ "$sname" == *"$fbase"* ]]; then
+                match+=("$fpath")
+                mver+=("$(guess_version "$fpath")")
             fi
-        done < <(find "$HOME/Downloads" -maxdepth 1 -type f -iname "*.tar.gz" 2>/dev/null)
+        done < <(find "$HOME/Downloads" -maxdepth 1 -type f \
+                    \( -iname "*.tar.gz" -o -iname "*.tgz" \) 2>/dev/null)
 
         if [ ${#match[@]} -gt 0 ]; then
-            info "این فایل‌ها در Downloads پیدا شدند:"
+            info "These files were found in Downloads:"
             j=1
             for idx in "${!match[@]}"; do
-                local mark=""
+                mark=""
                 if [ -n "${mver[$idx]}" ] && [ "${mver[$idx]}" != "$ver" ]; then
-                    mark="  → نسخه ${mver[$idx]}"
+                    mark="  → version ${mver[$idx]}"
                 fi
                 echo "   $j) $(basename "${match[$idx]}")$mark"
-                ((j++))
+                j=$((j + 1))
             done
         else
-            info "فایل جدیدی برای این برنامه در ~/Downloads پیدا نشد."
+            info "No new file for this app in ~/Downloads."
         fi
-        echo "   m) مسیر فایل جدید یا لینک دانلود را خودم می‌دهم"
-        echo "   Enter) رد کردن این برنامه"
 
-        read -r -p "   انتخاب: " sel
+        # Automatic mode (-y in CLI): no questions — the first file with a different version is installed
+        if [ "$CLI_MODE" = "1" ] && [ "$ASSUME_YES" = "1" ]; then
+            local auto_file="" auto_idx=-1
+            for idx in "${!match[@]}"; do
+                if [ -n "${mver[$idx]}" ] && [ "${mver[$idx]}" != "$ver" ]; then
+                    auto_file="${match[$idx]}"
+                    auto_idx=$idx
+                    break
+                fi
+            done
+            if [ -n "$auto_file" ]; then
+                info "New version ${mver[$auto_idx]} found — installing automatically."
+                targz_install_from_file "$auto_file" "$name"
+            else
+                info "Skipped."
+            fi
+            continue
+        fi
+
+        echo "   m) I will provide the new file path or download URL myself"
+        echo "   Enter) Skip this app"
+
+        # EOF (Ctrl+D) → skip
+        read -r -p "   Select: " sel || sel=""
         if [ "${sel,,}" = "m" ]; then
-            read -r -p "   مسیر فایل یا URL: " f
+            read -r -p "   File path or URL: " f || f=""
             f=${f/#\~/$HOME}
             if [[ "$f" == http* ]]; then
                 if ! command -v curl > /dev/null 2>&1; then
-                    failure "curl نصب نیست (sudo apt install curl)."
+                    failure "curl is not installed (sudo apt install curl)."
                     continue
                 fi
-                local dl="$HOME/Downloads/$(basename "$f")"
-                info "دانلود $f ..."
+                local dl
+                dl="$HOME/Downloads/$(basename "$f")"
+                info "Downloading $f ..."
                 if curl -fL --progress-bar -o "$dl" "$f"; then
                     f="$dl"
                 else
-                    failure "دانلود ناموفق بود."
+                    failure "Download failed."
                     continue
                 fi
             fi
-            [ -f "$f" ] || { failure "فایل پیدا نشد."; continue; }
+            [ -f "$f" ] || { failure "File not found."; continue; }
             targz_install_from_file "$f" "$name"
         elif [[ "$sel" =~ ^[0-9]+$ ]] && [ "$sel" -ge 1 ] && [ "$sel" -le ${#match[@]} ]; then
             targz_install_from_file "${match[$((sel-1))]}" "$name"
         else
-            info "رد شد."
+            info "Skipped."
         fi
     done
     return 0
 }
 
-# به‌روزرسانی همه منابع
+# Update all sources
 update_all() {
-    header "🔄 به‌روزرسانی همه برنامه‌ها (apt + snap + flatpak + tar.gz + github)"
-    update_apt
-    update_snap
-    update_flatpak
-    update_targz_apps
-    github_update_apps
+    header "🔄 Update Everything (apt + snap + flatpak + tar.gz + github)"
+    local had_fail=0
+    update_apt        || had_fail=1
+    update_snap       || had_fail=1
+    update_flatpak    || had_fail=1
+    update_targz_apps || had_fail=1
+    github_update_apps || had_fail=1
     echo ""
-    success "چرخه به‌روزرسانی کامل شد."
+    if [ "$had_fail" = "1" ]; then
+        warn "The update cycle finished but some steps had errors."
+    else
+        success "Update cycle complete."
+    fi
     return 0
 }
