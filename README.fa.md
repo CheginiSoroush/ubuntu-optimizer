@@ -37,6 +37,7 @@
 
 - **نسخه بین‌المللی:** تمام پیام‌ها، کامنت‌ها و لاگ‌ها به انگلیسی؛ مستندات فارسی در همین فایل حفظ شد
 - **صفر خطای ShellCheck** در کل پروژه + workflow خودکار CI (shellcheck و bash -n در هر commit)
+- **پشتیبانی از توکن GitHub API** (`GH_TOKEN`) — رفع محدودیت نرخ درخواست‌ها
 - رفع باگ‌های مهم: Power Management وای‌فای، محافظت از `/opt`، جلوگیری از حذف پوشه‌های پایه داده‌ها، حلقه‌های بی‌نهایت حالت `-y`
 - امنیت: قانون polkit فقط برای نشست محلی؛ دانلودهای گیت‌هاب در mktemp امن
 - بهبورها: noatime فوری با remount، fastopen و بافرهای 16MB، لاگ‌نویسی بدون fork
@@ -68,6 +69,25 @@ uo --help       # راهنمای کامل (انگلیسی)
 ./install.sh --update      # به‌روزرسانی از git
 ./install.sh --uninstall   # حذف میان‌بر و alias
 ```
+
+### اختیاری: توکن GitHub API
+
+`--github-update` و `--github-install` از API گیت‌هاب سؤال می‌پرسند که محدود به
+**۶۰ درخواست/ساعت به‌ازای IP** است — محدودیتی که با همه‌ی کاربران پشت NAT شرکت
+مخابراتی مشترک است! با توکن شخصی به **۵,۰۰۰ در ساعت** می‌رسد:
+
+۱. توکن فقط‌خواندنی بسازید: github.com → Settings → Developer settings →
+   Personal access tokens → *Generate new token (classic)* — برای مخازن
+   عمومی **هیچ دسترسی‌ای لازم نیست**.
+۲. به شل اضافه کنید:
+
+```bash
+echo 'export GH_TOKEN="ghp_your_token"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+هر دو متغیر `GH_TOKEN` و `GITHUB_TOKEN` پشتیبانی می‌شوند. توکن فقط به
+`api.github.com` ارسال می‌شود و هرگز در لاگ ثبت نمی‌شود.
 
 ---
 
@@ -132,7 +152,7 @@ uo --help       # راهنمای کامل (انگلیسی)
 ## 🗺 نقشه راه
 
 - [x] GitHub Actions (shellcheck + bash -n)
+- [x] توکن GitHub API (`GH_TOKEN` / `GITHUB_TOKEN`)
 - [ ] bash-completion
 - [ ] تست‌های خودکار (bats)
 - [ ] حالت `--dry-run`
-- [ ] توکن GitHub API

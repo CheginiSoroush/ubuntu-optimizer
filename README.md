@@ -9,6 +9,7 @@ An all-in-one Ubuntu optimization, app management and repair toolkit.
 > 📖 [Persian documentation (مستندات فارسی)](README.fa.md)
 >
 > **Optional:** `jq` — faster GitHub API parsing (everything works without it).
+> **Optional:** `GH_TOKEN` — GitHub API token, raises the rate limit from 60/hour to 5000/hour ([details](#optional-github-api-token)).
 
 ---
 
@@ -61,6 +62,7 @@ An all-in-one Ubuntu optimization, app management and repair toolkit.
 - Fork-free logging; single `systemctl` call in service scanning; deterministic finds
 - TCP fastopen + 16MB buffers; fixnet waits for the default route after an NM restart
 - Signal exit codes (130/143); `install.sh --check` is CI/script-friendly
+- Resilient module loader: a broken module aborts immediately with a clear message
 
 ---
 
@@ -97,6 +99,25 @@ uo --help       # full help
 ./install.sh --update      # update from git (if a git repository)
 ./install.sh --uninstall   # remove shortcut and alias (project files stay)
 ```
+
+### Optional: GitHub API token
+
+`--github-update` and `--github-install` query the GitHub API, which is
+rate-limited to **60 requests/hour per IP** — a limit shared with everyone
+behind your ISP's NAT. Set a personal token to raise it to **5,000/hour**:
+
+1. Create a classic read-only token: github.com → Settings → Developer
+   settings → Personal access tokens → *Generate new token (classic)* —
+   **no scopes needed** for public repositories.
+2. Add it to your shell:
+
+```bash
+echo 'export GH_TOKEN="ghp_your_token"' >> ~/.bashrc
+source ~/.bashrc
+```
+
+Both `GH_TOKEN` and `GITHUB_TOKEN` are supported. The token is only sent
+to `api.github.com` and is never written to the log.
 
 ---
 
@@ -242,10 +263,10 @@ This tool changes system settings. All known bugs have been carefully fixed, but
 ## 🗺 Roadmap
 
 - [x] GitHub Actions: shellcheck + `bash -n` on every commit
+- [x] GitHub API token support (`GH_TOKEN` / `GITHUB_TOKEN`)
 - [ ] bash completion for CLI options
 - [ ] automated tests (bats) for `lib/common.sh`
 - [ ] `--dry-run` mode
-- [ ] GitHub API token support (rate-limit relief)
 
 ---
 

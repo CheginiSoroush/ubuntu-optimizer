@@ -36,6 +36,20 @@ gh_db_has() {   # $1=name
     awk -F'|' -v n="$1" '$1 == n { found = 1 } END { exit !found }' "$GITHUB_DB" 2>/dev/null
 }
 
+# Build the curl auth arguments from GH_TOKEN / GITHUB_TOKEN (if set).
+# A token raises the API rate limit from 60/hour (per IP) to 5000/hour
+# (per token). Auth is only sent to api.github.com — release asset
+# downloads stay anonymous (they are not rate-limited).
+gh_set_auth() {
+    GH_CURL_AUTH=()
+    if [ -n "${GH_TOKEN:-}" ]; then
+        GH_CURL_AUTH=(-H "Authorization: Bearer ${GH_TOKEN}")
+    elif [ -n "${GITHUB_TOKEN:-}" ]; then
+        GH_CURL_AUTH=(-H "Authorization: Bearer ${GITHUB_TOKEN}")
+    fi
+    return 0
+}
+
 # ---------- Fetch the latest release ----------
 # Output: GH_TAG (version) and the GH_URLS array (asset URLs)
 gh_fetch_latest() {   # $1 = OWNER/REPO or a full URL
@@ -59,21 +73,28 @@ gh_fetch_latest() {   # $1 = OWNER/REPO or a full URL
         return 1
     fi
 
+    gh_set_auth
+
     info "Checking the latest release of $repo ..."
     # stderr is kept separate so a curl failure shows as an empty response, not broken JSON
-    if ! resp=$(curl -sSL --connect-timeout 15 --max-time 30 \
+    if ! resp=$(curl -sSL --connect-timeout 15 --max-time 30 "${GH_CURL_AUTH[@]}" \
         "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null) || [ -z "$resp" ]; then
         failure "Failed to get a response from the GitHub API — check your internet connection."
         return 1
     fi
 
+    if printf '%s' "$resp" | grep -qi 'bad credentials'; then
+        failure "GitHub rejected the token (Bad credentials) — check GH_TOKEN / GITHUB_TOKEN."
+        return 1
+    fi
     if printf '%s' "$resp" | grep -q '"message": *"Not Found"'; then
         failure "Repository not found or has no public release (404)."
         info "Check the repository name: $repo"
         return 1
     fi
     if printf '%s' "$resp" | grep -qi 'rate limit'; then
-        warn "GitHub API rate limit (60 requests/hour without a token) — try again later."
+        warn "GitHub API rate limit reached (60 requests/hour per IP without a token)."
+        info "Tip: setting GH_TOKEN raises the limit to 5000/hour — see the README."
         return 1
     fi
 
