@@ -6,7 +6,7 @@
 # ============================================================
 
 # ---------- Version (single source of truth for the whole project) ----------
-readonly SCRIPT_VERSION="6.0"
+readonly SCRIPT_VERSION="6.1"
 
 # ---------- Constants ----------
 readonly SYSCTL_CONF="/etc/sysctl.d/99-ubuntu-optimizer.conf"
