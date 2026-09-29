@@ -147,3 +147,13 @@ teardown() {
     run pkg_installed definitely-not-a-real-package-xyz
     [ "$status" -ne 0 ]
 }
+
+# ---------- dry-run mode ----------
+
+@test "sudo wrapper intercepts mutations in dry-run mode" {
+    DRY_RUN=1
+    run sudo rm -rf /tmp/uo-dryrun-should-not-exist
+    [ "$status" -eq 0 ]
+    [ ! -e /tmp/uo-dryrun-should-not-exist ]
+    grep -q '\[dry-run\] sudo rm' "$LOG_FILE"
+}

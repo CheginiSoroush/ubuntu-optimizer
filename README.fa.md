@@ -155,4 +155,4 @@ source ~/.bashrc
 - [x] توکن GitHub API (`GH_TOKEN` / `GITHUB_TOKEN`)
 - [x] bash-completion
 - [x] تست‌های خودکار (bats)
-- [ ] حالت `--dry-run`
+- [x] حالت `--dry-run`

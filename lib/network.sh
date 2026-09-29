@@ -29,6 +29,10 @@ disable_wifi_powersave() {
         warn "Check the network state or run fixnet."
         return 1
     fi
+    if [ "$DRY_RUN" = "1" ]; then
+        success "[dry-run] Wi-Fi power management would be disabled."
+        return 0
+    fi
     # Final verification of the powersave state (when iw is available)
     if [ -n "$DEV" ] && command -v iw > /dev/null 2>&1; then
         if iw dev "$DEV" get power_save 2>/dev/null | grep -q "off"; then
@@ -83,6 +87,10 @@ enable_bbr() {
     if ! apply_sysctl; then
         failure "Failed to apply the sysctl settings."
         return 1
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        success "[dry-run] BBR would be enabled."
+        return 0
     fi
     local STATUS
     STATUS=$(sysctl -n net.ipv4.tcp_congestion_control)
@@ -145,6 +153,10 @@ optimize_tcp() {
     if ! apply_sysctl; then
         failure "Failed to apply the TCP settings."
         return 1
+    fi
+    if [ "$DRY_RUN" = "1" ]; then
+        success "[dry-run] TCP parameters would be optimized."
+        return 0
     fi
     # Verify the representative parameter
     local CUR

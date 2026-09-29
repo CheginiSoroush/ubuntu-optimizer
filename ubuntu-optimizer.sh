@@ -58,6 +58,8 @@ Options:
   -y, --yes           auto-confirm all questions
   --no-color          disable colored output
   --no-log            do not log this run
+  --dry-run           preview: with --optimize/--network/--system/--security/--time
+                      print what would change without changing anything
 
   --report            system status report (read-only)
 
@@ -104,6 +106,7 @@ Examples:
   uo --install-targz ~/Downloads/app.tar.gz myapp
   uo --update -y
   uo --cleanup abdownloadmanager --purge-data
+  uo --optimize --dry-run -y
 EOF
 }
 
@@ -128,6 +131,7 @@ while [ $# -gt 0 ]; do
         -h|--help)        usage; exit 0 ;;
         -V|--version)     echo "Ubuntu Optimizer & Fixer - v${SCRIPT_VERSION} — by CheginiSoroush"; exit 0 ;;
         -y|--yes)         ASSUME_YES=1; shift ;;
+        --dry-run)        DRY_RUN=1; shift ;;
         --no-color)       RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; MAGENTA=''; BOLD=''; NC=''; shift ;;
         --no-log)         LOG_ENABLED=0; shift ;;
         --report)         CLI_ACTIONS+=("system_report|system status report"); shift ;;
@@ -239,12 +243,35 @@ if [ "$PURGE_DATA" = "1" ] && [ -z "$CLEANUP_TARGET" ]; then
     exit 1
 fi
 
+# --dry-run only covers the optimization flows (the sudo wrapper intercepts them)
+if [ "$DRY_RUN" = "1" ]; then
+    if [ ${#CLI_ACTIONS[@]} -eq 0 ]; then
+        echo "--dry-run requires an action: --optimize, --network, --system, --security or --time."
+        exit 1
+    fi
+    for cli_action in "${CLI_ACTIONS[@]}"; do
+        case "${cli_action%%|*}" in
+            all_network_opts|all_system_opts|all_security_opts|fix_time|\
+            disable_wifi_powersave|set_dns|enable_bbr|set_mtu|optimize_tcp|\
+            optimize_memory|set_noatime|disable_extra_services|install_preload|\
+            install_tlp|limit_journal|extend_sudo_timeout|setup_polkit_rule) ;;
+            *)
+                echo "--dry-run is only valid with --optimize, --network, --system, --security or --time."
+                exit 1
+                ;;
+        esac
+    done
+fi
+
 # ---------- CLI mode ----------
 if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TARGZ_FILE" ] || [ -n "$GITHUB_INSTALL_REPO" ] || [ -n "$GITHUB_REMOVE_TARGET" ]; then
     CLI_MODE=1
     log_session_start "cli" "$ORIG_ARGS"
     trap 'log_session_end; print_session_summary' EXIT
     echo -e "${BOLD}Ubuntu Optimizer & Fixer v${SCRIPT_VERSION} — CLI mode${NC}"
+    if [ "$DRY_RUN" = "1" ]; then
+        warn "── DRY RUN: commands are printed, nothing is executed ──"
+    fi
     for cli_action in "${CLI_ACTIONS[@]}"; do
         "${cli_action%%|*}"
     done

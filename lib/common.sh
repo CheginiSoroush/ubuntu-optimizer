@@ -184,6 +184,39 @@ require_cmd() {   # $1=command  $2=optional detail
     return 1
 }
 
+# ---------- Dry-run mode ----------
+# When DRY_RUN=1, the sudo wrapper below intercepts mutating commands and
+# prints them instead of executing them. Read-only subcommands (test/grep)
+# still run so state detection keeps working. Only the optimization flows
+# (--optimize / --network / --system / --security / --time) are supported.
+DRY_RUN="${DRY_RUN:-0}"
+
+# Shadow of the sudo binary — a function takes precedence over PATH, so all
+# sourced modules go through this wrapper without a single change.
+# The plan line goes to the terminal directly (/dev/tty) so the caller's
+# `> /dev/null` / `2>&1` redirects cannot hide it; stderr is the fallback
+# for pipes and CI. Every line is also written to the log.
+sudo() {
+    if [ "$DRY_RUN" != "1" ]; then
+        command sudo "$@"
+        return
+    fi
+    case "$1" in
+        test|grep)
+            # read-only subcommands still run — state detection must keep working
+            command sudo "$@"
+            return $?
+            ;;
+    esac
+    if [ -w /dev/tty ]; then
+        echo -e "${YELLOW}   ℹ [dry-run] sudo $*${NC}" > /dev/tty
+    else
+        echo -e "${YELLOW}   ℹ [dry-run] sudo $*${NC}" >&2
+    fi
+    log_write "INFO" "[dry-run] sudo $*"
+    return 0
+}
+
 # ---------- System helpers ----------
 
 # Is the deb package installed?

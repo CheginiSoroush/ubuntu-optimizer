@@ -147,6 +147,7 @@ to `api.github.com` and is never written to the log.
 | `uo --snap-clean` | clean old snap revisions + unused flatpaks |
 | `uo --log` / `--log-clear` | show / delete the log |
 | `uo -y` | auto-confirm all questions — fully non-interactive |
+| `uo --dry-run` | with --optimize/--network/--system/--security/--time: preview changes without applying |
 | `uo --no-log` | do not log this run |
 | `uo --no-color` | disable colors (automatic in pipes) |
 
@@ -268,7 +269,7 @@ This tool changes system settings. All known bugs have been carefully fixed, but
 - [x] GitHub API token support (`GH_TOKEN` / `GITHUB_TOKEN`)
 - [x] bash completion for CLI options
 - [x] automated tests (bats) for `lib/common.sh`
-- [ ] `--dry-run` mode
+- [x] `--dry-run` mode
 
 ---
 

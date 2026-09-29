@@ -12,6 +12,10 @@ optimize_memory() {
         failure "Failed to apply the memory settings."
         return 1
     fi
+    if [ "$DRY_RUN" = "1" ]; then
+        success "[dry-run] memory values would be set (swappiness=10, vfs_cache_pressure=50)."
+        return 0
+    fi
     # Verify the applied values
     local sw vcp
     sw=$(sysctl -n vm.swappiness 2>/dev/null)
@@ -36,6 +40,10 @@ set_noatime() {
     info "Backup created: /etc/fstab.bak"
     # Append noatime to the end of the options field — independent of a 'defaults' entry
     sudo sed -i -E '/^[^#]*[[:space:]]\/[[:space:]]/ { /noatime/! s/(^[^#]*[[:space:]]\/[[:space:]]+[^[:space:]]+[[:space:]]+[^[:space:]]+)/\1,noatime/ }' /etc/fstab
+    if [ "$DRY_RUN" = "1" ]; then
+        success "[dry-run] noatime would be added to the root entry of /etc/fstab."
+        return 0
+    fi
     if sed -n '/^[^#]*[[:space:]]\/[[:space:]]/p' /etc/fstab 2>/dev/null | grep -q "noatime"; then
         # Apply immediately with a remount
         sudo mount -o remount / 2>/dev/null
@@ -225,6 +233,11 @@ fix_time() {
         sudo systemctl disable --now systemd-timesyncd > /dev/null 2>&1
     fi
     sudo systemctl enable --now chrony > /dev/null 2>&1
+
+    if [ "$DRY_RUN" = "1" ]; then
+        success "[dry-run] chrony would be enabled and the time synchronized."
+        return 0
+    fi
 
     local synced=0
 
