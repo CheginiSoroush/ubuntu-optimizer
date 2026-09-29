@@ -153,6 +153,6 @@ source ~/.bashrc
 
 - [x] GitHub Actions (shellcheck + bash -n)
 - [x] توکن GitHub API (`GH_TOKEN` / `GITHUB_TOKEN`)
-- [ ] bash-completion
+- [x] bash-completion
 - [ ] تست‌های خودکار (bats)
 - [ ] حالت `--dry-run`

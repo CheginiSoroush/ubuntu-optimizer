@@ -31,11 +31,23 @@ LIB_COMMON="$SCRIPT_DIR/lib/common.sh"
 BIN_DIR="$HOME/.local/bin"
 BIN_LINK="$BIN_DIR/uo"
 
+COMPLETION_SRC="$SCRIPT_DIR/completions/uo"
+COMPLETION_DIR="$HOME/.local/share/bash-completion/completions"
+COMPLETION_DST="$COMPLETION_DIR/uo"
+
 REQUIRED_MODULES=(common network system fixnet packages targz appmgmt snapflatpak recovery report github gitssh menus)
 
 # Version is read from the project's single source (SCRIPT_VERSION in lib/common.sh)
 version() {
     sed -n 's/^readonly SCRIPT_VERSION="\([^"]*\)".*/v\1/p' "$LIB_COMMON" 2>/dev/null
+}
+
+# Install/refresh the bash completion file (active in new terminals)
+_install_completion() {
+    [ -f "$COMPLETION_SRC" ] || return 0
+    mkdir -p "$COMPLETION_DIR"
+    cp -f "$COMPLETION_SRC" "$COMPLETION_DST"
+    return 0
 }
 
 # ---------- File health check ----------
@@ -108,6 +120,11 @@ check_install_status() {
             inf "PATH block not present in ~/.zshrc."
         fi
     fi
+    if [ -f "$COMPLETION_DST" ]; then
+        ok "bash completion installed: $COMPLETION_DST"
+    else
+        inf "bash completion is not installed."
+    fi
     if [[ ":$PATH:" != *":$BIN_DIR:"* ]]; then
         inf "$BIN_DIR is not in the current shell PATH (works in new shells)."
     fi
@@ -176,9 +193,14 @@ do_install() {
     _add_path_block "$HOME/.zshrc"
     ok "$BIN_DIR set in shell rc files."
 
+    # Bash completion for 'uo' — picked up in new terminals
+    _install_completion
+    ok "Bash completion installed: $COMPLETION_DST"
+
     echo ""
     inf "To activate in this terminal:  source ~/.bashrc"
     inf "In new terminals, 'uo' is available automatically."
+    inf "Tab completion for 'uo' works in new terminals."
     inf "Usage:  uo   |   uo --report   |   uo --help"
 }
 
@@ -194,6 +216,8 @@ do_update() {
                 bad "Some files are broken after the update!"
                 exit 1
             fi
+            # Refresh the installed completion file with the updated version
+            _install_completion
             echo ""
             ok "Update complete. Current version: $(version)"
         else
@@ -219,6 +243,8 @@ do_uninstall() {
         sed -i '/alias uo=/d; /^# Ubuntu Optimizer & Fixer$/d' "$HOME/.zshrc" 2>/dev/null
         _remove_path_block "$HOME/.zshrc"
     fi
+    rm -f "$COMPLETION_DST"
+    ok "Bash completion removed."
     ok "alias and PATH block removed from shell rc files."
     inf "The project itself in $SCRIPT_DIR is untouched."
     inf "To delete the project entirely: rm -rf \"$SCRIPT_DIR\""

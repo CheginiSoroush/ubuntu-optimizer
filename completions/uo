@@ -1,0 +1,52 @@
+# shellcheck shell=bash
+# bash completion for uo — Ubuntu Optimizer & Fixer
+# Author & Designer: Soroush Chegini (CheginiSoroush)
+# Installed by install.sh into ~/.local/share/bash-completion/completions/uo
+# (loaded automatically by the bash-completion package in new terminals)
+
+_uo() {
+    local cur prev
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+    # Value completion for options that take an argument
+    case "$prev" in
+        --cleanup)
+            # Tracked app names from both databases (GitHub + tar.gz registry)
+            local names
+            names=$( {
+                awk -F'|' '{print $1}' "$HOME/.local/share/ubuntu-optimizer/github.db" 2>/dev/null
+                awk -F'|' '{print $1}' "$HOME/.local/share/ubuntu-optimizer/apps.db" 2>/dev/null
+            } | sort -u )
+            mapfile -t COMPREPLY < <(compgen -W "$names" -- "$cur")
+            return 0
+            ;;
+        --github-remove)
+            local names
+            names=$(awk -F'|' '{print $1}' "$HOME/.local/share/ubuntu-optimizer/github.db" 2>/dev/null | sort -u)
+            mapfile -t COMPREPLY < <(compgen -W "$names" -- "$cur")
+            return 0
+            ;;
+    esac
+
+    # Option completion — while typing a flag, or right after the command
+    local opts="
+        -h --help -V --version -y --yes --no-color --no-log
+        --report --git-ssh --git-ssh-status
+        --github-install --github-update --github-list --github-remove
+        --install-targz
+        --optimize --network --system --security --time
+        --fixnet --fixnet-run --test
+        --update --update-apt --update-snap --update-flatpak --update-targz
+        --list-apps --cleanup --purge-data --snap-clean
+        --log --log-clear
+    "
+    if [[ "$cur" == -* ]] || { [ -z "$cur" ] && [ "$COMP_CWORD" -eq 1 ]; }; then
+        mapfile -t COMPREPLY < <(compgen -W "$opts" -- "$cur")
+        return 0
+    fi
+
+    return 0
+}
+
+complete -o default -F _uo uo

@@ -1,0 +1,23 @@
+name: Lint
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Syntax check (bash -n)
+        run: |
+          bash -n ubuntu-optimizer.sh
+          bash -n install.sh
+          bash -n completions/uo
+          for f in lib/*.sh; do bash -n "$f"; done
+
+      - name: ShellCheck
+        # severity=warning: the project's intentional style/info suppressions stay green
+        run: shellcheck --severity=warning ubuntu-optimizer.sh lib/*.sh install.sh completions/uo
