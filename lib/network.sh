@@ -65,6 +65,10 @@ set_dns() {
        && sudo nmcli connection modify "$CONN" ipv4.ignore-auto-dns yes \
        && sudo nmcli connection down "$CONN" > /dev/null 2>&1 \
        && sudo nmcli connection up "$CONN" > /dev/null 2>&1; then
+        if [ "$DRY_RUN" = "1" ]; then
+            success "[dry-run] DNS would be configured."
+            return 0
+        fi
         success "DNS configured."
         return 0
     else
@@ -131,6 +135,10 @@ set_mtu() {
         return 1
     fi
     if sudo ip link set dev "$IFACE" mtu "$MTU_VAL"; then
+        if [ "$DRY_RUN" = "1" ]; then
+            success "[dry-run] MTU would be set to $MTU_VAL."
+            return 0
+        fi
         success "MTU set to $MTU_VAL. (temporary — reverts after a reboot)"
         info "To make it permanent, set the mtu value in NetworkManager."
         return 0
