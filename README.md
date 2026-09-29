@@ -193,6 +193,7 @@ ubuntu-optimizer/
 ├── .shellcheckrc         ← project lint configuration
 ├── .github/workflows/lint.yml  ← CI: shellcheck + syntax on every commit
 ├── completions/uo          ← bash completion for the uo command
+├── test/common.bats        ← bats unit tests for lib/common.sh
 └── lib/
     ├── common.sh         ← colors, helpers, registry, logging system
     ├── network.sh        ← network optimization and tests
@@ -266,7 +267,7 @@ This tool changes system settings. All known bugs have been carefully fixed, but
 - [x] GitHub Actions: shellcheck + `bash -n` on every commit
 - [x] GitHub API token support (`GH_TOKEN` / `GITHUB_TOKEN`)
 - [x] bash completion for CLI options
-- [ ] automated tests (bats) for `lib/common.sh`
+- [x] automated tests (bats) for `lib/common.sh`
 - [ ] `--dry-run` mode
 
 ---

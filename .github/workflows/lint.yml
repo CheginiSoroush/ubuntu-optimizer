@@ -1,4 +1,4 @@
-name: Lint
+name: CI
 
 on:
   push:
@@ -21,3 +21,14 @@ jobs:
       - name: ShellCheck
         # severity=warning: the project's intentional style/info suppressions stay green
         run: shellcheck --severity=warning ubuntu-optimizer.sh lib/*.sh install.sh completions/uo
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bats
+        run: sudo apt-get update && sudo apt-get install -y bats
+
+      - name: Run unit tests
+        run: bats test/
