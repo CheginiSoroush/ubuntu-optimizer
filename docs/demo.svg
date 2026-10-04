@@ -1,0 +1,42 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="976" height="914" viewBox="0 0 976 914" role="img" aria-label="uo interactive menu">
+  <rect x="8" y="8" width="960" height="898" rx="12" fill="#0d1017" stroke="#262c3b" stroke-width="1.5"/>
+  <path d="M8 20 a12 12 0 0 1 12-12 h936 a12 12 0 0 1 12 12 v30 h-960 z" fill="#161b27"/>
+  <circle cx="34" cy="27" r="6" fill="#ff5f56"/>
+  <circle cx="56" cy="27" r="6" fill="#ffbd2e"/>
+  <circle cx="78" cy="27" r="6" fill="#27c93f"/>
+  <text x="488" y="31.5" text-anchor="middle" font-family="SFMono-Regular, Menlo, Monaco, 'Ubuntu Mono', 'DejaVu Sans Mono', monospace" font-size="12.5" fill="#8b93a5">uo — Ubuntu Optimizer &amp; Fixer</text>
+  <g font-family="SFMono-Regular, Menlo, Monaco, 'Ubuntu Mono', 'DejaVu Sans Mono', monospace" font-size="14" xml:space="preserve">
+    <text x="34" y="70"><tspan fill="#c678dd">    ╔══════════════════════════════════════════════════════╗</tspan></text>
+    <text x="34" y="91"><tspan fill="#c678dd">    ║                                                      ║</tspan></text>
+    <text x="34" y="112"><tspan fill="#c678dd">    ║       Ubuntu Optimizer &amp; Fixer - v7.0                ║</tspan></text>
+    <text x="34" y="133"><tspan fill="#c678dd">    ║       All-in-one Ubuntu optimization &amp; repair toolkit║</tspan></text>
+    <text x="34" y="154"><tspan fill="#c678dd">    ║                                                      ║</tspan></text>
+    <text x="34" y="175"><tspan fill="#c678dd">    ║       Author &amp; Designer: CheginiSoroush              ║</tspan></text>
+    <text x="34" y="196"><tspan fill="#c678dd">    ║       github.com/CheginiSoroush/ubuntu-optimizer     ║</tspan></text>
+    <text x="34" y="217"><tspan fill="#c678dd">    ╚══════════════════════════════════════════════════════╝</tspan></text>
+    <text x="34" y="259"><tspan fill="#f2f2f2" font-weight="700">   ── Optimization &amp; Health ──</tspan></text>
+    <text x="34" y="280"><tspan fill="#c8ccd8">   </tspan><tspan fill="#e95420" font-weight="700">1)</tspan><tspan fill="#c8ccd8"> </tspan><tspan fill="#c8ccd8">🌐 Network optimization</tspan></text>
+    <text x="34" y="301"><tspan fill="#c8ccd8">   </tspan><tspan fill="#e95420" font-weight="700">2)</tspan><tspan fill="#c8ccd8"> </tspan><tspan fill="#c8ccd8">💾 System &amp; memory optimization</tspan></text>
+    <text x="34" y="322"><tspan fill="#c8ccd8">   </tspan><tspan fill="#e95420" font-weight="700">3)</tspan><tspan fill="#c8ccd8"> </tspan><tspan fill="#c8ccd8">🔐 Security &amp; passwords</tspan></text>
+    <text x="34" y="343"><tspan fill="#c8ccd8">   </tspan><tspan fill="#e95420" font-weight="700">4)</tspan><tspan fill="#c8ccd8"> </tspan><tspan fill="#c8ccd8">🕐 Time &amp; NTP</tspan></text>
+    <text x="34" y="385"><tspan fill="#f2f2f2" font-weight="700">   ── Emergency &amp; Diagnostics ──</tspan></text>
+    <text x="34" y="406"><tspan fill="#c8ccd8">   </tspan><tspan fill="#e95420" font-weight="700">5)</tspan><tspan fill="#c8ccd8"> </tspan><tspan fill="#c8ccd8">🛠 Create &amp; run fixnet</tspan></text>
+    <text x="34" y="427"><tspan fill="#c8ccd8">   </tspan><tspan fill="#e95420" font-weight="700">6)</tspan><tspan fill="#c8ccd8"> </tspan><tspan fill="#c8ccd8">📊 Network &amp; speed tests</tspan></text>
+    <text x="34" y="469"><tspan fill="#f2f2f2" font-weight="700">   ── Applications ──</tspan></text>
+    <text x="34" y="490"><tspan fill="#c8ccd8">   </tspan><tspan fill="#e95420" font-weight="700">7)</tspan><tspan fill="#c8ccd8"> </tspan><tspan fill="#c8ccd8">📦 Install packages &amp; apps</tspan></text>
+    <text x="34" y="511"><tspan fill="#c8ccd8">   </tspan><tspan fill="#e95420" font-weight="700">8)</tspan><tspan fill="#c8ccd8"> </tspan><tspan fill="#c8ccd8">🧹 Manage &amp; fully remove apps</tspan></text>
+    <text x="34" y="532"><tspan fill="#c8ccd8">   </tspan><tspan fill="#e95420" font-weight="700">9)</tspan><tspan fill="#c8ccd8"> </tspan><tspan fill="#c8ccd8">🔄 Update apps</tspan></text>
+    <text x="34" y="553"><tspan fill="#c8ccd8">  </tspan><tspan fill="#e95420" font-weight="700">10)</tspan><tspan fill="#c8ccd8"> </tspan><tspan fill="#c8ccd8">🧩 snap &amp; flatpak management</tspan></text>
+    <text x="34" y="595"><tspan fill="#f2f2f2" font-weight="700">   ── System &amp; Info ──</tspan></text>
+    <text x="34" y="616"><tspan fill="#c8ccd8">  </tspan><tspan fill="#e95420" font-weight="700">11)</tspan><tspan fill="#c8ccd8"> </tspan><tspan fill="#c8ccd8">🚑 System recovery &amp; rescue</tspan></text>
+    <text x="34" y="637"><tspan fill="#c8ccd8">  </tspan><tspan fill="#e95420" font-weight="700">12)</tspan><tspan fill="#c8ccd8"> </tspan><tspan fill="#c8ccd8">☠ Advanced tools (dangerous)</tspan></text>
+    <text x="34" y="658"><tspan fill="#c8ccd8">  </tspan><tspan fill="#e95420" font-weight="700">13)</tspan><tspan fill="#c8ccd8"> </tspan><tspan fill="#c8ccd8">📜 Activity log</tspan></text>
+    <text x="34" y="679"><tspan fill="#c8ccd8">  </tspan><tspan fill="#e95420" font-weight="700">14)</tspan><tspan fill="#c8ccd8"> </tspan><tspan fill="#c8ccd8">📊 System status report</tspan></text>
+    <text x="34" y="700"><tspan fill="#c8ccd8">  </tspan><tspan fill="#e95420" font-weight="700">15)</tspan><tspan fill="#c8ccd8"> </tspan><tspan fill="#c8ccd8">📊 Disk space analysis</tspan></text>
+    <text x="34" y="721"><tspan fill="#c8ccd8">  </tspan><tspan fill="#e95420" font-weight="700">16)</tspan><tspan fill="#c8ccd8"> </tspan><tspan fill="#c8ccd8">🧹 Disk cleanup</tspan></text>
+    <text x="34" y="763"><tspan fill="#c8ccd8">   </tspan><tspan fill="#e95420" font-weight="700">0)</tspan><tspan fill="#c8ccd8"> </tspan><tspan fill="#c8ccd8">Exit</tspan></text>
+    <text x="34" y="805"><tspan fill="#8b93a5" font-weight="700">   Quick CLI reference: </tspan><tspan fill="#61afef">uo --help</tspan></text>
+    <text x="34" y="847"><tspan fill="#f2f2f2">Select:</tspan></text>
+    <rect x="90" y="834" width="9" height="16" rx="2" fill="#27c93f"/>
+  </g>
+</svg>

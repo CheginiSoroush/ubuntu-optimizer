@@ -1,0 +1,15 @@
+# Editor / OS cruft
+*.swp
+*.swo
+*~
+.DS_Store
+.idea/
+.vscode/
+
+# Local shell artifacts (the tool's own logs live in ~/.local/state)
+*.log
+*.log.old
+
+# Local test / sandbox leftovers
+test-results/
+uo-sandbox/

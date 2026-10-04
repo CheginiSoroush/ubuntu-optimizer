@@ -1,0 +1,45 @@
+name: CI
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+
+jobs:
+  shellcheck:
+    name: ShellCheck & syntax
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: bash -n syntax check
+        run: |
+          for f in ubuntu-optimizer.sh install.sh lib/*.sh completions/uo; do
+            bash -n "$f" || { echo "syntax error in $f"; exit 1; }
+          done
+
+      - name: ShellCheck (project .shellcheckrc)
+        run: |
+          shellcheck -S warning \
+            ubuntu-optimizer.sh install.sh lib/*.sh completions/uo
+
+  bats:
+    name: Bats unit tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install bats
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y bats
+
+      - name: Run tests
+        run: bats test/ --print-output-on-failure
