@@ -1,0 +1,8 @@
+# .shellcheckrc — project lint configuration (picked up automatically
+# by shellcheck when run from the repository root).
+#
+# SC2034 ("variable appears unused") is disabled because this is a modular
+# sourced project: variables and constants defined in one lib/*.sh file are
+# used inside other files that are sourced together by ubuntu-optimizer.sh.
+# ShellCheck analyzes each file in isolation and cannot see cross-file usage.
+disable=SC2034
