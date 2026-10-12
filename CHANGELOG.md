@@ -4,6 +4,41 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.12.0]
+
+### Added
+- **Resilient GitHub API layer** (lib/github.sh) — every API call now rides a
+  retry wrapper instead of a single bare `curl`:
+  - **Exponential backoff** for transient failures (transport errors, HTTP 5xx):
+    1 s → 2 s → 4 s → 8 s, capped by `UO_GH_BACKOFF_MAX` (default 8), with a
+    progress warning per attempt (`attempt 2/3 ...`).
+  - **Rate-limit respect**: on HTTP 403 with a rate-limit message body, the
+    wrapper reads `X-RateLimit-Reset` and — when the window lifts within
+    `UO_GH_RATELIMIT_MAX_WAIT` seconds (default 60) — waits exactly that long
+    and retries once; a longer wait fails fast with the GH_TOKEN tip so the
+    user is never silently stalled for minutes. The tool never hammers a
+    closed window.
+  - **`Retry-After` honored** on HTTP 429/503 (capped by the same max-wait),
+    falling back to the exponential backoff when the header is absent.
+  - **Tuning knobs**: `UO_GH_RETRIES` (default 3, clamped 1–6),
+    `UO_GH_BACKOFF_MAX`, `UO_GH_RATELIMIT_MAX_WAIT`.
+  - `gh_fetch_latest` now maps failures on the HTTP status code first
+    (network → 403 rate-limit → 404 not-found → generic) and keeps the
+    message-body matching as a fallback for cached responses.
+
+### Fixed
+- test/github.bats, test/jsonreport.bats, test/reportfile.bats:
+  three latent test bugs — a quote-nesting construct that bash 5.2's parser
+  rejects outright (`"$(f "$(g "x"))"`), a `$()`-stripped newline literal, and
+  a monotonicity assertion that raced the second-resolution timestamp (the
+  sleep its own comment relied on was missing).
+
+### Tests
+- test/github.bats: 17 new tests (30 total) covering the backoff table, the
+  caps, CRLF-safe header parsing, and the full `gh_api_get` behavior matrix
+  against a stubbed curl/sleep pair (200 / 5xx-recovery / 404-no-retry /
+  near-reset wait / far-reset fast-fail / Retry-After / retry clamp).
+
 ## [7.11.0]
 
 ### Added

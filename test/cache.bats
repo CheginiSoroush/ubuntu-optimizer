@@ -302,8 +302,17 @@ load_cache() {
     source "$TEST_HOME/uo-tree/lib/github.sh"
     CURL_CALLS="$TEST_HOME/curl-calls"
     curl() {
+        local h="" b=""
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                -D) h="$2"; shift 2 ;;
+                -o) b="$2"; shift 2 ;;
+                *) shift ;;
+            esac
+        done
         echo "call" >> "$CURL_CALLS"
-        printf '%s' '{"tag_name": "v9.9.9", "assets": [{"browser_download_url": "https://example.com/app-1.0.tar.gz"}]}'
+        printf '%s' '{"tag_name": "v9.9.9", "assets": [{"browser_download_url": "https://example.com/app-1.0.tar.gz"}]}' > "$b"
+        echo 200
     }
     : > "$CURL_CALLS"
     gh_fetch_latest "owner/repo" > /dev/null 2>&1
@@ -326,8 +335,17 @@ load_cache() {
     source "$TEST_HOME/uo-tree/lib/github.sh"
     CURL_CALLS="$TEST_HOME/curl-calls"
     curl() {
+        local h="" b=""
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                -D) h="$2"; shift 2 ;;
+                -o) b="$2"; shift 2 ;;
+                *) shift ;;
+            esac
+        done
         echo "call" >> "$CURL_CALLS"
-        printf '%s' '{"message": "Not Found", "documentation_url": "https://docs.github.com"}'
+        printf '%s' '{"message": "Not Found", "documentation_url": "https://docs.github.com"}' > "$b"
+        echo 404
     }
     : > "$CURL_CALLS"
     run gh_fetch_latest "owner/repo"
@@ -344,9 +362,17 @@ load_cache() {
     source "$TEST_HOME/uo-tree/lib/github.sh"
     # the stub cannot see the real URL, so key the payload off the repo name
     curl() {
+        local h="" b=""
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                -D) h="$2"; shift 2 ;;
+                -o) b="$2"; shift 2 ;;
+                *) shift ;;
+            esac
+        done
         case "$_UO_FAKE_REPO" in
-            alpha) printf '%s' '{"tag_name": "v1.0.0", "assets": []}' ;;
-            beta)  printf '%s' '{"tag_name": "v2.0.0", "assets": []}' ;;
+            alpha) printf '%s' '{"tag_name": "v1.0.0", "assets": []}' > "$b"; echo 200 ;;
+            beta)  printf '%s' '{"tag_name": "v2.0.0", "assets": []}' > "$b"; echo 200 ;;
         esac
     }
     _UO_FAKE_REPO=alpha

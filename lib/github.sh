@@ -111,17 +111,179 @@ gh_set_auth() {
     return 0
 }
 
+# ── Resilient API layer: retries with backoff + rate-limit respect ─────────────
+
+# ───────────────────────────────────────────────────────────────────────────────
+# gh_backoff_secs() — compute the exponential backoff delay for an attempt
+#
+# Prints 2^(ATTEMPT-1) seconds (1, 2, 4, 8, ...) capped at
+# UO_GH_BACKOFF_MAX (default 8 s). A non-numeric or < 1 attempt is treated
+# as 1, so the helper can never print 0 or garbage.
+#
+# Globals:   UO_GH_BACKOFF_MAX — read (optional; default 8)
+# Arguments: $1 — attempt number (1-based, counting BEFORE this sleep)
+# Prints:    the delay in whole seconds
+# ───────────────────────────────────────────────────────────────────────────────
+gh_backoff_secs() {
+    local attempt="$1" cap="${UO_GH_BACKOFF_MAX:-8}" secs
+    [[ "$attempt" =~ ^[0-9]+$ ]] || attempt=1
+    (( attempt < 1 )) && attempt=1
+    secs=$(( 1 << (attempt - 1) ))
+    [[ "$cap" =~ ^[0-9]+$ ]] && (( cap >= 1 )) || cap=8
+    (( secs > cap )) && secs=$cap
+    printf '%s' "$secs"
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# gh_retry_after_secs() — extract the Retry-After delay from response headers
+#
+# Scans a raw header dump for "Retry-After:" (case-insensitive, CRLF-safe)
+# and prints its integer second value. Absent, unparsable or negative
+# values print 0, so callers can fall back to the exponential backoff.
+#
+# Arguments: $1 — raw HTTP response headers file
+# Prints:    the delay in whole seconds (0 when there is none)
+# ───────────────────────────────────────────────────────────────────────────────
+gh_retry_after_secs() {
+    local v
+    v=$(sed -n 's/^[[:space:]]*[Rr][Ee][Tt][Rr][Yy]-[Aa][Ff][Tt][Ee][Rr]:[[:space:]]*\([0-9][0-9]*\)[[:space:]]*\r\?$/\1/p' "$1" 2>/dev/null | head -1)
+    printf '%s' "${v:-0}"
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# gh_rate_limit_wait_secs() — seconds until the API rate limit resets
+#
+# Reads X-RateLimit-Reset (an epoch timestamp) from a raw header dump and
+# prints how many seconds remain until the limit lifts. NOW may be passed
+# for testing; it defaults to the current epoch. Missing, unparsable or
+# already-past reset timestamps print 0.
+#
+# Arguments: $1 — raw HTTP response headers file
+#            $2 — current epoch second (optional, for tests)
+# Prints:    remaining whole seconds (≥ 0)
+# ───────────────────────────────────────────────────────────────────────────────
+gh_rate_limit_wait_secs() {
+    local hdr="$1" now="${2:-$(date +%s)}" reset v
+    v=$(sed -n 's/^[[:space:]]*[Xx]-[Rr]ate[Ll]imit-[Rr]eset:[[:space:]]*\([0-9][0-9]*\)[[:space:]]*\r\?$/\1/p' "$hdr" 2>/dev/null | head -1)
+    [ -n "$v" ] || { printf '0'; return 0; }
+    reset=$v
+    [[ "$now" =~ ^[0-9]+$ ]] || now=$(date +%s)
+    local wait=$(( reset - now ))
+    (( wait < 0 )) && wait=0
+    printf '%s' "$wait"
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# gh_api_get() — resilient GitHub API GET with retries, backoff and
+#                rate-limit respect
+#
+# Wraps one curl GET with up to UO_GH_RETRIES attempts (default 3, clamped
+# to 1–6). Between attempts of TRANSIENT failures it sleeps an exponential
+# backoff (gh_backoff_secs): transport failures (code 000) and HTTP 5xx.
+#
+# Rate limiting is honored rather than hammered:
+#   • HTTP 403 with a rate-limit message body → X-RateLimit-Reset is read
+#     and, when the limit lifts within UO_GH_RATELIMIT_MAX_WAIT seconds
+#     (default 60), the call waits exactly that long and retries; a longer
+#     wait fails fast so the user is never silently stalled for minutes.
+#   • HTTP 429/503 with a Retry-After header → that delay is honored
+#     (also capped by UO_GH_RATELIMIT_MAX_WAIT), otherwise the exponential
+#     backoff applies.
+#
+# Every attempt's progress is announced with info/warn. On success the
+# body lands in GH_API_BODY and the code in GH_API_CODE ("200"); on final
+# failure both are still set for the caller to inspect. Permanent client
+# errors (404, 401, ...) return immediately without sleeping.
+#
+# Globals:   GH_CURL_AUTH — auth arguments consumed
+#            UO_GH_RETRIES, UO_GH_BACKOFF_MAX, UO_GH_RATELIMIT_MAX_WAIT —
+#            read (optional tuning knobs)
+#            GH_API_BODY, GH_API_CODE — written
+# Arguments: $1 — full API URL
+# Returns:   0 — HTTP 200
+#            1 — permanent failure or retries exhausted
+# ───────────────────────────────────────────────────────────────────────────────
+gh_api_get() {
+    GH_API_BODY=""
+    GH_API_CODE="000"
+
+    local url="$1" retries="${UO_GH_RETRIES:-3}" max_wait="${UO_GH_RATELIMIT_MAX_WAIT:-60}"
+    [[ "$retries" =~ ^[0-9]+$ ]] && (( retries >= 1 )) || retries=3
+    (( retries > 6 )) && retries=6
+    [[ "$max_wait" =~ ^[0-9]+$ ]] || max_wait=60
+
+    local hdr body code wait attempt
+    hdr=$(mktemp) || return 1
+    body=$(mktemp) || { rm -f "$hdr"; return 1; }
+
+    for (( attempt = 1; attempt <= retries; attempt++ )); do
+        code=$(curl -sS -D "$hdr" -o "$body" --connect-timeout 15 --max-time 30 \
+            "${GH_CURL_AUTH[@]}" -w '%{http_code}' "$url" 2>/dev/null)
+        GH_API_BODY=$(cat "$body" 2>/dev/null)
+        [[ "$code" =~ ^[0-9]{3}$ ]] || code="000"
+        GH_API_CODE="$code"
+
+        if [ "$code" = "200" ]; then
+            rm -f "$hdr" "$body"
+            return 0
+        fi
+
+        # Non-retryable client errors: return immediately (no sleep)
+        case "$code" in
+            404 | 401 | 400 | 422)
+                rm -f "$hdr" "$body"
+                return 1 ;;
+        esac
+
+        # Rate-limited (403 + message body): wait for the reset when it is
+        # near, fail fast otherwise — never hammer a closed window.
+        if [ "$code" = "403" ] && printf '%s' "$GH_API_BODY" | grep -qi '"message": *"API rate limit exceeded'; then
+            wait=$(gh_rate_limit_wait_secs "$hdr")
+            if (( wait > 0 && wait <= max_wait )); then
+                warn "Rate limited — the window resets in ${wait}s, waiting once ..."
+                sleep "$wait"
+            else
+                rm -f "$hdr" "$body"
+                return 1
+            fi
+        # Throttled: honor Retry-After when present, back off otherwise
+        elif [ "$code" = "429" ] || [ "$code" = "503" ]; then
+            wait=$(gh_retry_after_secs "$hdr")
+            if (( wait > max_wait )); then
+                rm -f "$hdr" "$body"
+                return 1
+            fi
+            (( wait > 0 )) || wait=$(gh_backoff_secs "$attempt")
+            warn "API throttled (HTTP $code) — retrying in ${wait}s ..."
+            sleep "$wait"
+        # Transient (transport failure / server error): exponential backoff
+        else
+            if (( attempt < retries )); then
+                wait=$(gh_backoff_secs "$attempt")
+                warn "GitHub API call failed (HTTP $code) — retrying in ${wait}s (attempt $(( attempt + 1 ))/$retries) ..."
+                sleep "$wait"
+            fi
+        fi
+    done
+
+    rm -f "$hdr" "$body"
+    return 1
+}
+
 # ── Fetch the latest release ───────────────────────────────────────────────────
 
 # ───────────────────────────────────────────────────────────────────────────────
 # gh_fetch_latest() — fetch the latest release of a repository
 #
 # Normalizes OWNER/REPO input (URL and git-remote forms accepted), installs
-# curl on demand and calls the releases/latest API with a 15 s connect /
-# 30 s total timeout, then fills GH_TAG and the GH_URLS asset list,
-# parsing with jq when available and with grep/sed otherwise. API errors
-# are matched on the "message" field only — release notes (the "body"
-# field) may legitimately contain words like "rate limit".
+# curl on demand and calls the releases/latest API through the resilient
+# layer (gh_api_get: exponential backoff on transport/5xx failures,
+# Retry-After honored on 429/503, and X-RateLimit-Reset respected on 403
+# rate-limit responses — see above), then fills GH_TAG and the GH_URLS
+# asset list, parsing with jq when available and with grep/sed otherwise.
+# API errors are matched on the status code first and the "message" field
+# second — release notes (the "body" field) may legitimately contain words
+# like "rate limit".
 #
 # The raw API response is TTL-cached (lib/cache.sh) under the key
 # gh:latest:<owner>::<repo> for 5 minutes: the anonymous API allows only 60 requests/hour per IP,
@@ -169,12 +331,24 @@ gh_fetch_latest() {   # $1 = OWNER/REPO or a full URL
         info "Using cached release info for $repo (5 min TTL — bypass with --no-cache) ..."
     else
         info "Checking the latest release of $repo ..."
-        # stderr is kept separate so a curl failure shows as an empty response, not broken JSON
-        if ! resp=$(curl -sSL --connect-timeout 15 --max-time 30 "${GH_CURL_AUTH[@]}" \
-            "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null) || [ -z "$resp" ]; then
-            failure "Failed to get a response from the GitHub API — check your internet connection."
+        # Resilient call: exponential backoff on transport/5xx failures,
+        # Retry-After honored on 429/503, X-RateLimit-Reset respected on 403
+        if ! gh_api_get "https://api.github.com/repos/${repo}/releases/latest"; then
+            case "$GH_API_CODE" in
+                000)
+                    failure "Failed to get a response from the GitHub API — check your internet connection." ;;
+                403)
+                    warn "GitHub API rate limit reached (60 requests/hour per IP without a token)."
+                    info "Tip: setting GH_TOKEN raises the limit to 5000/hour — see the README." ;;
+                404)
+                    failure "Repository not found or has no public release (404)."
+                    info "Check the repository name: $repo" ;;
+                *)
+                    failure "GitHub API error (HTTP $GH_API_CODE) after retries — try again later." ;;
+            esac
             return 1
         fi
+        resp="$GH_API_BODY"
     fi
 
     # Errors are matched on the API's "message" field only — release notes

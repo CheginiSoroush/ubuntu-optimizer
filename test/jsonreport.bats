@@ -61,10 +61,15 @@ json_validate_stdin() {
 }
 
 @test "_json_escape: escapes backslash, quote, tab and newline" {
+    # tab/newline are precomputed OUTSIDE the assertion — nesting a quoted
+    # command substitution inside a quoted one trips bash 5.2's parser
+    local tab nl
+    tab=$'\t'
+    nl=$'\n'
     [ "$(_json_escape 'a\b')" = 'a\\b' ]
     [ "$(_json_escape 'say "hi"')" = 'say \"hi\"' ]
-    [ "$(_json_escape "$(printf 'a\tb'))" = 'a\tb' ]
-    [ "$(_json_escape "$(printf 'a\nb'))" = 'a\nb' ]
+    [ "$(_json_escape "$tab")" = '\t' ]
+    [ "$(_json_escape "$nl")" = '\n' ]
 }
 
 @test "_json_escape: strips control characters" {

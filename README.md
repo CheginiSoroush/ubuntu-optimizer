@@ -12,10 +12,10 @@ The all-in-one optimization, app-management and repair toolkit —
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.11-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.12-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-207%20%2F%20207-brightgreen)
+![Tests](https://img.shields.io/badge/bats-222%20%2F%20222-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -43,7 +43,7 @@ The all-in-one optimization, app-management and repair toolkit —
 | ⚡ **TTL cache** | costly results (connectivity probe, apt list refresh, GitHub release lookups) are cached with an expiry timestamp — repeated runs skip the wait; inspect with `--cache-stats`, wipe with `--cache-clear`, bypass with `--no-cache` (v7.9) |
 | ⏰ **Scheduled updates** | `uo --timer-install weekly` puts a real **systemd timer** in place that runs `uo --update -y --no-color` unattended — `Persistent=true` replays missed runs after downtime; user scope (no root) by default, `--timer-system` for servers, and `--timer-notify-only` for a read-only monitor tick that snapshots the JSON report + notifies on trouble (v7.10) |
 | 📦 **Install** | deb packages · **smart tar.gz/tgz install** (main-executable detection, architecture check, automatic dependencies) · AppImage |
-| 🐙 **GitHub Releases** | install / update / remove apps — automatic architecture-aware asset pick · **SHA-256 checksum verification** when the release ships one (v7.4) |
+| 🐙 **GitHub Releases** | install / update / remove apps — automatic architecture-aware asset pick · **SHA-256 checksum verification** when the release ships one (v7.4) · **resilient API layer**: exponential backoff on transport/5xx failures, `Retry-After` honored on 429/503, `X-RateLimit-Reset` respected on 403 — never hammers a closed rate-limit window (v7.12) |
 | ⬆ **Self-update** | `uo --self-update` — the toolkit updates itself: version check against the official repo, git pull for clones, verified archive + automatic backup for static copies (v7.6) |
 | 🧹 **Full removal** | completely remove any app from **any source** (apt / snap / flatpak / tar.gz / manual) — including user data |
 | 🔄 **Updates** | apt + snap + flatpak + tar.gz + GitHub in one command, fully automatic with `-y` |

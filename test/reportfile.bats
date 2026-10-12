@@ -104,6 +104,9 @@ run_uo() {
     local out="$TEST_HOME/report-log.jsonl"
     run run_uo --report --json --append --output "$out"
     [ "$status" -eq 0 ]
+    # the timestamp has second resolution — guarantee the second document
+    # is strictly newer (this is the sleep the monotonicity check relies on)
+    sleep 1
     run run_uo --report --json --append --output "$out"
     [ "$status" -eq 0 ]
     [ "$(wc -l < "$out")" -eq 2 ]
