@@ -1,0 +1,74 @@
+# shellcheck shell=bash
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Ubuntu Optimizer & Fixer — completions/uo
+# ───────────────────────────────────────────────────────────────────────────────
+#  Bash completion for the 'uo' command: value completion for the options that
+#  take an argument (--cleanup, --github-remove) and flag completion for
+#  everything else. Copied by install.sh into the user's bash-completion
+#  directory and loaded automatically in new terminals.
+#
+#  Project : ubuntu-optimizer — github.com/CheginiSoroush/ubuntu-optimizer
+#  Author  : Soroush Chegini (CheginiSoroush)
+#  License : MIT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ───────────────────────────────────────────────────────────────────────────────
+# _uo() — compute completions for the uo command
+#
+# Value completion first: --cleanup offers tracked app names from both
+# databases (github.db + apps.db), --github-remove only names from
+# github.db. Otherwise the option list is offered while a flag is being
+# typed or directly after the command word.
+#
+# Globals:   COMP_WORDS, COMP_CWORD (read), COMPREPLY (written)
+# Arguments: none
+# Returns:   0 — always
+# ───────────────────────────────────────────────────────────────────────────────
+_uo() {
+    local cur prev
+    cur="${COMP_WORDS[COMP_CWORD]}"
+    prev="${COMP_WORDS[COMP_CWORD-1]}"
+
+    # Value completion for options that take an argument
+    case "$prev" in
+        --cleanup)
+            # Tracked app names from both databases (GitHub + tar.gz registry)
+            local names
+            names=$( {
+                awk -F'|' '{print $1}' "$HOME/.local/share/ubuntu-optimizer/github.db" 2>/dev/null
+                awk -F'|' '{print $1}' "$HOME/.local/share/ubuntu-optimizer/apps.db" 2>/dev/null
+            } | sort -u )
+            mapfile -t COMPREPLY < <(compgen -W "$names" -- "$cur")
+            return 0
+            ;;
+        --github-remove)
+            local names
+            names=$(awk -F'|' '{print $1}' "$HOME/.local/share/ubuntu-optimizer/github.db" 2>/dev/null | sort -u)
+            mapfile -t COMPREPLY < <(compgen -W "$names" -- "$cur")
+            return 0
+            ;;
+    esac
+
+    # Option completion — while typing a flag, or right after the command
+    local opts="
+        -h --help -V --version -y --yes --no-color --no-log --dry-run
+        --report --git-ssh --git-ssh-status --doctor --disk --disk-clean
+        --github-install --github-update --github-list --github-remove
+        --install-targz
+        --optimize --network --system --security --time
+        --fixnet --fixnet-run --test
+        --update --update-apt --update-snap --update-flatpak --update-targz
+        --list-apps --cleanup --purge-data --snap-clean
+        --log --log-clear
+    "
+    if [[ "$cur" == -* ]] || { [ -z "$cur" ] && [ "$COMP_CWORD" -eq 1 ]; }; then
+        mapfile -t COMPREPLY < <(compgen -W "$opts" -- "$cur")
+        return 0
+    fi
+
+    return 0
+}
+
+# Register the handler for 'uo'; -o default falls back to file completion
+# when no option matches.
+complete -o default -F _uo uo
