@@ -71,6 +71,22 @@ _uo() {
             mapfile -t COMPREPLY < <(compgen -W "$names" -- "$cur")
             return 0
             ;;
+        --autostart-on|--autostart-off)
+            # Startup application names from the XDG autostart dirs —
+            # both with and without the .desktop extension
+            local -a anames=()
+            local adir afile abase
+            for adir in "${XDG_CONFIG_HOME:-$HOME/.config}/autostart" /etc/xdg/autostart; do
+                for afile in "$adir"/*.desktop; do
+                    if [ -f "$afile" ]; then
+                        abase="${afile##*/}"
+                        anames+=("$abase" "${abase%.desktop}")
+                    fi
+                done
+            done
+            mapfile -t COMPREPLY < <(compgen -W "${anames[*]}" -- "$cur")
+            return 0
+            ;;
     esac
 
     # Option completion — while typing a flag, or right after the command
@@ -81,6 +97,7 @@ _uo() {
         --timer-install --timer-remove --timer-status --timer-log
         --timer-preview --timer-system --timer-notify-only --timer-tick
         --report --json --output --append --git-ssh --git-ssh-status --doctor
+        --boot --autostart --autostart-on --autostart-off
         --disk --disk-clean --disk-report
         --github-install --github-update --github-list --github-remove
         --install-targz

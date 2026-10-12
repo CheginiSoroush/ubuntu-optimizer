@@ -8,14 +8,14 @@
 **یک دستور؛ اوبونتویی سریع‌تر، تمیزتر و سالم‌تر.**
 
 جعبه‌ابزار همه‌کارهٔ بهینه‌سازی، مدیریت برنامه‌ها و تعمیر اوبونتو —
-۱۹ ابزار در منویی ساده، بیش از ۴۰ گزینهٔ خط فرمان و پیش‌نمایش صادقانهٔ dry-run.
+۲۰ ابزار در منویی ساده، بیش از ۴۵ گزینهٔ خط فرمان و پیش‌نمایش صادقانهٔ dry-run.
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.12-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.14-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-207%20%2F%20207-brightgreen)
+![Tests](https://img.shields.io/badge/bats-276%20%2F%20276-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -45,6 +45,7 @@
 | 📦 **نصب** | بسته‌های deb · **نصب هوشمند tar.gz/tgz** (تشخیص فایل اجرایی اصلی، بررسی معماری، نصب خودکار وابستگی‌ها) · AppImage |
 | 🐙 **GitHub Releases** | نصب / به‌روزرسانی / حذف برنامه‌ها — انتخاب خودکار فایل سازگار با معماری سیستم · **بررسی checksum شی‌آر-۲۵۶** وقتی ریلیز فایل checksum دارد (v7.4) |
 | ⬆ **به‌روزرسانی خود ابزار** | **خودکار در هر اجرای `uo`** (v7.13): بررسی نسخه با کش TTL، پیشنهاد نسخه تازه‌تر، اعمال و راه‌اندازی دوباره با کد جدید — یک بنر، یک سؤال، هرگز جلوی کار را نمی‌گیرد (خاموشی با `--no-update` / `UO_AUTO_UPDATE=0`) · `uo --self-update` برای حالت دستی: بررسی نسخه از مخزن رسمی، git pull برای کلون‌ها، آرشیو تأییدشده + پشتیبان خودکار برای کپی‌های ثابت (v7.6) |
+| 🥾 **بوت و استارتاپ** | تحلیل زمان بوت با حکم نهایی — کل زمان، ۱۰ یونیت کندترین، زنجیرهٔ بحرانی، یونیت‌های شکست‌خورده (v7.14) · **مدیر استارتاپ XDG**: فهرست و فعال/غیرفعال‌کردن برنامه‌های استارتاپ — هرگز فایل سیستمی لمس نمی‌شود، کاملاً بازگشت‌پذیر با override کاربر (v7.14) |
 | 🧹 **حذف کامل** | حذف کامل هر برنامه از **هر منبعی** (apt / snap / flatpak / tar.gz / دستی) — به‌همراه داده‌های کاربر |
 | 🔄 **به‌روزرسانی** | apt + snap + flatpak + tar.gz + GitHub در یک دستور، با `-y` کاملاً خودکار |
 | 🚑 **بازیابی** | تعمیر بسته‌های خراب، نصب مجدد محیط دسکتاپ |
@@ -179,6 +180,8 @@ uo --profile server -y             # اعمال بدون سؤال
 | `uo --timer-preview [PERIOD]` | چاپ فایل‌های unit که نصب می‌نویسد — بدون نیاز به systemd (v7.10) |
 | `uo --timer-system` · `--timer-notify-only` | (با install/preview) یونیت سراسری سیستم · حالت پایش فقط-خواندنی (v7.10) |
 | `uo --disk-report [FILE]` | نوشتن تحلیل دیسک به‌صورت گزارش HTML خودکفا — نمودار + جدول‌های قابلمرتب‌سازی، پیش‌فرض «uo-disk-report.html» (v7.12) |
+| `uo --boot` | تحلیل زمان بوت — کل زمان + حکم، ۱۰ یونیت کندترین، زنجیرهٔ بحرانی، یونیت‌های شکست‌خورده (v7.14) |
+| `uo --autostart` · `--autostart-on/off NAME` | فهرست برنامه‌های استارتاپ · فعال/غیرفعال‌کردن یکی — override بازگشت‌پذیر کاربر، بدون لمس فایل‌های سیستمی (v7.14) |
 | `uo --doctor` | بررسی سلامت و تعمیر همهٔ برنامه‌های نصب‌شده/ردیابی‌شده |
 | `uo --github-install OWNER/REPO [NAME]` | نصب برنامه از آخرین ریلیز GitHub |
 | `uo --github-update` · `--github-list` · `--github-remove` | به‌روزرسانی · فهرست · حذف برنامه‌های GitHub |
@@ -461,9 +464,9 @@ ubuntu-optimizer/
 
 | گیت کیفیت | وضعیت |
 |---|---|
-| بررسی سینتکس `bash -n` | ✅ هر ۲۵ فایل شل |
+| بررسی سینتکس `bash -n` | ✅ هر ۲۶ فایل شل |
 | ShellCheck (سخت‌گیرانه) | ✅ صفر ایراد — در CI اجباری است |
-| تست‌های واحد bats | ✅ ۲۲۲ از ۲۲۲ پاس |
+| تست‌های واحد bats | ✅ ۲۷۶ از ۲۷۶ پاس |
 | `install.sh --check` | ✅ خودارزیابی سلامت داخلی |
 | GitHub Actions CI | ✅ روی هر push و pull request |
 

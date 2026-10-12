@@ -4,6 +4,42 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.14.0]
+
+### Added
+- **Boot time analysis** (`uo --boot`, lib/boot.sh) — how long the machine
+  takes to reach a usable state, and what slows it down:
+  - total startup time (kernel + initrd + userspace) with a plain-language
+    verdict (excellent < 20s · good < 40s · slow < 60s · very slow);
+  - the **10 slowest units** (`systemd-analyze blame`) and the
+    **critical chain** (`systemd-analyze critical-chain`);
+  - the **failed units** check (`systemctl --failed`) with a count, a
+    one-line-per-unit list and a follow-up hint — also available standalone
+    as the "Failed system units" menu entry.
+  Fully read-only; on machines without systemd (WSL, containers) every
+  section degrades to a friendly info line and the run still succeeds.
+- **Startup application manager** (`uo --autostart`, lib/autostart.sh) —
+  the XDG autostart layer behind the desktop's "Startup Applications":
+  - `uo --autostart` lists every entry (state ✓/✗, name, origin, command);
+  - `uo --autostart-off NAME` disables, `uo --autostart-on NAME` enables —
+    accepting the name with or without the `.desktop` extension;
+  - **a system file is never modified**: disabling a system entry writes a
+    user-level override (`Hidden=true` + `X-GNOME-Autostart-enabled=false`),
+    enabling removes that override again; a system entry that is disabled by
+    default gets a force-enable override; user entries toggle in place;
+  - path-traversal-safe name resolution (only basenames inside the
+    autostart dirs are reachable);
+  - interactive pickers in the new **🥾 Boot & startup** main-menu entry 20
+    (analysis · failed units · list · disable one · enable one).
+- Bash + zsh completions learned `--boot`, `--autostart` and the
+  `--autostart-on/--autostart-off` value completion (startup app names from
+  both autostart dirs, with and without the extension); `uo --help` documents
+  the three flags with three new examples; README.md / README.fa.md feature
+  rows, CLI rows, project tree and badges updated; CHANGELOG (this section).
+
+### Fixed
+- none — this release adds only new surface (32 new bats tests, 276 total).
+
 ## [7.13.0]
 
 ### Added

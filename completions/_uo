@@ -58,6 +58,10 @@ _uo() {
         '--disk-report[write the disk analysis as a self-contained HTML report]:output file:_files'
         '--git-ssh[GitHub SSH key setup wizard]'
         '--git-ssh-status[SSH key / GitHub authentication status]'
+        '--boot[boot time analysis (total, slowest units, failed units — read-only)]'
+        '--autostart[list the startup applications (XDG autostart)]'
+        '--autostart-on[enable a startup application again]:name:_uo_autostart_names'
+        '--autostart-off[disable a startup application]:name:_uo_autostart_names'
         '--github-install[install an app from the latest GitHub release]:repo (OWNER/REPO):app name (optional)'
         '--github-update[check and install updates for GitHub apps]'
         '--github-list[list tracked GitHub apps]'
@@ -89,6 +93,22 @@ _uo() {
     )
     _arguments -S "$opts[@]" && return 0
     return 1
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# _uo_autostart_names() — complete startup application names from the
+# XDG autostart dirs (with and without the .desktop extension)
+# ───────────────────────────────────────────────────────────────────────────────
+_uo_autostart_names() {
+    local -a names
+    local adir afile abase
+    for adir in "${XDG_CONFIG_HOME:-$HOME/.config}/autostart" /etc/xdg/autostart; do
+        for afile in "$adir"/*.desktop(N); do
+            abase="${afile##*/}"
+            names+=("$abase" "${abase%.desktop}")
+        done
+    done
+    _describe 'startup application' names
 }
 
 # ───────────────────────────────────────────────────────────────────────────────

@@ -15,7 +15,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # ── Load modules ───────────────────────────────────────────────────────────────
-for _lib in common cache config network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk htmlreport gitssh undo profile selfupdate timer menus; do
+for _lib in common cache config network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk htmlreport gitssh undo profile boot autostart selfupdate timer menus; do
     _libfile="$SCRIPT_DIR/lib/${_lib}.sh"
     if [ -f "$_libfile" ]; then
         # shellcheck source=/dev/null
@@ -68,6 +68,7 @@ TIMER_SCOPE="user"
 TIMER_NOTIFY=0
 TIMER_LOG_LINES=50
 DISK_REPORT_FILE=""
+AUTOSTART_TARGET=""   # --autostart-on/--autostart-off target (set + validated in the parser)
 
 # ───────────────────────────────────────────────────────────────────────────────
 # run_cli_profile() — dispatch --profile from the queued action list
@@ -81,6 +82,24 @@ DISK_REPORT_FILE=""
 # ───────────────────────────────────────────────────────────────────────────────
 run_cli_profile() {
     apply_profile "$PROFILE_NAME"
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# run_cli_autostart_on() / run_cli_autostart_off() — dispatch the
+# --autostart-on/--autostart-off targets from the queued action list
+#
+# Same pattern as run_cli_profile: the parser stores the validated name in
+# AUTOSTART_TARGET so the dispatcher keeps calling single-word functions only.
+#
+# Globals:   AUTOSTART_TARGET (read)
+# Returns:   exit status of autostart_set
+# ───────────────────────────────────────────────────────────────────────────────
+run_cli_autostart_on() {
+    autostart_set "$AUTOSTART_TARGET" on
+}
+
+run_cli_autostart_off() {
+    autostart_set "$AUTOSTART_TARGET" off
 }
 
 # ───────────────────────────────────────────────────────────────────────────────
@@ -136,6 +155,15 @@ Options:
                       write the disk analysis as a self-contained HTML
                       report (charts + sortable tables, fully offline;
                       default: uo-disk-report.html)
+
+  --boot              boot time analysis (total time + verdict, slowest
+                      units, critical chain, failed units — read-only)
+  --autostart         list the startup applications (XDG autostart)
+  --autostart-on NAME
+                      enable the startup application NAME again
+  --autostart-off NAME
+                      disable the startup application NAME (a system entry
+                      gets a user override — system files stay untouched)
 
   --git-ssh           GitHub SSH key setup wizard
   --git-ssh-status    SSH key / GitHub authentication status
@@ -256,6 +284,9 @@ Examples:
   uo --timer-preview monthly         # show the unit files, install nothing
   uo --timer-install daily --timer-notify-only   # read-only monitor tick
   uo --disk-report ~/disk-report.html   # shareable HTML disk analysis (charts)
+  uo --boot               # how long the boot takes — and what slows it down
+  uo --autostart          # what starts with the desktop session
+  uo --autostart-off update-notifier   # disable one startup app
 EOF
 }
 
@@ -363,6 +394,22 @@ while [ $# -gt 0 ]; do
             ;;
         --timer-system)      TIMER_SCOPE="system"; shift ;;
         --timer-notify-only) TIMER_NOTIFY=1; shift ;;
+        --boot)           CLI_ACTIONS+=("boot_show|boot analysis"); shift ;;
+        --autostart)      CLI_ACTIONS+=("autostart_show|startup apps list"); shift ;;
+        --autostart-on|--autostart-off)
+            if [ $# -ge 2 ] && [ -n "$2" ] && [[ "$2" != -* ]]; then
+                AUTOSTART_TARGET="$2"
+                if [ "$1" = "--autostart-on" ]; then
+                    CLI_ACTIONS+=("run_cli_autostart_on|startup app enable")
+                else
+                    CLI_ACTIONS+=("run_cli_autostart_off|startup app disable")
+                fi
+                shift 2
+            else
+                echo "$1 requires a name: $1 <name> (list names with --autostart)" >&2
+                exit 1
+            fi
+            ;;
         --git-ssh)        CLI_ACTIONS+=("gitssh_setup|GitHub SSH setup"); shift ;;
         --git-ssh-status) CLI_ACTIONS+=("gitssh_status|GitHub SSH status"); shift ;;
         --github-update)  CLI_ACTIONS+=("github_update_apps|GitHub updates"); shift ;;

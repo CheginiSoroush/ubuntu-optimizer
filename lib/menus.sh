@@ -277,6 +277,24 @@ menu_profiles() {
 }
 
 # ───────────────────────────────────────────────────────────────────────────────
+# menu_boot() — submenu 20: Boot & Startup
+#
+# Thin wrapper: the two read-only diagnostics dispatch to lib/boot.sh, the
+# three startup-application entries to lib/autostart.sh.
+#
+# Arguments: none
+# Returns:   0 — on Back/EOF
+# ───────────────────────────────────────────────────────────────────────────────
+menu_boot() {
+    menu_loop "🥾 Boot & Startup" \
+        "Boot time analysis (slowest units + verdict)|boot_show" \
+        "Failed system units|boot_failed_show" \
+        "List startup applications|autostart_show" \
+        "Disable a startup application|autostart_disable_menu" \
+        "Enable a startup application|autostart_enable_menu"
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
 # menu_recovery() — submenu 12: System Recovery & Rescue
 #
 # Thin wrapper: renders the submenu via menu_loop; every entry dispatches
@@ -366,6 +384,7 @@ main_menu() {
         echo "  17) 🧹 Disk cleanup"
         echo "  18) ⏰ Scheduled updates (systemd timer)"
         echo "  19) 🖥 Disk report (HTML, shareable)"
+        echo "  20) 🥾 Boot & startup"
         echo ""
         echo "   0) Exit"
         echo ""
@@ -393,6 +412,7 @@ main_menu() {
             17) disk_cleanup; press_enter ;;
             18) menu_timer ;;
             19) menu_disk_report ;;
+            20) menu_boot ;;
             0) clear; echo -e "${GREEN}Goodbye! 👋${NC}"; exit 0 ;;
             # Invalid user input is not a system error — logged as WARN, not ERROR
             *) warn "Invalid choice"; sleep 1 ;;

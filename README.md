@@ -8,14 +8,14 @@
 **One command. A faster, cleaner, healthier Ubuntu.**
 
 The all-in-one optimization, app-management and repair toolkit —
-19 friendly menu tools, 40+ CLI options, honest dry-run previews.
+20 friendly menu tools, 45+ CLI options, honest dry-run previews.
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.12-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.14-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-222%20%2F%20222-brightgreen)
+![Tests](https://img.shields.io/badge/bats-276%20%2F%20276-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -45,6 +45,7 @@ The all-in-one optimization, app-management and repair toolkit —
 | 📦 **Install** | deb packages · **smart tar.gz/tgz install** (main-executable detection, architecture check, automatic dependencies) · AppImage |
 | 🐙 **GitHub Releases** | install / update / remove apps — automatic architecture-aware asset pick · **SHA-256 checksum verification** when the release ships one (v7.4) · **resilient API layer**: exponential backoff on transport/5xx failures, `Retry-After` honored on 429/503, `X-RateLimit-Reset` respected on 403 — never hammers a closed rate-limit window (v7.12) |
 | ⬆ **Self-update** | **automatic at every `uo` startup** (v7.13): a TTL-cached version check offers the newer release first, applies it and re-execs into the fresh code — one banner, one question, never blocking (`--no-update` / `UO_AUTO_UPDATE=0` opt out) · `uo --self-update` for the manual flow: git pull for clones, verified archive + automatic backup for static copies (v7.6) |
+| 🥾 **Boot &amp; startup** | boot time analysis with verdict — total, the 10 slowest units, the critical chain, failed units (v7.14) · **XDG autostart manager**: list + enable/disable startup applications — never touches a system file, fully reversible through user overrides (v7.14) |
 | 🧹 **Full removal** | completely remove any app from **any source** (apt / snap / flatpak / tar.gz / manual) — including user data |
 | 🔄 **Updates** | apt + snap + flatpak + tar.gz + GitHub in one command, fully automatic with `-y` |
 | 🚑 **Recovery** | fix broken packages, reinstall the desktop environment |
@@ -187,6 +188,8 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 | `uo --timer-preview [PERIOD]` | print the unit files an install would write — no systemd needed (v7.10) |
 | `uo --timer-system` · `--timer-notify-only` | (with install/preview) system-wide units · read-only monitor mode (v7.10) |
 | `uo --disk-report [FILE]` | write the disk analysis as a self-contained HTML report — charts + sortable tables, default `uo-disk-report.html` (v7.11) |
+| `uo --boot` | boot time analysis — total + verdict, the 10 slowest units, critical chain, failed units (v7.14) |
+| `uo --autostart` · `--autostart-on/off NAME` | list startup applications · enable/disable one — reversible user overrides, system files untouched (v7.14) |
 | `uo -y` · `--no-color` · `--no-log` | auto-confirm · plain output · don't log |
 
 ### Real-world examples
@@ -200,6 +203,9 @@ uo --github-install junegunn/fzf                 # install from a GitHub release
 uo --cleanup abdownloadmanager --purge-data -y   # remove an app without a trace
 uo --doctor                                      # health check & repair of your apps
 uo --disk-report ~/disk.html                     # shareable disk analysis (charts)
+uo --boot                                        # how long the boot takes — and what slows it down
+uo --autostart                                   # what starts with the desktop session
+uo --autostart-off update-notifier -y            # stop one app from autostarting
 ```
 
 ---
@@ -440,13 +446,15 @@ ubuntu-optimizer/
 │   ├── undo.sh                ← one-command reversal of all optimizations
 │   ├── profile.sh             ← curated presets: laptop / server / gaming / minimal
 │   ├── selfupdate.sh          ← `--self-update`: version check + git/archive update
+│   ├── boot.sh                ← `--boot`: boot time + slowest units + failed units
+│   ├── autostart.sh           ← `--autostart`: manage XDG startup applications
 │   ├── report.sh              ← system status report
 │   ├── jsonreport.sh          ← the same report as one JSON document
 │   ├── doctor.sh              ← app health check & repair
 │   ├── disk.sh                ← disk space analysis & cleanup
 │   ├── gitssh.sh              ← GitHub SSH setup
 │   └── menus.sh               ← menu engine & all menus
-├── test/                      ← bats unit tests (common, appmgmt, github, undo, profile, jsonreport, selfupdate, reportfile, config, cache, timer, htmlreport, syntax)
+├── test/                      ← bats unit tests (common, appmgmt, github, undo, profile, jsonreport, selfupdate, reportfile, config, cache, timer, htmlreport, boot, autostart, syntax)
 ├── completions/               ← uo (bash) · _uo (zsh) — tab completion for every flag
 ├── .github/workflows/
 │   ├── lint.yml               ← CI: shellcheck + syntax + bats on every push
@@ -464,9 +472,9 @@ ubuntu-optimizer/
 
 | Gate | Status |
 |---|---|
-| `bash -n` syntax check | ✅ all 24 shell files |
+| `bash -n` syntax check | ✅ all 26 shell files |
 | ShellCheck (strict) | ✅ zero findings — enforced in CI |
-| bats unit tests | ✅ 182 / 182 passing |
+| bats unit tests | ✅ 276 / 276 passing |
 | `install.sh --check` | ✅ self-health verification built in |
 | GitHub Actions CI | ✅ every push & pull request |
 
