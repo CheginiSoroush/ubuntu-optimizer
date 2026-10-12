@@ -49,7 +49,10 @@ PROFILE_NAME=""
 JSON_MODE=0
 OUTPUT_FILE=""
 APPEND_MODE=0
+AUTO_UPDATE=1        # startup self-update check (off with --no-update)
+CLI_NO_UPDATE=0      # records an explicit --no-update for --config-show-style tracing
 ORIG_ARGS="$*"   # original arguments for logging
+ORIG_ARGS_LIST=("$@")   # original arguments for the startup self-update re-exec
 # CLI_* markers record which preference flags were given explicitly — they
 # let the config file (lib/config.sh) apply only where the CLI stayed silent.
 CLI_YES=0
@@ -104,6 +107,8 @@ Options:
   -y, --yes           auto-confirm all questions
   --no-color          disable colored output
   --no-log            do not log this run
+  --no-update         skip the automatic startup update check for this run
+                      (UO_AUTO_UPDATE=0 disables it permanently)
   --dry-run           preview: with --optimize/--network/--system/--security/--time
                       print what would change without changing anything
 
@@ -157,6 +162,8 @@ Options:
                       (a safe, profile-specific subset of the optimizer steps)
   --self-update       update the toolkit itself from the official GitHub repo
                       (git pull for clones, verified archive for static copies)
+                      every 'uo' start also checks automatically (TTL-cached);
+                      --no-update skips that check for one run
   --fixnet            create the fixnet script
   --fixnet-run        run fixnet (network repair)
   --test              network tests (ping, DNS, speed)
@@ -198,6 +205,10 @@ Environment:
                       config file key DNS_SERVERS applies when this is unset
   UO_NO_CACHE         set to 1 to bypass the TTL cache for this run
                       (config file key NO_CACHE applies when this is unset)
+  UO_AUTO_UPDATE      set to 0 to disable the automatic startup update check
+                      (the --no-update flag overrides this for one run)
+  UO_UPDATE_CHECK_TTL seconds between startup update checks (default 300;
+                      0 checks on every run)
   GH_TOKEN            GitHub token — raises the API rate limit to 5000/hour
 
 Config file:
@@ -219,6 +230,9 @@ Scheduled updates:
   when something needs attention. Inspect: uo --timer-status
 
 Examples:
+  uo                       # menu — first a quick update check, then the menu
+  uo --no-update           # skip the startup update check once
+  UO_UPDATE_CHECK_TTL=0 uo # force the update check on every single start
   uo --report
   uo --github-install junegunn/fzf fzf
   uo --github-remove karing
@@ -273,6 +287,7 @@ while [ $# -gt 0 ]; do
     case "$1" in
         -y|--yes)         ASSUME_YES=1; CLI_YES=1; shift ;;
         --dry-run)        DRY_RUN=1; CLI_DRY_RUN=1; shift ;;
+        --no-update)      AUTO_UPDATE=0; CLI_NO_UPDATE=1; shift ;;
         --no-color)       RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; MAGENTA=''; BOLD=''; NC=''; CLI_NO_COLOR=1; shift ;;
         --no-log)         LOG_ENABLED=0; CLI_NO_LOG=1; shift ;;
         --report)         CLI_ACTIONS+=("system_report|system status report"); shift ;;
@@ -610,6 +625,15 @@ if [ "$DRY_RUN" = "1" ]; then
     done
     unset cli_fn
 fi
+
+# ── Startup self-update check ────────────────────────────────────────────────
+# 'uo' keeps itself current: before anything runs, a quick TTL-cached version
+# check compares the local SCRIPT_VERSION with the official repository and —
+# when a newer release exists — offers to apply it first, then re-execs the
+# new code with the original arguments. Skippable for one run with
+# --no-update (or permanently with UO_AUTO_UPDATE=0); offline, declined or
+# failed checks fall through to the normal run, so this can never block work.
+selfupdate_auto_check "${ORIG_ARGS_LIST[@]}"
 
 # ── CLI mode ─────────────────────────────────────────────────────────────────────
 if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TARGZ_FILE" ] || [ -n "$GITHUB_INSTALL_REPO" ] || [ -n "$GITHUB_REMOVE_TARGET" ]; then

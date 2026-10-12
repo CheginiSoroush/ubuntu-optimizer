@@ -2,8 +2,11 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 #  Ubuntu Optimizer & Fixer — lib/selfupdate.sh
 # ───────────────────────────────────────────────────────────────────────────────
-#  Updates the toolkit itself (`uo --self-update`). Two installation kinds are
-#  supported, detected automatically:
+#  Updates the toolkit itself (`uo --self-update`) and keeps it current
+#  automatically (`selfupdate_auto_check` — called at every 'uo' startup:
+#  a TTL-cached version check that offers to apply a newer release first
+#  and re-execs the fresh code; opt out with --no-update / UO_AUTO_UPDATE=0).
+#  Two installation kinds are supported, detected automatically:
 #
 #    1. git checkout   — .git exists beside the script → version check against
 #                        the remote default branch, then `git pull --ff-only`
@@ -29,8 +32,16 @@
 # ── Constants ──────────────────────────────────────────────────────────────────
 readonly SELFUPDATE_REPO="CheginiSoroush/ubuntu-optimizer"
 readonly SELFUPDATE_BACKUP_ROOT="${XDG_DATA_HOME:-$HOME/.local/share}/ubuntu-optimizer/selfupdate-backups"
+# Startup-check state: the TTL cache for the automatic update check and the
+# mode flags shared with the two update flows below.
+readonly SU_AUTO_CACHE="${XDG_CACHE_HOME:-$HOME/.cache}/ubuntu-optimizer/autoupdate.check"
 SU_REMOTE_VERSION=""
 SU_REMOTE_BRANCH=""
+SU_CACHED_TS=""
+SU_CACHED_VERSION=""
+SU_CACHED_BRANCH=""
+SU_QUIET=0    # 1 = fetch silently (the startup check must stay invisible)
+SU_AUTO=0     # 1 = apply on behalf of the auto check (prompts already handled)
 
 # ───────────────────────────────────────────────────────────────────────────────
 # selfupdate_version_newer() — dotted-version comparison (candidate > current)
@@ -70,6 +81,8 @@ selfupdate_fetch_remote_version() {
     SU_REMOTE_BRANCH=""
 
     if ! command -v curl > /dev/null 2>&1; then
+        # Quiet mode (the startup check) never installs anything — it gives up
+        [ "${SU_QUIET:-0}" = "1" ] && return 1
         info "Installing curl..."
         sudo apt install -y curl > /dev/null 2>&1 || { failure "Failed to install curl."; return 1; }
     fi
@@ -82,7 +95,7 @@ selfupdate_fetch_remote_version() {
     fi
 
     for branch in main master; do
-        raw=$(curl -fsSL --connect-timeout 15 --max-time 30 "${auth[@]}" \
+        raw=$(curl -fsSL --connect-timeout "${SU_CONNECT_TIMEOUT:-15}" --max-time "${SU_MAX_TIMEOUT:-30}" "${auth[@]}" \
             "https://raw.githubusercontent.com/${SELFUPDATE_REPO}/${branch}/lib/common.sh" 2>/dev/null) || continue
         SU_REMOTE_VERSION=$(sed -n 's/^readonly SCRIPT_VERSION="\([^"]*\)".*/\1/p' <<< "$raw")
         if [ -n "$SU_REMOTE_VERSION" ]; then
@@ -91,9 +104,182 @@ selfupdate_fetch_remote_version() {
         fi
     done
 
+    [ "${SU_QUIET:-0}" = "1" ] && return 1
     failure "Could not read the remote version from raw.githubusercontent.com."
     info "Check your internet connection (or GH_TOKEN) and try again."
     return 1
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# selfupdate_cache_read() — load the last startup-check result
+#
+# Reads the single-line cache written by selfupdate_cache_write:
+#   "<unix-ts>\t<version>\t<branch>". Any malformed or missing file is a
+#   clean miss (the caller then goes to the network). All three fields are
+#   reset first, so a failed read never leaves stale state behind.
+#
+# Globals:   SU_AUTO_CACHE (read)
+#            SU_CACHED_TS, SU_CACHED_VERSION, SU_CACHED_BRANCH — written
+# Arguments: none
+# Returns:   0 — a well-formed cache line was loaded
+#            1 — missing/unreadable/malformed cache (fields emptied)
+# ───────────────────────────────────────────────────────────────────────────────
+selfupdate_cache_read() {
+    SU_CACHED_TS=""
+    SU_CACHED_VERSION=""
+    SU_CACHED_BRANCH=""
+    [ -f "$SU_AUTO_CACHE" ] || return 1
+    local line
+    line=$(head -n 1 "$SU_AUTO_CACHE" 2>/dev/null) || return 1
+    SU_CACHED_TS="${line%%$'\t'*}"
+    local rest="${line#*$'\t'}"
+    SU_CACHED_VERSION="${rest%%$'\t'*}"
+    SU_CACHED_BRANCH="${rest#*$'\t'}"
+    [[ "$SU_CACHED_TS" =~ ^[0-9]+$ ]] || { SU_CACHED_TS=""; SU_CACHED_VERSION=""; SU_CACHED_BRANCH=""; return 1; }
+    [ -n "$SU_CACHED_VERSION" ] || return 1
+    return 0
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# selfupdate_cache_write() — persist a startup-check result atomically
+#
+# Writes "<unix-ts>\t<version>\t<branch>" via a temp file + rename, so a
+# concurrent reader never sees a half-written line. Failures are silently
+# ignored — the cache is an optimization, never a requirement.
+#
+# Globals:   SU_AUTO_CACHE (read)
+# Arguments: $1 — unix timestamp of the check
+#            $2 — remote version seen
+#            $3 — remote branch the version came from
+# Returns:   0 — written; 1 — the cache directory/file was not writable
+# ───────────────────────────────────────────────────────────────────────────────
+selfupdate_cache_write() {
+    local ts="$1" ver="$2" branch="$3"
+    local dir
+    dir=$(dirname -- "$SU_AUTO_CACHE")
+    mkdir -p "$dir" 2>/dev/null || return 1
+    printf '%s\t%s\t%s\n' "$ts" "$ver" "$branch" > "${SU_AUTO_CACHE}.tmp" 2>/dev/null || return 1
+    mv -f "${SU_AUTO_CACHE}.tmp" "$SU_AUTO_CACHE" 2>/dev/null
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# selfupdate_reexec() — swap this process for the freshly updated code
+#
+# Called only after a successful automatic update: re-runs the main script
+# (now the new version on disk) with the original arguments, guarded by
+# UO_AUTO_UPDATE_REEXEC so the new run skips the check and can never loop.
+# Factored into a function so tests can stub the exec away.
+#
+# Globals:   SCRIPT_DIR (read)
+# Arguments: $@ — the original CLI arguments, passed through verbatim
+# Returns:   never (exec replaces the process)
+# ───────────────────────────────────────────────────────────────────────────────
+selfupdate_reexec() {
+    info "Restarting with the new version..."
+    exec env UO_AUTO_UPDATE_REEXEC=1 "$SCRIPT_DIR/ubuntu-optimizer.sh" "$@"
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# selfupdate_auto_check() — automatic update check at every 'uo' startup
+#
+# The whole point: `uo` keeps itself current. Before any real work runs, the
+# remote version is resolved (TTL-cached under SU_AUTO_CACHE — default 300s,
+# UO_UPDATE_CHECK_TTL seconds overrides, 0 = check every run; short 3s/6s
+# timeouts keep an offline start snappy). When a strictly newer version
+# exists:
+#   · interactive run  → one banner + one y/n question, then the update
+#                        applies and the process re-execs into the new code
+#                        with the original arguments — the user never has to
+#                        think about versions again;
+#   · -y (unattended)  → the update applies straight away, promptless;
+#   · machine modes (--json / --output) or a pipe → a one-line stderr notice,
+#                        stdout stays pure, nothing is downloaded.
+# Every failure path (offline, rate limit, declined, failed download) falls
+# through to the normal run — the check can never block real work.
+#
+# Opt-outs (any one is enough): --no-update flag · UO_AUTO_UPDATE=0 ·
+# a queued --self-update (the manual flow owns its check) · --timer-tick
+# (scheduled monitor runs stay silent) · the re-exec guard.
+#
+# Globals:   SCRIPT_DIR, SCRIPT_VERSION, ASSUME_YES, JSON_MODE, OUTPUT_FILE,
+#            AUTO_UPDATE, UO_AUTO_UPDATE, UO_UPDATE_CHECK_TTL, CLI_ACTIONS (read)
+#            SU_* (written through the shared helpers)
+# Arguments: $@ — the original CLI arguments (reused verbatim on re-exec)
+# Returns:   0 — up to date, skipped, declined or updated (re-exec never returns)
+# ───────────────────────────────────────────────────────────────────────────────
+selfupdate_auto_check() {
+    # Just re-exec'd after an update — the fresh code runs, skip the check
+    [ "${UO_AUTO_UPDATE_REEXEC:-}" = "1" ] && return 0
+    # Opt-outs: --no-update (AUTO_UPDATE=0) and the environment switch
+    [ "${AUTO_UPDATE:-1}" = "1" ] || return 0
+    [ "${UO_AUTO_UPDATE:-1}" != "0" ] || return 0
+    # The manual self-update and the scheduled monitor tick own their flows
+    local act
+    for act in ${CLI_ACTIONS[@]+"${CLI_ACTIONS[@]}"}; do
+        case "${act%%|*}" in
+            self_update_interactive|timer_tick) return 0 ;;
+        esac
+    done
+
+    # Resolve the remote version — from the TTL cache when fresh, network otherwise
+    local ttl="${UO_UPDATE_CHECK_TTL:-300}"
+    [[ "$ttl" =~ ^[0-9]+$ ]] || ttl=300
+    local ver="" branch=""
+    if selfupdate_cache_read && [ -n "$SU_CACHED_VERSION" ]; then
+        local age=$(( $(date +%s) - SU_CACHED_TS ))
+        [ "$age" -lt 0 ] && age=$((ttl + 1))    # clock jumped back — re-check
+        if [ "$age" -lt "$ttl" ]; then
+            ver="$SU_CACHED_VERSION"
+            branch="$SU_CACHED_BRANCH"
+        fi
+    fi
+    if [ -z "$ver" ]; then
+        # Short timeouts + full silence: an offline start must stay snappy
+        SU_QUIET=1 SU_CONNECT_TIMEOUT=3 SU_MAX_TIMEOUT=6 selfupdate_fetch_remote_version || return 0
+        ver="$SU_REMOTE_VERSION"
+        branch="$SU_REMOTE_BRANCH"
+        selfupdate_cache_write "$(date +%s)" "$ver" "$branch"
+    fi
+    [ -z "$ver" ] && return 0
+    [ "$ver" = "$SCRIPT_VERSION" ] && return 0
+    if [ -n "$SCRIPT_VERSION" ] && ! selfupdate_version_newer "$ver" "$SCRIPT_VERSION"; then
+        return 0    # a development checkout ahead of the remote — nothing to do
+    fi
+
+    # Machine-readable runs: a one-line stderr notice, stdout stays pure
+    if [ "${JSON_MODE:-0}" = "1" ] || [ -n "${OUTPUT_FILE:-}" ]; then
+        printf 'ℹ Update available: v%s → v%s — run: uo --self-update\n' "$SCRIPT_VERSION" "$ver" >&2
+        return 0
+    fi
+    # Unattended runs that cannot answer a prompt: notice only
+    if [ ! -t 0 ] && [ "${ASSUME_YES:-0}" != "1" ]; then
+        printf 'ℹ Update available: v%s → v%s — run: uo --self-update\n' "$SCRIPT_VERSION" "$ver" >&2
+        return 0
+    fi
+
+    printf '%s\n' "${BOLD}📦 A new version is available: v${SCRIPT_VERSION} → v${ver}${NC}"
+    if [ "${ASSUME_YES:-0}" != "1" ]; then
+        if ! confirm_action "Update the toolkit now, before starting?"; then
+            info "Continuing with v$SCRIPT_VERSION — update later with: uo --self-update"
+            return 0
+        fi
+    fi
+
+    # Apply — the shared update functions skip their own prompts in auto mode
+    local rc=0
+    SU_AUTO=1
+    if selfupdate_is_git_checkout; then
+        selfupdate_update_git || rc=1
+    else
+        selfupdate_update_tarball || rc=1
+    fi
+    SU_AUTO=0
+    if [ "$rc" -ne 0 ]; then
+        warn "Continuing with v$SCRIPT_VERSION — the update did not complete."
+        return 0
+    fi
+    # Swap this very process for the freshly installed code, same arguments
+    selfupdate_reexec "$@"
 }
 
 # ───────────────────────────────────────────────────────────────────────────────
@@ -173,15 +359,23 @@ selfupdate_refresh_completions() {
 # ───────────────────────────────────────────────────────────────────────────────
 selfupdate_update_git() {
     if [ -n "$(git -C "$SCRIPT_DIR" status --porcelain 2>/dev/null)" ]; then
+        if [ "${SU_AUTO:-0}" = "1" ]; then
+            # Never touch local edits silently — leave the decision to a
+            # manual `uo --self-update` and let the current run continue
+            warn "The working tree has local changes — skipping the automatic update (decide with: uo --self-update)."
+            return 1
+        fi
         warn "The working tree has local changes (uncommitted edits)."
         if ! confirm_action "Continue updating anyway? (git pull --ff-only keeps them when possible)"; then
             info "Declined — nothing changed. Commit or stash your edits, then re-run."
             return 0
         fi
     fi
-    if ! confirm_action "Update the toolkit from $SCRIPT_VERSION to v$SU_REMOTE_VERSION now?"; then
-        info "Declined — the toolkit was not changed."
-        return 0
+    if [ "${SU_AUTO:-0}" != "1" ]; then
+        if ! confirm_action "Update the toolkit from $SCRIPT_VERSION to v$SU_REMOTE_VERSION now?"; then
+            info "Declined — the toolkit was not changed."
+            return 0
+        fi
     fi
 
     if [ "$DRY_RUN" = "1" ]; then
@@ -207,7 +401,9 @@ selfupdate_update_git() {
 
     selfupdate_refresh_completions
     success "Toolkit updated: v$SCRIPT_VERSION → v$SU_REMOTE_VERSION."
-    warn "Running sessions keep the old code in memory — start a new 'uo' run."
+    if [ "${SU_AUTO:-0}" != "1" ]; then
+        warn "Running sessions keep the old code in memory — start a new 'uo' run."
+    fi
     return 0
 }
 
@@ -232,9 +428,11 @@ selfupdate_update_tarball() {
         failure "tar is required for the archive update but was not found."
         return 1
     fi
-    if ! confirm_action "Download and apply the update to v$SU_REMOTE_VERSION now?"; then
-        info "Declined — the toolkit was not changed."
-        return 0
+    if [ "${SU_AUTO:-0}" != "1" ]; then
+        if ! confirm_action "Download and apply the update to v$SU_REMOTE_VERSION now?"; then
+            info "Declined — the toolkit was not changed."
+            return 0
+        fi
     fi
 
     if [ "$DRY_RUN" = "1" ]; then
@@ -315,7 +513,9 @@ selfupdate_update_tarball() {
     selfupdate_refresh_completions
     success "Toolkit updated: v$SCRIPT_VERSION → v$SU_REMOTE_VERSION."
     info "Rollback if needed: restore the files from $backup"
-    warn "Running sessions keep the old code in memory — start a new 'uo' run."
+    if [ "${SU_AUTO:-0}" != "1" ]; then
+        warn "Running sessions keep the old code in memory — start a new 'uo' run."
+    fi
     return 0
 }
 

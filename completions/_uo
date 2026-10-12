@@ -79,6 +79,7 @@ _uo() {
         '--update-flatpak[flatpak only]'
         '--update-targz[check updates for tar.gz apps]'
         '--self-update[update the toolkit itself from the official GitHub repo]'
+        '--no-update[skip the automatic startup update check for this run]'
         '--list-apps[list all apps from all sources]'
         '--cleanup[fully remove an app from any source]:tracked app:_uo_tracked_any'
         '--purge-data[(with --cleanup) also remove user data]'

@@ -4,7 +4,40 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [7.12.0]
+## [7.13.0]
+
+### Added
+- **Automatic self-update at every startup** — `uo` now keeps itself current:
+  before any work runs, a TTL-cached version check (default every 5 minutes,
+  `UO_UPDATE_CHECK_TTL` overrides, `0` = every run) compares the installed
+  SCRIPT_VERSION with the official repository over a short 3s/6s timeout.
+  When a strictly newer version exists:
+  - an interactive run gets **one banner + one y/n question**; on accept the
+    update applies (git pull for clones, the verified archive for static
+    copies) and the process **re-execs into the fresh code with the original
+    arguments** — same command, new version, no second invocation needed;
+  - unattended runs (`-y`) apply the update straight away, promptless —
+    scheduled `uo --update -y` timers stay current automatically;
+  - machine modes (`--json`, `--output`) and piped runs get a one-line stderr
+    notice, stdout stays pure, nothing is downloaded.
+  Every failure path (offline, rate limit, declined, failed download, dirty
+  git tree) falls through to the normal run — the check can never block real
+  work. Opt out for one run with the new `--no-update` flag, or permanently
+  with `UO_AUTO_UPDATE=0`; `--self-update` and `--timer-tick` keep owning
+  their own flows. The check result is cached atomically under
+  `~/.cache/ubuntu-optimizer/autoupdate.check`.
+- Bash + zsh completions learned `--no-update`; `uo --help` documents the
+  flag, both environment variables and three new examples.
+
+### Tests
+- test/selfupdate.bats: 22 new tests (37 total) covering the cache
+  round-trip and malformed-cache handling, every opt-out path, the TTL
+  resolution (fresh/stale/zero), the silent network fallthrough, the JSON
+  and piped notice modes, the -y apply + re-exec contract, the failed-update
+  fallthrough, the dirty-tree guard in auto mode and quiet-mode fetch
+  behavior.
+
+## [7.12.0]$
 
 ### Added
 - **Resilient GitHub API layer** (lib/github.sh) — every API call now rides a

@@ -44,7 +44,7 @@ The all-in-one optimization, app-management and repair toolkit —
 | ⏰ **Scheduled updates** | `uo --timer-install weekly` puts a real **systemd timer** in place that runs `uo --update -y --no-color` unattended — `Persistent=true` replays missed runs after downtime; user scope (no root) by default, `--timer-system` for servers, and `--timer-notify-only` for a read-only monitor tick that snapshots the JSON report + notifies on trouble (v7.10) |
 | 📦 **Install** | deb packages · **smart tar.gz/tgz install** (main-executable detection, architecture check, automatic dependencies) · AppImage |
 | 🐙 **GitHub Releases** | install / update / remove apps — automatic architecture-aware asset pick · **SHA-256 checksum verification** when the release ships one (v7.4) · **resilient API layer**: exponential backoff on transport/5xx failures, `Retry-After` honored on 429/503, `X-RateLimit-Reset` respected on 403 — never hammers a closed rate-limit window (v7.12) |
-| ⬆ **Self-update** | `uo --self-update` — the toolkit updates itself: version check against the official repo, git pull for clones, verified archive + automatic backup for static copies (v7.6) |
+| ⬆ **Self-update** | **automatic at every `uo` startup** (v7.13): a TTL-cached version check offers the newer release first, applies it and re-execs into the fresh code — one banner, one question, never blocking (`--no-update` / `UO_AUTO_UPDATE=0` opt out) · `uo --self-update` for the manual flow: git pull for clones, verified archive + automatic backup for static copies (v7.6) |
 | 🧹 **Full removal** | completely remove any app from **any source** (apt / snap / flatpak / tar.gz / manual) — including user data |
 | 🔄 **Updates** | apt + snap + flatpak + tar.gz + GitHub in one command, fully automatic with `-y` |
 | 🚑 **Recovery** | fix broken packages, reinstall the desktop environment |
@@ -71,6 +71,8 @@ uo --report --json | jq '.summary'   # same report, machine-readable (v7.5)
 uo --report --json --append --output ~/.local/share/ubuntu-optimizer/report-log.jsonl
                       # one JSON line per run → a time-series log for dashboards (v7.7)
 uo --config-show      # inspect the effective configuration (v7.8)
+uo                    # auto-checks for a new version first (TTL-cached, v7.13)
+uo --no-update        # skip that startup check for one run
 uo --self-update      # keep the toolkit itself on the latest version (v7.6)
 uo --optimize --dry-run -y   # preview everything before changing anything
 ```
@@ -162,6 +164,7 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 | `uo --undo` | **reverse everything** the optimizer changed — one command |
 | `uo --profile laptop\|server\|gaming\|minimal` | apply a curated preset for the scenario |
 | `uo --dry-run` | **preview** commands without executing (with the six above) |
+| `uo` (startup) | automatic update check — offer → apply → re-exec into the new code; skippable with `--no-update` / `UO_AUTO_UPDATE=0` (v7.13) |
 | `uo --self-update` | update the toolkit itself — git pull or verified archive, with backup & rollback (v7.6) |
 | `uo --report` · `--report --json` · `--disk` | status report · JSON report for automation · disk analysis · cleanup |
 | `uo --report --json --output FILE [--append]` | write the report into a file — `--append` builds a JSONL time-series log for dashboards (v7.7) |
