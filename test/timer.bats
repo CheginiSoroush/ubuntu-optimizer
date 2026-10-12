@@ -18,6 +18,11 @@
 setup() {
     TEST_HOME="$(mktemp -d)"
     export HOME="$TEST_HOME"
+    # Pin the XDG config dir to the temp HOME: lib/timer.sh resolves the user
+    # unit dir as ${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user, and CI
+    # runners export XDG_CONFIG_HOME=/home/runner/.config — pinning it makes
+    # $UNIT_DIR the one true location on every machine
+    export XDG_CONFIG_HOME="$TEST_HOME/.config"
     cp -r "$BATS_TEST_DIRNAME/.." "$TEST_HOME/uo-tree"
     chmod +x "$TEST_HOME/uo-tree/ubuntu-optimizer.sh"
     cd "$TEST_HOME/uo-tree" || fail "cannot cd into the copied tree"
@@ -139,15 +144,38 @@ load_timer() {
     [[ "$output" == *"nothing to remove"* ]]
 }
 
+# Hide systemctl from the CLI child so the graceful no-systemd path is
+# exercised hermetically — the sandbox happens to lack systemd, but CI
+# runners have a live systemd (/run/systemd/system exists) and would install
+# a REAL unit. The shim dir mirrors /usr/bin + /bin minus systemctl.
+make_nosystemd_path() {
+    local nopath="$TEST_HOME/nopath"
+    mkdir -p "$nopath"
+    local d f b
+    for d in /usr/bin /bin; do
+        [ -d "$d" ] || continue
+        for f in "$d"/*; do
+            b="$(basename "$f")"
+            [ -e "$nopath/$b" ] || ln -s "$f" "$nopath/$b"
+        done
+    done
+    rm -f "$nopath/systemctl"
+    printf '%s' "$nopath"
+}
+
 @test "cli: install without systemd fails gracefully with a preview hint" {
-    run run_uo --timer-install weekly
+    local nopath
+    nopath=$(make_nosystemd_path)
+    run env PATH="$nopath" bash "$TEST_HOME/uo-tree/ubuntu-optimizer.sh" --no-log --timer-install weekly
     [ "$status" -eq 1 ]
     [[ "$output" == *"systemd is not available for the user scope"* ]]
     [[ "$output" == *"--timer-preview"* ]]
 }
 
 @test "cli: install system scope without systemd names the system scope" {
-    run run_uo --timer-install daily --timer-system
+    local nopath
+    nopath=$(make_nosystemd_path)
+    run env PATH="$nopath" bash "$TEST_HOME/uo-tree/ubuntu-optimizer.sh" --no-log --timer-install daily --timer-system
     [ "$status" -eq 1 ]
     [[ "$output" == *"systemd is not available for the system scope"* ]]
 }

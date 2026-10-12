@@ -14,6 +14,9 @@
 setup() {
     TEST_HOME="$(mktemp -d)"
     export HOME="$TEST_HOME"
+    # CI runners export XDG_CONFIG_HOME/XDG_DATA_HOME — force HOME-based paths
+    # so the tests are hermetic on any machine
+    unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME
     cp -r "$BATS_TEST_DIRNAME/.." "$TEST_HOME/uo-tree"
     chmod +x "$TEST_HOME/uo-tree/ubuntu-optimizer.sh"
     cd "$TEST_HOME/uo-tree" || fail "cannot cd into the copied tree"
@@ -126,8 +129,11 @@ load_cache() {
 @test "cache_lookup on an unknown key misses with empty _CACHE_VALUE" {
     load_cache
     _CACHE_VALUE="stale-from-elsewhere"
-    run cache_lookup "test:nothing"
-    [ "$status" -eq 1 ]
+    # direct call (real bats runs `run` in a subshell — the counter and
+    # _CACHE_VALUE mutations would be invisible to the assertions below)
+    local rc=0
+    cache_lookup "test:nothing" || rc=$?
+    [ "$rc" -eq 1 ]
     [ -z "$_CACHE_VALUE" ]
     [ "$CACHE_MISSES" -eq 1 ]
     [ "$CACHE_HITS" -eq 0 ]
@@ -147,8 +153,10 @@ load_cache() {
     local now
     now=$(date +%s)
     sed -i "1s/.*/$((now - 5))/" "$CACHE_DIR/test:old"
-    run cache_lookup "test:old"
-    [ "$status" -eq 1 ]
+    # direct call so CACHE_MISSES is observable (see the unknown-key test)
+    local rc=0
+    cache_lookup "test:old" || rc=$?
+    [ "$rc" -eq 1 ]
     [ ! -f "$CACHE_DIR/test:old" ]
     [ "$CACHE_MISSES" -eq 1 ]
 }
@@ -181,11 +189,15 @@ load_cache() {
 @test "NO_CACHE=1 skips writes but still returns success" {
     load_cache
     NO_CACHE=1
-    run cache_set "test:off" "v" 60
-    [ "$status" -eq 0 ]
+    # direct calls: counters and disk effects are asserted in this shell
+    # (real bats `run` would isolate them in a subshell)
+    local rc=0
+    cache_set "test:off" "v" 60 || rc=$?
+    [ "$rc" -eq 0 ]
     [ ! -f "$CACHE_DIR/test:off" ]
-    run cache_lookup "test:off"
-    [ "$status" -eq 1 ]
+    rc=0
+    cache_lookup "test:off" || rc=$?
+    [ "$rc" -eq 1 ]
     [ "$CACHE_MISSES" -eq 1 ]
     [ "$CACHE_WRITES" -eq 0 ]
 }
@@ -287,8 +299,13 @@ load_cache() {
         return 1
     }
     : > "$PROBE_CALLS"
-    _net_has_internet; [ "$?" -eq 1 ]
-    _net_has_internet; [ "$?" -eq 1 ]
+    # real bats runs each test with set -e — a direct call that returns 1
+    # would abort the test before the assertion, so go through `run` (the
+    # probe counter and the cache file live on disk and survive the subshell)
+    run _net_has_internet
+    [ "$status" -eq 1 ]
+    run _net_has_internet
+    [ "$status" -eq 1 ]
     [ "$(wc -l < "$PROBE_CALLS")" -eq 1 ]
     # the stored verdict is "0"
     local v

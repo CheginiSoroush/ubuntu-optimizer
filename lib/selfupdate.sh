@@ -103,6 +103,9 @@ selfupdate_fetch_remote_version() {
 # Returns:   0 — a .git directory exists (git-managed checkout)
 #            1 — static copy (or the directory is missing)
 # ───────────────────────────────────────────────────────────────────────────────
+# The optional argument is exercised by test/selfupdate.bats — shellcheck
+# only sees the lib callers (which pass none), hence the directive:
+# shellcheck disable=SC2120
 selfupdate_is_git_checkout() {
     local dir="${1:-$SCRIPT_DIR}"
     [ -d "$dir/.git" ]

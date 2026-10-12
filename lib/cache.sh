@@ -187,7 +187,8 @@ cache_clear() {
 # ───────────────────────────────────────────────────────────────────────────────
 cache_entry_count() {
     local n=0
-    [ -d "$CACHE_DIR" ] && n=$(ls -1 -- "$CACHE_DIR" 2>/dev/null | grep -vc '\.tmp\.') || true
+    # find instead of ls|grep (SC2010): counts every entry that is not a tmp part
+    [ -d "$CACHE_DIR" ] && n=$(find "$CACHE_DIR" -maxdepth 1 -mindepth 1 ! -name '*.tmp.*' 2>/dev/null | wc -l) || true
     printf '%s' "$n"
 }
 
@@ -261,3 +262,4 @@ cache_maintenance_stats() {
     info "Force-refresh a run: uo --no-cache · wipe: uo --cache-clear"
     return 0
 }
+# REWRITE-TEST

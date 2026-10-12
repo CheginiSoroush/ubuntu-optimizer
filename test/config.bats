@@ -15,7 +15,9 @@
 setup() {
     TEST_HOME="$(mktemp -d)"
     export HOME="$TEST_HOME"
-    # Fresh copy of the whole toolkit — the main script requires lib/ beside it
+    # CI runners export XDG_CONFIG_HOME (=/home/runner/.config) — it would
+    # override HOME-based resolution inside lib/config.sh and break hermeticity
+    unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME
     cp -r "$BATS_TEST_DIRNAME/.." "$TEST_HOME/uo-tree"
     chmod +x "$TEST_HOME/uo-tree/ubuntu-optimizer.sh"
     cd "$TEST_HOME/uo-tree" || fail "cannot cd into the copied tree"
@@ -51,6 +53,18 @@ write_config() {
     [[ "$output" == *"not found — defaults in use"* ]]
     [[ "$output" == *"ASSUME_YES=0 (default)"* ]]
     [[ "$output" == *"DNS_SERVERS=8.8.8.8 1.1.1.1 (default)"* ]]
+}
+
+@test "XDG_CONFIG_HOME overrides the config directory" {
+    # the documented XDG support: when set, it wins over $HOME/.config
+    local xdg="$TEST_HOME/xdg"
+    mkdir -p "$xdg/uo"
+    printf '%s\n' 'ASSUME_YES=1' > "$xdg/uo/config.conf"
+    # the HOME-based location stays empty on purpose — only XDG can find it
+    run env XDG_CONFIG_HOME="$xdg" bash "$TEST_HOME/uo-tree/ubuntu-optimizer.sh" --no-log --config-show
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"$xdg/uo/config.conf (applied)"* ]]
+    [[ "$output" == *"ASSUME_YES=1 (config)"* ]]
 }
 
 @test "--config-show reports the applied path and source 'config'" {

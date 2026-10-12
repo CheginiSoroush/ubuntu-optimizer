@@ -421,12 +421,12 @@ document.querySelectorAll("table[data-sortable]").forEach(function(t){
 # moved into place with a single mv — atomicity per the module header.
 #
 # Globals:   DISK_REPORT_FILE (read), SCRIPT_VERSION (read)
-# Arguments: none (uses DISK_REPORT_FILE; $1 overrides for menu use)
+# Arguments: none (uses DISK_REPORT_FILE, falling back to $PWD)
 # Returns:   0 — report written
 #            1 — destination unusable or render failed (tmp cleaned up)
 # ───────────────────────────────────────────────────────────────────────────────
 disk_report_cli() {
-    local out_file="${1:-${DISK_REPORT_FILE:-$PWD/uo-disk-report.html}}"
+    local out_file="${DISK_REPORT_FILE:-$PWD/uo-disk-report.html}"
 
     header "🖥 HTML Disk Report"
 

@@ -291,8 +291,9 @@ teardown() {
     run env PATH="$stubdir:$PATH" STUB_SLEPT="$TEST_HOME/slept" UO_GH_RETRIES=5 bash -c '
         source "'"$BATS_TEST_DIRNAME"'/../lib/github.sh"
         info(){ :; }; warn(){ :; }
-        GH_CURL_AUTH=(); gh_api_get "https://api.github.com/repos/o/r/releases/latest"
-        echo "CODE:$GH_API_CODE"'
+        GH_CURL_AUTH=(); gh_api_get "https://api.github.com/repos/o/r/releases/latest"; rc=$?
+        echo "CODE:$GH_API_CODE"
+        exit "$rc"'
     [ "$status" -eq 1 ]
     grep -q "CODE:404" <<< "$output"
     [ ! -s "$TEST_HOME/slept" ]
@@ -345,8 +346,9 @@ teardown() {
     run env PATH="$stubdir:$PATH" STUB_SLEPT="$TEST_HOME/slept" STUB_RESET="$reset" UO_GH_RETRIES=3 bash -c '
         source "'"$BATS_TEST_DIRNAME"'/../lib/github.sh"
         info(){ :; }; warn(){ :; }
-        GH_CURL_AUTH=(); gh_api_get "https://api.github.com/repos/o/r/releases/latest"
-        echo "CODE:$GH_API_CODE"'
+        GH_CURL_AUTH=(); gh_api_get "https://api.github.com/repos/o/r/releases/latest"; rc=$?
+        echo "CODE:$GH_API_CODE"
+        exit "$rc"'
     [ "$status" -eq 1 ]
     grep -q "CODE:403" <<< "$output"
     [ ! -s "$TEST_HOME/slept" ]

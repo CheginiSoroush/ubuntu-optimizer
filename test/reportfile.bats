@@ -14,6 +14,8 @@
 setup() {
     TEST_HOME="$(mktemp -d)"
     export HOME="$TEST_HOME"
+    # CI runners export XDG_* — force HOME-based paths for hermeticity
+    unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME
     # Fresh copy of the whole toolkit — the main script requires lib/ beside it
     cp -r "$BATS_TEST_DIRNAME/.." "$TEST_HOME/uo-tree"
     chmod +x "$TEST_HOME/uo-tree/ubuntu-optimizer.sh"
@@ -71,15 +73,20 @@ run_uo() {
 # ---------- writing ----------
 
 @test "--report --json --output writes one valid JSON document, stdout stays clean" {
-    local out="$TEST_HOME/out.json"
-    run run_uo --report --json --output "$out"
-    [ "$status" -eq 0 ]
-    # JSON mode must keep stdout pure (only a stderr hint about the file)
-    [ -z "$output" ]
-    [ -s "$out" ]
-    json_validate_stdin < "$out"
-    grep -q '"tool":"ubuntu-optimizer"' "$out"
-    grep -q '"generated_at"' "$out"
+    local out_file="$TEST_HOME/out.json" err="$TEST_HOME/stderr.txt"
+    # stream separation needs a command substitution: bats `run` always
+    # merges stderr into $output, so the "Report saved to" hint on stderr
+    # would break the stdout purity assertion
+    local out rc=0
+    out=$(bash "$TEST_HOME/uo-tree/ubuntu-optimizer.sh" --no-log --report --json --output "$out_file" 2> "$err") || rc=$?
+    [ "$rc" -eq 0 ]
+    # JSON mode must keep stdout pure; the file hint belongs on stderr
+    [ -z "$out" ]
+    grep -q "Report saved to" "$err"
+    [ -s "$out_file" ]
+    json_validate_stdin < "$out_file"
+    grep -q '"tool":"ubuntu-optimizer"' "$out_file"
+    grep -q '"generated_at"' "$out_file"
 }
 
 @test "--report (plain text) --output writes the human report to the file" {

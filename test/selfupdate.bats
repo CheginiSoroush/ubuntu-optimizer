@@ -13,6 +13,8 @@
 setup() {
     TEST_HOME="$(mktemp -d)"
     export HOME="$TEST_HOME"
+    # CI runners export XDG_* — force HOME-based paths for hermeticity
+    unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME
     SCRIPT_DIR="$TEST_HOME/fake-project"
     mkdir -p "$SCRIPT_DIR/lib"
     # lib/selfupdate.sh expects the shared helpers from lib/common.sh —
@@ -109,8 +111,11 @@ teardown() {
     # shellcheck disable=SC2016
     printf '#!/bin/bash\ncat <<'"'"'EOF'"'"'\nreadonly SCRIPT_VERSION="9.9"\nEOF\n' > "$stub/curl"
     chmod +x "$stub/curl"
-    PATH="$stub:$PATH" run selfupdate_fetch_remote_version
-    [ "$status" -eq 0 ]
+    # direct call with an errexit-safe rc capture — SU_REMOTE_VERSION/
+    # SU_REMOTE_BRANCH are globals that real bats' subshell `run` would hide
+    local rc=0
+    PATH="$stub:$PATH" selfupdate_fetch_remote_version || rc=$?
+    [ "$rc" -eq 0 ]
     [ "$SU_REMOTE_VERSION" = "9.9" ]
     [ "$SU_REMOTE_BRANCH" = "main" ]
 }
@@ -121,8 +126,9 @@ teardown() {
     # Fail when the URL contains /main/, succeed otherwise (404 simulation)
     printf '#!/bin/bash\ncase "$*" in *"/main/"*) exit 22 ;; esac\necho '"'"'readonly SCRIPT_VERSION="8.1"'"'"'\n' > "$stub/curl"
     chmod +x "$stub/curl"
-    PATH="$stub:$PATH" run selfupdate_fetch_remote_version
-    [ "$status" -eq 0 ]
+    local rc=0
+    PATH="$stub:$PATH" selfupdate_fetch_remote_version || rc=$?
+    [ "$rc" -eq 0 ]
     [ "$SU_REMOTE_VERSION" = "8.1" ]
     [ "$SU_REMOTE_BRANCH" = "master" ]
 }
@@ -132,8 +138,9 @@ teardown() {
     mkdir -p "$stub"
     printf '#!/bin/bash\nexit 7\n' > "$stub/curl"
     chmod +x "$stub/curl"
-    PATH="$stub:$PATH" run selfupdate_fetch_remote_version
-    [ "$status" -eq 1 ]
+    local rc=0
+    PATH="$stub:$PATH" selfupdate_fetch_remote_version || rc=$?
+    [ "$rc" -eq 1 ]
     [ -z "$SU_REMOTE_VERSION" ]
 }
 
@@ -142,8 +149,9 @@ teardown() {
     mkdir -p "$stub"
     printf '#!/bin/bash\necho "not the file you want"\n' > "$stub/curl"
     chmod +x "$stub/curl"
-    PATH="$stub:$PATH" run selfupdate_fetch_remote_version
-    [ "$status" -eq 1 ]
+    local rc=0
+    PATH="$stub:$PATH" selfupdate_fetch_remote_version || rc=$?
+    [ "$rc" -eq 1 ]
 }
 
 @test "selfupdate_fetch_remote_version never leaks a stale version on failure" {
@@ -153,8 +161,9 @@ teardown() {
     mkdir -p "$stub"
     printf '#!/bin/bash\nexit 7\n' > "$stub/curl"
     chmod +x "$stub/curl"
-    PATH="$stub:$PATH" run selfupdate_fetch_remote_version
-    [ "$status" -eq 1 ]
+    local rc=0
+    PATH="$stub:$PATH" selfupdate_fetch_remote_version || rc=$?
+    [ "$rc" -eq 1 ]
     [ -z "$SU_REMOTE_VERSION" ]
     [ -z "$SU_REMOTE_BRANCH" ]
 }
