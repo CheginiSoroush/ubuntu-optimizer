@@ -47,6 +47,10 @@ _uo() {
             mapfile -t COMPREPLY < <(compgen -f -- "$cur")
             return 0
             ;;
+        --disk-report)
+            mapfile -t COMPREPLY < <(compgen -f -- "$cur")
+            return 0
+            ;;
         --config)
             mapfile -t COMPREPLY < <(compgen -f -- "$cur")
             return 0
@@ -77,7 +81,7 @@ _uo() {
         --timer-install --timer-remove --timer-status --timer-log
         --timer-preview --timer-system --timer-notify-only --timer-tick
         --report --json --output --append --git-ssh --git-ssh-status --doctor
-        --disk --disk-clean
+        --disk --disk-clean --disk-report
         --github-install --github-update --github-list --github-remove
         --install-targz
         --optimize --network --system --security --time --undo --profile

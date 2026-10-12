@@ -4,6 +4,54 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.11.0]
+
+### Added
+- **Self-contained HTML disk report** (new `lib/htmlreport.sh`) —
+  `uo --disk-report [FILE]` re-runs the same read-only analysis as the
+  terminal's `--disk` (root usage, category breakdown, largest /opt apps,
+  largest deb packages) and renders it into one standalone `uo-disk-report.html`
+  (default name) that opens in any browser — far more readable than the
+  terminal for heavy folders, easy to share or archive:
+  - **Fully offline document:** inline CSS + ~30 lines of vanilla JS for the
+    sortable tables — no CDN, no framework, no internet needed.
+  - **Charts & tables:** a big severity-colored usage bar (ok < 60 % ·
+    warn < 85 % · crit ≥ 85 %), per-category bars scaled to the largest
+    entry, and two click-to-sort tables (`/opt` apps, deb packages) that sort
+    by name or size.
+  - **RTL Persian layout** with English technical terms — the file renders
+    correctly everywhere; a low-space banner appears under the same 2 GB
+    threshold the terminal analysis warns at.
+  - **Injection-safe by construction:** every system-derived value (paths,
+    package names, sizes) passes an HTML-escape helper before it enters the
+    document — a folder named `<script>` can never inject markup (correct on
+    bash 5.2 too, where `patsub_replacement` would otherwise mangle the
+    entities).
+  - **Atomic write:** rendered into a mktemp file in the target directory and
+    moved into place with a single `mv` — a half-written report can never
+    exist. The destination is validated up front (writable dir, writable
+    existing file) and fails fast with exit 1.
+  - **Graceful degradation:** missing directories or sudo-less environments
+    simply omit those sections — the report never breaks or comes back empty.
+- **Interactive menu, entry 19:** 🖥 Disk report (HTML, shareable) — asks
+  for the output path and runs the same validated CLI code path.
+- Both completions (bash + zsh) learn `--disk-report` (file-path completion).
+
+### Fixed
+- `_html_escape` guards against bash 5.2's `patsub_replacement` behavior, so
+  HTML entities survive on every supported bash.
+
+### Tests
+- New `test/htmlreport.bats` — 25 cases: CLI happy paths (explicit path,
+  default path, flag-not-eaten semantics, overwrite without tmp leftovers),
+  fail-fast paths (unwritable destination, `--json` conflict, `--dry-run`
+  rejection), helper functions (escaping incl. the five critical characters,
+  KiB humanizer, severity mapping, category validation) and the pure
+  renderer seeded with hand-built globals (document skeleton, severity
+  classes, relative bar widths, low-space banner threshold, hostile names
+  escaped everywhere, empty-section placeholders, sorter hooks, collect
+  parity on the real filesystem). 207 tests total.
+
 ## [7.10.0]
 
 ### Added

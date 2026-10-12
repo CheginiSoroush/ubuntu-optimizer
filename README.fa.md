@@ -8,14 +8,14 @@
 **یک دستور؛ اوبونتویی سریع‌تر، تمیزتر و سالم‌تر.**
 
 جعبه‌ابزار همه‌کارهٔ بهینه‌سازی، مدیریت برنامه‌ها و تعمیر اوبونتو —
-۱۸ ابزار در منویی ساده، بیش از ۴۰ گزینهٔ خط فرمان و پیش‌نمایش صادقانهٔ dry-run.
+۱۹ ابزار در منویی ساده، بیش از ۴۰ گزینهٔ خط فرمان و پیش‌نمایش صادقانهٔ dry-run.
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.10-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.11-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-182%20%2F%20182-brightgreen)
+![Tests](https://img.shields.io/badge/bats-207%20%2F%20207-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -37,7 +37,7 @@
 | 🔐 **امنیت** | تمدید timeout سودو · قاعدهٔ polkit اختیاری (فقط نشست‌های محلی، همراه با هشدار شفاف) |
 | 🕐 **زمان** | همگام‌سازی با chrony به‌همراه راه‌حل اضطراری مستقل |
 | 🛠 **fixnet** | اسکریپت مستقل دوزبانه که پس از قطع‌شدن VPN اتصال را تعمیر می‌کند — resolv.conf را بازمی‌گرداند و *منتظر بازگشت شبکه می‌ماند* |
-| 💿 **دیسک** | تحلیل مصرف فضا بر اساس دسته‌بندی + پاک‌سازی با یک دستور (کش apt، ژورنال، کرنل‌های قدیمی، نسخه‌های snap، گزارش‌های کرش) |
+| 💿 **دیسک** | تحلیل مصرف فضا بر اساس دسته‌بندی + پاک‌سازی با یک دستور (کش apt، ژورنال، کرنل‌های قدیمی، نسخه‌های snap، گزارش‌های کرش) · **گزارش HTML قابل‌اشتراک** («--disk-report», v7.11) — صفحهٔ خودکفا با نمودار و جدول‌های قابلمرتب‌سازی، کاملاً آفلاین |
 | 📊 **عیب‌یابی** | ping، DNS، تست سرعت اینترنت · گزارش وضعیت سیستم فقط-خواندنی · گزارش JSON ماشین‌خوان (`--report --json`) · لاگ سری‌زمانی JSONL (`--report --json --append --output`, v7.7) |
 | ⚙ **فایل کانفیگ** | `~/.config/uo/config.conf` — ماندگارسازی ASSUME_YES / NO_COLOR / NO_LOG / DRY_RUN / DNS_SERVERS / NO_CACHE برای کرون و سیستم‌های مشترک؛ هرگز source یا eval نمی‌شود — هر خط parse و اعتبارسنجی می‌شود (v7.8) |
 | ⚡ **کش TTL** | نتایج پرهزینه (بررسی اتصال، به‌روزرسانی لیست apt، استعلام ریلیز GitHub) با زمان انقضا کش می‌شوند — اجراهای پشت‌سرهم منتظر نمی‌مانند؛ بازرسی با --cache-stats، پاک‌سازی با --cache-clear، دورزدن با --no-cache (v7.9) |
@@ -175,6 +175,7 @@ uo --profile server -y             # اعمال بدون سؤال
 | `uo --timer-remove` · `--timer-status` · `--timer-log [N]` | حذف تایمر · وضعیت · خواندن لاگ اجراها از ژورنال (v7.10) |
 | `uo --timer-preview [PERIOD]` | چاپ فایل‌های unit که نصب می‌نویسد — بدون نیاز به systemd (v7.10) |
 | `uo --timer-system` · `--timer-notify-only` | (با install/preview) یونیت سراسری سیستم · حالت پایش فقط-خواندنی (v7.10) |
+| `uo --disk-report [FILE]` | نوشتن تحلیل دیسک به‌صورت گزارش HTML خودکفا — نمودار + جدول‌های قابلمرتب‌سازی، پیش‌فرض «uo-disk-report.html» (v7.11) |
 | `uo --doctor` | بررسی سلامت و تعمیر همهٔ برنامه‌های نصب‌شده/ردیابی‌شده |
 | `uo --github-install OWNER/REPO [NAME]` | نصب برنامه از آخرین ریلیز GitHub |
 | `uo --github-update` · `--github-list` · `--github-remove` | به‌روزرسانی · فهرست · حذف برنامه‌های GitHub |
@@ -395,6 +396,19 @@ uo --timer-status                    # نصب است؟ فعال است؟ اجر�
 
 ---
 
+## 🖥 گزارش دیسک (HTML)
+
+تحلیل ترمینالی برای یک نگاه کافی است — برای پوشه‌های سنگین، کل تصویر را به‌صورت
+یک صفحهٔ خودکفا به اشتراک بگذارید (v7.11):
+
+```bash
+uo --disk-report                     # → ./uo-disk-report.html
+uo --disk-report ~/disk.html         # یا هر مسیری که بخواهید
+```
+
+نمودار، شدت مصرف رنگی و جدول‌های قابلمرتب‌سازی برای برنامه‌های `/opt` و بسته‌های
+deb — بدون CDN، بدون فریمورک، آفلاین در هر مرورگری باز می‌شود.
+
 ## 📁 ساختار پروژه
 
 ```
@@ -407,6 +421,7 @@ ubuntu-optimizer/
 │   ├── common.sh              ← رنگ‌ها، توابع کمکی، رجیستری، گزارش‌گیری
 │   ├── cache.sh               ← کش TTL برای عملیات‌های پرهزینه
 │   ├── timer.sh               ← تایمر systemd: آپدیت زمان‌بندی‌شده / تیک پایش
+│   ├── htmlreport.sh          ← گزارش HTML خودکفای دیسک («--disk-report»)
 │   ├── network.sh             ← بهینه‌سازی و تست‌های شبکه
 │   ├── system.sh              ← سیستم، حافظه، امنیت، زمان
 │   ├── fixnet.sh              ← ساخت و اجرای اسکریپت دوزبانهٔ fixnet
@@ -425,7 +440,7 @@ ubuntu-optimizer/
 │   ├── disk.sh                ← تحلیل فضای دیسک و پاک‌سازی
 │   ├── gitssh.sh              ← راه‌اندازی SSH گیت‌هاب
 │   └── menus.sh               ← موتور منو و همهٔ منوها
-├── test/                      ← تست‌های واحد bats (common، appmgmt، github، undo، profile، jsonreport، selfupdate، reportfile، config، cache، timer، syntax)
+├── test/                      ← تست‌های واحد bats (common، appmgmt، github، undo، profile، jsonreport، selfupdate، reportfile، config، cache، timer، htmlreport، syntax)
 ├── completions/               ← uo (bash) · ‪_uo‬ (zsh) — تکمیل تب برای همهٔ فلگ‌ها
 ├── .github/workflows/
 │   ├── lint.yml               ← CI: shellcheck + syntax + bats در هر push
@@ -443,9 +458,9 @@ ubuntu-optimizer/
 
 | گیت کیفیت | وضعیت |
 |---|---|
-| بررسی سینتکس `bash -n` | ✅ هر ۲۴ فایل شل |
+| بررسی سینتکس `bash -n` | ✅ هر ۲۵ فایل شل |
 | ShellCheck (سخت‌گیرانه) | ✅ صفر ایراد — در CI اجباری است |
-| تست‌های واحد bats | ✅ ۱۸۲ از ۱۸۲ پاس |
+| تست‌های واحد bats | ✅ ۲۰۷ از ۲۰۷ پاس |
 | `install.sh --check` | ✅ خودارزیابی سلامت داخلی |
 | GitHub Actions CI | ✅ روی هر push و pull request |
 

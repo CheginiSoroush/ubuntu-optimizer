@@ -15,7 +15,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # ── Load modules ───────────────────────────────────────────────────────────────
-for _lib in common cache config network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk gitssh undo profile selfupdate timer menus; do
+for _lib in common cache config network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk htmlreport gitssh undo profile selfupdate timer menus; do
     _libfile="$SCRIPT_DIR/lib/${_lib}.sh"
     if [ -f "$_libfile" ]; then
         # shellcheck source=/dev/null
@@ -64,6 +64,7 @@ TIMER_PERIOD=""
 TIMER_SCOPE="user"
 TIMER_NOTIFY=0
 TIMER_LOG_LINES=50
+DISK_REPORT_FILE=""
 
 # ───────────────────────────────────────────────────────────────────────────────
 # run_cli_profile() — dispatch --profile from the queued action list
@@ -126,6 +127,10 @@ Options:
   --append            (with --output) append instead of overwrite
   --disk              disk usage analysis (read-only)
   --disk-clean        disk cleanup
+  --disk-report [FILE]
+                      write the disk analysis as a self-contained HTML
+                      report (charts + sortable tables, fully offline;
+                      default: uo-disk-report.html)
 
   --git-ssh           GitHub SSH key setup wizard
   --git-ssh-status    SSH key / GitHub authentication status
@@ -236,6 +241,7 @@ Examples:
   uo --timer-install weekly          # weekly unattended 'uo --update -y'
   uo --timer-preview monthly         # show the unit files, install nothing
   uo --timer-install daily --timer-notify-only   # read-only monitor tick
+  uo --disk-report ~/disk-report.html   # shareable HTML disk analysis (charts)
 EOF
 }
 
@@ -349,6 +355,15 @@ while [ $# -gt 0 ]; do
         --doctor)         CLI_ACTIONS+=("doctor_apps|app health check"); shift ;;
         --disk)           CLI_ACTIONS+=("disk_analyze|disk analysis"); shift ;;
         --disk-clean)     CLI_ACTIONS+=("disk_cleanup|disk cleanup"); shift ;;
+        --disk-report)
+            # optional destination — a following flag is never eaten as the file
+            if [ $# -ge 2 ] && [[ "$2" != -* ]]; then
+                DISK_REPORT_FILE="$2"; shift 2
+            else
+                shift
+            fi
+            CLI_ACTIONS+=("disk_report_cli|disk HTML report")
+            ;;
         --github-install)
             if [ $# -ge 2 ]; then
                 case "$2" in
@@ -514,6 +529,23 @@ fi
 if [ "$APPEND_MODE" = "1" ] && [ -z "$OUTPUT_FILE" ]; then
     echo "--append is only valid together with --output." >&2
     exit 1
+fi
+
+# --disk-report validates its destination up front (fail fast): the default
+# lands beside the working directory, an existing file must be writable and
+# its directory must be writable — nothing is touched before this check.
+if [ ${#CLI_ACTIONS[@]} -gt 0 ]; then
+    for hr_action in "${CLI_ACTIONS[@]}"; do
+        if [ "${hr_action%%|*}" = "disk_report_cli" ]; then
+            [ -n "$DISK_REPORT_FILE" ] || DISK_REPORT_FILE="$PWD/uo-disk-report.html"
+            if { [ -e "$DISK_REPORT_FILE" ] && [ ! -w "$DISK_REPORT_FILE" ]; } || \
+               [ ! -w "$(dirname -- "$DISK_REPORT_FILE")" ]; then
+                echo "Cannot write to file: $DISK_REPORT_FILE" >&2
+                exit 1
+            fi
+        fi
+    done
+    unset hr_action
 fi
 
 # --timer-system / --timer-notify-only are unit-rendering modifiers: they

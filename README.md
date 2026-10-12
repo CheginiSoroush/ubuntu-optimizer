@@ -8,14 +8,14 @@
 **One command. A faster, cleaner, healthier Ubuntu.**
 
 The all-in-one optimization, app-management and repair toolkit —
-18 friendly menu tools, 40+ CLI options, honest dry-run previews.
+19 friendly menu tools, 40+ CLI options, honest dry-run previews.
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.10-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.11-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-182%20%2F%20182-brightgreen)
+![Tests](https://img.shields.io/badge/bats-207%20%2F%20207-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -37,7 +37,7 @@ The all-in-one optimization, app-management and repair toolkit —
 | 🔐 **Security** | extended sudo timeout · opt-in polkit rule (local sessions only, clearly warned) |
 | 🕐 **Time** | chrony sync with an independent emergency fallback |
 | 🛠 **fixnet** | standalone bilingual script that repairs connectivity after a VPN disconnect — restores resolv.conf and *waits* for the network to come back |
-| 💿 **Disk** | usage analysis by category + one-command cleanup (apt cache, journal, old kernels, snap revisions, crash reports) |
+| 💿 **Disk** | usage analysis by category + one-command cleanup (apt cache, journal, old kernels, snap revisions, crash reports) · **shareable HTML report** (`--disk-report`, v7.11) — self-contained page with charts + sortable tables, fully offline |
 | 📊 **Diagnostics** | ping, DNS, internet-speed tests · read-only system status report · **machine-readable JSON** (`--report --json`, v7.5) for cron & dashboards · **JSONL time-series log** (`--report --json --append --output`, v7.7) |
 | ⚙ **Config file** | `~/.config/uo/config.conf` — persist ASSUME_YES / NO_COLOR / NO_LOG / DRY_RUN / DNS_SERVERS / NO_CACHE for cron & shared machines; never sourced, never eval'd — every line is parsed and validated (v7.8) |
 | ⚡ **TTL cache** | costly results (connectivity probe, apt list refresh, GitHub release lookups) are cached with an expiry timestamp — repeated runs skip the wait; inspect with `--cache-stats`, wipe with `--cache-clear`, bypass with `--no-cache` (v7.9) |
@@ -183,6 +183,7 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 | `uo --timer-remove` · `--timer-status` · `--timer-log [N]` | remove it · inspect it · read its journald run log (v7.10) |
 | `uo --timer-preview [PERIOD]` | print the unit files an install would write — no systemd needed (v7.10) |
 | `uo --timer-system` · `--timer-notify-only` | (with install/preview) system-wide units · read-only monitor mode (v7.10) |
+| `uo --disk-report [FILE]` | write the disk analysis as a self-contained HTML report — charts + sortable tables, default `uo-disk-report.html` (v7.11) |
 | `uo -y` · `--no-color` · `--no-log` | auto-confirm · plain output · don't log |
 
 ### Real-world examples
@@ -195,6 +196,7 @@ uo --install-targz ~/Downloads/app.tar.gz myapp  # install from an archive
 uo --github-install junegunn/fzf                 # install from a GitHub release
 uo --cleanup abdownloadmanager --purge-data -y   # remove an app without a trace
 uo --doctor                                      # health check & repair of your apps
+uo --disk-report ~/disk.html                     # shareable disk analysis (charts)
 ```
 
 ---
@@ -397,6 +399,19 @@ uo --timer-status                    # installed? enabled? next runs?
 
 ---
 
+## 🖥 Disk report (HTML)
+
+The terminal analysis is great for a quick look — for heavy folders, share
+the whole picture as one self-contained page (v7.11):
+
+```bash
+uo --disk-report                     # → ./uo-disk-report.html
+uo --disk-report ~/disk.html         # or any path you like
+```
+
+Charts, color-coded usage severity and click-to-sort tables for `/opt` apps
+and deb packages — no CDN, no framework, opens offline in any browser.
+
 ## 📁 Project structure
 
 ```
@@ -409,6 +424,7 @@ ubuntu-optimizer/
 │   ├── common.sh              ← colors, helpers, registry, logging
 │   ├── cache.sh               ← TTL cache for costly operations
 │   ├── timer.sh               ← systemd timer: scheduled updates / monitor ticks
+│   ├── htmlreport.sh          ← self-contained HTML disk report (--disk-report)
 │   ├── network.sh             ← network optimization & tests
 │   ├── system.sh              ← system, memory, security, time
 │   ├── fixnet.sh              ← creates & runs the bilingual fixnet script
@@ -427,7 +443,7 @@ ubuntu-optimizer/
 │   ├── disk.sh                ← disk space analysis & cleanup
 │   ├── gitssh.sh              ← GitHub SSH setup
 │   └── menus.sh               ← menu engine & all menus
-├── test/                      ← bats unit tests (common, appmgmt, github, undo, profile, jsonreport, selfupdate, reportfile, config, cache, timer, syntax)
+├── test/                      ← bats unit tests (common, appmgmt, github, undo, profile, jsonreport, selfupdate, reportfile, config, cache, timer, htmlreport, syntax)
 ├── completions/               ← uo (bash) · _uo (zsh) — tab completion for every flag
 ├── .github/workflows/
 │   ├── lint.yml               ← CI: shellcheck + syntax + bats on every push

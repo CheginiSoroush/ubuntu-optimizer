@@ -55,6 +55,7 @@ _uo() {
         '--append[(with --output) append instead of overwrite]'
         '--disk[disk usage analysis (read-only)]'
         '--disk-clean[disk cleanup]'
+        '--disk-report[write the disk analysis as a self-contained HTML report]:output file:_files'
         '--git-ssh[GitHub SSH key setup wizard]'
         '--git-ssh-status[SSH key / GitHub authentication status]'
         '--github-install[install an app from the latest GitHub release]:repo (OWNER/REPO):app name (optional)'

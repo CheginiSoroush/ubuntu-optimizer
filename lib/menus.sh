@@ -365,6 +365,7 @@ main_menu() {
         echo "  16) 📊 Disk space analysis"
         echo "  17) 🧹 Disk cleanup"
         echo "  18) ⏰ Scheduled updates (systemd timer)"
+        echo "  19) 🖥 Disk report (HTML, shareable)"
         echo ""
         echo "   0) Exit"
         echo ""
@@ -391,6 +392,7 @@ main_menu() {
             16) disk_analyze; press_enter ;;
             17) disk_cleanup; press_enter ;;
             18) menu_timer ;;
+            19) menu_disk_report ;;
             0) clear; echo -e "${GREEN}Goodbye! 👋${NC}"; exit 0 ;;
             # Invalid user input is not a system error — logged as WARN, not ERROR
             *) warn "Invalid choice"; sleep 1 ;;
