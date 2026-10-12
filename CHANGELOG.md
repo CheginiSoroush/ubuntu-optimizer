@@ -4,6 +4,39 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.8.0]
+
+### Added
+- **Optional config file: `~/.config/uo/config.conf`** (respects
+  `$XDG_CONFIG_HOME`) — persist preferences for every run, interactive or
+  cron, without repeating flags:
+  - `ASSUME_YES` — auto-confirm everything (same as `-y` on every run)
+  - `NO_COLOR` — plain, colorless output
+  - `NO_LOG` — do not write log files
+  - `DRY_RUN` — always preview, never change anything
+  - `DNS_SERVERS` — custom resolvers for `--network`/`--optimize`
+- **Parsing is paranoid by design:** the file is never `source`d or `eval`'d —
+  only `KEY=VALUE` lines are read (blank lines, `#` comments and optional
+  matching quotes allowed), every value is validated against its key, unknown
+  keys and malformed lines report their line number and are skipped. A config
+  file can never execute a command and one bad line never aborts a run.
+- **Documented, enforced precedence:** built-in defaults < config file <
+  environment (`UO_DNS_SERVERS`) < explicit CLI flags (`-y`, `--dry-run`,
+  `--no-color`, `--no-log`). Explicit flags win exactly as they always have —
+  the config only fills the gaps.
+- **New flags:** `--config FILE` (use an alternative config for one run —
+  missing files rejected), `--no-config` (ignore every config for this run),
+  `--config-show` (print the effective configuration with the source of every
+  value: default / config / env / cli), `--config-example` (print an annotated,
+  fully-commented template — redirecting it onto an existing file cannot change
+  behavior until edited).
+- Functional guarantees covered by tests: `NO_LOG=1` from the config really
+  suppresses logging; `ASSUME_YES=1` really auto-confirms; quoted DNS values
+  are unquoted; the `UO_DNS_SERVERS` environment variable keeps winning.
+- Both completions (bash + zsh) learn the four new flags — `--config` offers
+  file completion; 19 new bats tests (`test/config.bats`, fully offline,
+  running the real CLI in an isolated temp HOME) — 123 total.
+
 ## [7.7.0]
 
 ### Added

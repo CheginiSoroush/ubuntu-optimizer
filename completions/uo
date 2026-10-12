@@ -39,6 +39,10 @@ _uo() {
             mapfile -t COMPREPLY < <(compgen -f -- "$cur")
             return 0
             ;;
+        --config)
+            mapfile -t COMPREPLY < <(compgen -f -- "$cur")
+            return 0
+            ;;
         --cleanup)
             # Tracked app names from both databases (GitHub + tar.gz registry)
             local names
@@ -60,6 +64,7 @@ _uo() {
     # Option completion — while typing a flag, or right after the command
     local opts="
         -h --help -V --version -y --yes --no-color --no-log --dry-run
+        --config --no-config --config-show --config-example
         --report --json --output --append --git-ssh --git-ssh-status --doctor
         --disk --disk-clean
         --github-install --github-update --github-list --github-remove

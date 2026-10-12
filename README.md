@@ -12,10 +12,10 @@ The all-in-one optimization, app-management and repair toolkit —
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.7-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.8-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-104%20%2F%20104-brightgreen)
+![Tests](https://img.shields.io/badge/bats-123%20%2F%20123-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -39,6 +39,7 @@ The all-in-one optimization, app-management and repair toolkit —
 | 🛠 **fixnet** | standalone bilingual script that repairs connectivity after a VPN disconnect — restores resolv.conf and *waits* for the network to come back |
 | 💿 **Disk** | usage analysis by category + one-command cleanup (apt cache, journal, old kernels, snap revisions, crash reports) |
 | 📊 **Diagnostics** | ping, DNS, internet-speed tests · read-only system status report · **machine-readable JSON** (`--report --json`, v7.5) for cron & dashboards · **JSONL time-series log** (`--report --json --append --output`, v7.7) |
+| ⚙ **Config file** | `~/.config/uo/config.conf` — persist ASSUME_YES / NO_COLOR / NO_LOG / DRY_RUN / DNS_SERVERS for cron & shared machines; never sourced, never eval'd — every line is parsed and validated (v7.8) |
 | 📦 **Install** | deb packages · **smart tar.gz/tgz install** (main-executable detection, architecture check, automatic dependencies) · AppImage |
 | 🐙 **GitHub Releases** | install / update / remove apps — automatic architecture-aware asset pick · **SHA-256 checksum verification** when the release ships one (v7.4) |
 | ⬆ **Self-update** | `uo --self-update` — the toolkit updates itself: version check against the official repo, git pull for clones, verified archive + automatic backup for static copies (v7.6) |
@@ -67,6 +68,7 @@ uo --report           # read-only system report
 uo --report --json | jq '.summary'   # same report, machine-readable (v7.5)
 uo --report --json --append --output ~/.local/share/ubuntu-optimizer/report-log.jsonl
                       # one JSON line per run → a time-series log for dashboards (v7.7)
+uo --config-show      # inspect the effective configuration (v7.8)
 uo --self-update      # keep the toolkit itself on the latest version (v7.6)
 uo --optimize --dry-run -y   # preview everything before changing anything
 ```
@@ -171,6 +173,8 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 | `uo --fixnet` · `--fixnet-run` · `--test` | create · run fixnet · network tests |
 | `uo --git-ssh` · `--git-ssh-status` | GitHub SSH key wizard · status |
 | `uo --log` · `--log-clear` | show · delete the activity log |
+| `uo --config-show` · `--config-example` | inspect the effective config · print an annotated template (v7.8) |
+| `uo --config FILE` · `--no-config` | use an alternative config file · ignore configs for one run (v7.8) |
 | `uo -y` · `--no-color` · `--no-log` | auto-confirm · plain output · don't log |
 
 ### Real-world examples
@@ -320,6 +324,40 @@ source ~/.bashrc
 
 ---
 
+## ⚙ Optional: config file
+
+Repeated flags belong in a file. Create `~/.config/uo/config.conf` and every
+run — interactive or cron — picks your preferences up automatically:
+
+```bash
+uo --config-example > ~/.config/uo/config.conf   # start from the annotated template
+nano ~/.config/uo/config.conf
+uo --config-show                                 # verify what is in effect
+```
+
+```ini
+# ~/.config/uo/config.conf — a non-interactive cron machine
+ASSUME_YES=1
+NO_LOG=0
+DRY_RUN=0
+DNS_SERVERS="1.1.1.1 9.9.9.9"
+```
+
+- **Supported keys:** `ASSUME_YES`, `NO_COLOR`, `NO_LOG`, `DRY_RUN`,
+  `DNS_SERVERS` — every value is validated; unknown keys and malformed lines
+  are reported and skipped, never fatal.
+- **Parsing is paranoid by design:** the file is never `source`d or `eval`'d —
+  only `KEY=VALUE` lines are read (comments and optional quotes allowed), so a
+  config file can never execute a command.
+- **Precedence:** built-in defaults < config file < environment
+  (`UO_DNS_SERVERS`) < explicit CLI flags (`-y`, `--dry-run`, `--no-color`,
+  `--no-log`).
+- **Per-run control:** `uo --config FILE` uses an alternative file,
+  `--no-config` ignores every config for one run, `--config-show` prints the
+  effective configuration with the source of every value.
+
+---
+
 ## 📁 Project structure
 
 ```
@@ -348,7 +386,7 @@ ubuntu-optimizer/
 │   ├── disk.sh                ← disk space analysis & cleanup
 │   ├── gitssh.sh              ← GitHub SSH setup
 │   └── menus.sh               ← menu engine & all menus
-├── test/                      ← bats unit tests (common, appmgmt, github, undo, profile, jsonreport, selfupdate, reportfile, syntax)
+├── test/                      ← bats unit tests (common, appmgmt, github, undo, profile, jsonreport, selfupdate, reportfile, config, syntax)
 ├── completions/               ← uo (bash) · _uo (zsh) — tab completion for every flag
 ├── .github/workflows/
 │   ├── lint.yml               ← CI: shellcheck + syntax + bats on every push
@@ -366,9 +404,9 @@ ubuntu-optimizer/
 
 | Gate | Status |
 |---|---|
-| `bash -n` syntax check | ✅ all 22 shell files |
+| `bash -n` syntax check | ✅ all 23 shell files |
 | ShellCheck (strict) | ✅ zero findings — enforced in CI |
-| bats unit tests | ✅ 104 / 104 passing |
+| bats unit tests | ✅ 123 / 123 passing |
 | `install.sh --check` | ✅ self-health verification built in |
 | GitHub Actions CI | ✅ every push & pull request |
 

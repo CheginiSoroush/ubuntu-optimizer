@@ -15,7 +15,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # ── Load modules ───────────────────────────────────────────────────────────────
-for _lib in common network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk gitssh undo profile selfupdate menus; do
+for _lib in common config network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk gitssh undo profile selfupdate menus; do
     _libfile="$SCRIPT_DIR/lib/${_lib}.sh"
     if [ -f "$_libfile" ]; then
         # shellcheck source=/dev/null
@@ -50,6 +50,15 @@ JSON_MODE=0
 OUTPUT_FILE=""
 APPEND_MODE=0
 ORIG_ARGS="$*"   # original arguments for logging
+# CLI_* markers record which preference flags were given explicitly — they
+# let the config file (lib/config.sh) apply only where the CLI stayed silent.
+CLI_YES=0
+CLI_NO_COLOR=0
+CLI_NO_LOG=0
+CLI_DRY_RUN=0
+CONFIG_PATH_OVERRIDE=""
+NO_CONFIG=0
+CONFIG_SHOW=0
 
 # ───────────────────────────────────────────────────────────────────────────────
 # run_cli_profile() — dispatch --profile from the queued action list
@@ -91,6 +100,12 @@ Options:
   --no-log            do not log this run
   --dry-run           preview: with --optimize/--network/--system/--security/--time
                       print what would change without changing anything
+
+  --config FILE       use FILE as the config file instead of
+                      ~/.config/uo/config.conf
+  --no-config         ignore every config file for this run
+  --config-show       print the effective configuration and exit
+  --config-example    print an annotated template config and exit
 
   --report            system status report (read-only)
   --json              (with --report) machine-readable JSON output
@@ -147,7 +162,14 @@ Options:
 Environment:
   UO_DNS_SERVERS      custom DNS servers for --network/--optimize
                       (space-separated IPv4; default: "8.8.8.8 1.1.1.1")
+                      config file key DNS_SERVERS applies when this is unset
   GH_TOKEN            GitHub token — raises the API rate limit to 5000/hour
+
+Config file:
+  ~/.config/uo/config.conf — optional KEY=VALUE preferences loaded for every
+  run: ASSUME_YES, NO_COLOR, NO_LOG, DRY_RUN, DNS_SERVERS. Precedence:
+  built-in defaults < config file < environment < explicit CLI flags.
+  Template: uo --config-example · inspect: uo --config-show
 
 Examples:
   uo --report
@@ -165,6 +187,8 @@ Examples:
   uo --report --json --append \
      --output ~/.local/share/ubuntu-optimizer/report-log.jsonl
   #  → one JSON line per run: a time-series log for dashboards (cron-friendly)
+  uo --config-show      # inspect the effective configuration
+  uo --config-example > ~/.config/uo/config.conf   # start a config file
 EOF
 }
 
@@ -194,10 +218,10 @@ trap 'echo ""; warn "Exiting..."; exit 143' TERM
 # ── Parse arguments ─────────────────────────────────────────────────────────────
 while [ $# -gt 0 ]; do
     case "$1" in
-        -y|--yes)         ASSUME_YES=1; shift ;;
-        --dry-run)        DRY_RUN=1; shift ;;
-        --no-color)       RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; MAGENTA=''; BOLD=''; NC=''; shift ;;
-        --no-log)         LOG_ENABLED=0; shift ;;
+        -y|--yes)         ASSUME_YES=1; CLI_YES=1; shift ;;
+        --dry-run)        DRY_RUN=1; CLI_DRY_RUN=1; shift ;;
+        --no-color)       RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; MAGENTA=''; BOLD=''; NC=''; CLI_NO_COLOR=1; shift ;;
+        --no-log)         LOG_ENABLED=0; CLI_NO_LOG=1; shift ;;
         --report)         CLI_ACTIONS+=("system_report|system status report"); shift ;;
         --json)           JSON_MODE=1; shift ;;
         --output)
@@ -209,6 +233,21 @@ while [ $# -gt 0 ]; do
             fi
             ;;
         --append)         APPEND_MODE=1; shift ;;
+        --config)
+            if [ $# -ge 2 ] && [ -n "$2" ] && [[ "$2" != -* ]]; then
+                if [ ! -f "$2" ]; then
+                    echo "Config file not found: $2" >&2
+                    exit 1
+                fi
+                CONFIG_PATH_OVERRIDE="$2"; shift 2
+            else
+                echo "--config requires a file path: --config <file>" >&2
+                exit 1
+            fi
+            ;;
+        --no-config)      NO_CONFIG=1; shift ;;
+        --config-show)    CONFIG_SHOW=1; shift ;;
+        --config-example) uo_config_example; exit 0 ;;
         --git-ssh)        CLI_ACTIONS+=("gitssh_setup|GitHub SSH setup"); shift ;;
         --git-ssh-status) CLI_ACTIONS+=("gitssh_status|GitHub SSH status"); shift ;;
         --github-update)  CLI_ACTIONS+=("github_update_apps|GitHub updates"); shift ;;
@@ -334,6 +373,17 @@ while [ $# -gt 0 ]; do
             ;;
     esac
 done
+
+# ── Configuration file ──────────────────────────────────────────────────────────
+# Loaded once, after parsing: explicit CLI flags already set their CLI_*
+# markers, so the config only fills the gaps (defaults < config < env < CLI).
+# --config-show is a read-only introspection mode: load, print, exit.
+if [ "$CONFIG_SHOW" = "1" ]; then
+    uo_config_load
+    uo_config_show
+    exit 0
+fi
+uo_config_load
 
 # Cross-option validation
 if [ "$PURGE_DATA" = "1" ] && [ -z "$CLEANUP_TARGET" ]; then
