@@ -15,7 +15,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # ── Load modules ───────────────────────────────────────────────────────────────
-for _lib in common network system fixnet packages targz appmgmt snapflatpak recovery report github doctor disk gitssh menus; do
+for _lib in common network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk gitssh undo profile menus; do
     _libfile="$SCRIPT_DIR/lib/${_lib}.sh"
     if [ -f "$_libfile" ]; then
         # shellcheck source=/dev/null
@@ -45,7 +45,23 @@ INSTALL_TARGZ_NAME=""
 GITHUB_INSTALL_REPO=""
 GITHUB_INSTALL_NAME=""
 GITHUB_REMOVE_TARGET=""
+PROFILE_NAME=""
+JSON_MODE=0
 ORIG_ARGS="$*"   # original arguments for logging
+
+# ───────────────────────────────────────────────────────────────────────────────
+# run_cli_profile() — dispatch --profile from the queued action list
+#
+# The parser stores the validated profile name in PROFILE_NAME (same pattern
+# as CLEANUP_TARGET / GITHUB_INSTALL_REPO) so the dispatcher keeps calling
+# single-word functions only.
+#
+# Globals:   PROFILE_NAME (read)
+# Returns:   exit status of apply_profile
+# ───────────────────────────────────────────────────────────────────────────────
+run_cli_profile() {
+    apply_profile "$PROFILE_NAME"
+}
 
 # ───────────────────────────────────────────────────────────────────────────────
 # usage() — Print the full help text to stdout
@@ -75,6 +91,7 @@ Options:
                       print what would change without changing anything
 
   --report            system status report (read-only)
+  --json              (with --report) machine-readable JSON output
   --disk              disk usage analysis (read-only)
   --disk-clean        disk cleanup
 
@@ -97,6 +114,10 @@ Options:
   --system            system & memory optimizations
   --security          sudo timeout + polkit settings
   --time              sync system time
+  --undo              reverse all optimizations this tool made (drop-in
+                      files, fstab backup, disabled services, DNS/powersave)
+  --profile NAME      apply a curated preset: laptop | server | gaming | minimal
+                      (a safe, profile-specific subset of the optimizer steps)
   --fixnet            create the fixnet script
   --fixnet-run        run fixnet (network repair)
   --test              network tests (ping, DNS, speed)
@@ -128,6 +149,9 @@ Examples:
   uo --update -y
   uo --cleanup abdownloadmanager --purge-data
   uo --optimize --dry-run -y
+  uo --profile laptop   # one safe preset for the whole scenario
+  uo --undo             # reverse everything the optimizer changed
+  uo --report --json | jq '.summary'   # pipe the report into scripts
 EOF
 }
 
@@ -162,6 +186,7 @@ while [ $# -gt 0 ]; do
         --no-color)       RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; MAGENTA=''; BOLD=''; NC=''; shift ;;
         --no-log)         LOG_ENABLED=0; shift ;;
         --report)         CLI_ACTIONS+=("system_report|system status report"); shift ;;
+        --json)           JSON_MODE=1; shift ;;
         --git-ssh)        CLI_ACTIONS+=("gitssh_setup|GitHub SSH setup"); shift ;;
         --git-ssh-status) CLI_ACTIONS+=("gitssh_status|GitHub SSH status"); shift ;;
         --github-update)  CLI_ACTIONS+=("github_update_apps|GitHub updates"); shift ;;
@@ -240,6 +265,26 @@ while [ $# -gt 0 ]; do
         --system)         CLI_ACTIONS+=("all_system_opts|system optimization"); shift ;;
         --security)       CLI_ACTIONS+=("all_security_opts|security settings"); shift ;;
         --time)           CLI_ACTIONS+=("fix_time|time sync"); shift ;;
+        --undo)           CLI_ACTIONS+=("undo_all_optimizations|undo optimizations"); shift ;;
+        --profile)
+            if [ $# -ge 2 ]; then
+                if [ -n "$PROFILE_NAME" ]; then
+                    echo "--profile can only be given once." >&2
+                    exit 1
+                fi
+                if ! profile_is_valid "$2"; then
+                    echo "Unknown profile: $2" >&2
+                    echo "  ℹ Valid profiles: ${PROFILE_NAMES[*]}" >&2
+                    exit 1
+                fi
+                PROFILE_NAME="$2"
+                CLI_ACTIONS+=("run_cli_profile|$2 profile")
+                shift 2
+            else
+                echo "--profile requires a name: --profile laptop|server|gaming|minimal" >&2
+                exit 1
+            fi
+            ;;
         --fixnet)         CLI_ACTIONS+=("create_fixnet_script|create fixnet"); shift ;;
         --fixnet-run)     CLI_ACTIONS+=("run_fixnet|run fixnet"); shift ;;
         --test)           CLI_ACTIONS+=("all_tests|network tests"); shift ;;
@@ -273,6 +318,18 @@ if [ "$PURGE_DATA" = "1" ] && [ -z "$CLEANUP_TARGET" ]; then
     exit 1
 fi
 
+# --json is a strict output format for exactly one flow: --report. Every other
+# action prints human-only text (banners, confirmations, progress), so a mixed
+# invocation would produce a corrupt document — rejected instead.
+if [ "$JSON_MODE" = "1" ]; then
+    if [ ${#CLI_ACTIONS[@]} -ne 1 ] || [ "${CLI_ACTIONS[0]%%|*}" != "system_report" ]; then
+        echo "--json is only valid together with --report." >&2
+        exit 1
+    fi
+    # Pure-JSON stdout: colors are never wanted inside a JSON document
+    RED=''; GREEN=''; YELLOW=''; BLUE=''; CYAN=''; MAGENTA=''; BOLD=''; NC=''
+fi
+
 # --dry-run only covers the optimization flows (the sudo wrapper intercepts them).
 # Flows that remove or install apps also run plain rm/mv/tar commands that the
 # wrapper cannot intercept, so they are rejected instead of silently executing.
@@ -283,36 +340,49 @@ if [ "$DRY_RUN" = "1" ]; then
         exit 1
     fi
     if [ ${#CLI_ACTIONS[@]} -eq 0 ]; then
-        echo "--dry-run requires an action: --optimize, --network, --system, --security or --time." >&2
+        echo "--dry-run requires an action: --optimize, --network, --system, --security, --time, --undo or --profile." >&2
         exit 1
     fi
     for cli_action in "${CLI_ACTIONS[@]}"; do
-        case "${cli_action%%|*}" in
-            all_network_opts|all_system_opts|all_security_opts|fix_time|\
+        # The queued action is "function [arg]|label" — only the function
+        # word matters here (e.g. "apply_profile laptop")
+        cli_fn="${cli_action%%|*}"
+        cli_fn="${cli_fn%% *}"
+        case "$cli_fn" in
+            all_network_opts|all_system_opts|all_security_opts|fix_time|undo_all_optimizations|apply_profile|run_cli_profile|\
             disable_wifi_powersave|set_dns|enable_bbr|set_mtu|optimize_tcp|\
             optimize_memory|set_noatime|disable_extra_services|install_preload|\
             install_tlp|limit_journal|extend_sudo_timeout|setup_polkit_rule) ;;
             *)
-                echo "--dry-run is only valid with --optimize, --network, --system, --security or --time." >&2
+                echo "--dry-run is only valid with --optimize, --network, --system, --security, --time, --undo or --profile." >&2
                 exit 1
                 ;;
         esac
     done
+    unset cli_fn
 fi
 
 # ── CLI mode ─────────────────────────────────────────────────────────────────────
 if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TARGZ_FILE" ] || [ -n "$GITHUB_INSTALL_REPO" ] || [ -n "$GITHUB_REMOVE_TARGET" ]; then
     CLI_MODE=1
     log_session_start "cli" "$ORIG_ARGS"
-    trap 'log_session_end; print_session_summary' EXIT
-    echo -e "${BOLD}Ubuntu Optimizer & Fixer v${SCRIPT_VERSION} — CLI mode${NC}"
+    trap 'log_session_end; [ "$JSON_MODE" = "1" ] || print_session_summary' EXIT
+    if [ "$JSON_MODE" != "1" ]; then
+        echo -e "${BOLD}Ubuntu Optimizer & Fixer v${SCRIPT_VERSION} — CLI mode${NC}"
+    fi
     if [ "$DRY_RUN" = "1" ]; then
         warn "── DRY RUN: commands are printed, nothing is executed ──"
     fi
-    # Each queued action is "function|label" — dispatch to the function part
+    # Each queued action is "function|label" — dispatch to the function part.
+    # JSON mode swaps the plain-text report for its machine-readable twin.
     for cli_action in "${CLI_ACTIONS[@]}"; do
-        "${cli_action%%|*}"
+        cli_dispatch_fn="${cli_action%%|*}"
+        if [ "$JSON_MODE" = "1" ] && [ "$cli_dispatch_fn" = "system_report" ]; then
+            cli_dispatch_fn="system_report_json"
+        fi
+        "$cli_dispatch_fn"
     done
+    unset cli_dispatch_fn
     if [ -n "$INSTALL_TARGZ_FILE" ]; then
         install_targz_cli "$INSTALL_TARGZ_FILE" "$INSTALL_TARGZ_NAME"
     fi
@@ -325,13 +395,18 @@ if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TA
     if [ -n "$CLEANUP_TARGET" ]; then
         cleanup_app "$CLEANUP_TARGET"
     fi
-    echo ""
-    # Exit code 1 when any step failed — so scripts/cron can detect it
-    if [ "$LOG_FAIL_COUNT" -gt 0 ]; then
-        warn "Finished — some steps had errors; see the log for details."
+    # Human-only closing lines stay off the stdout stream in JSON mode
+    if [ "$JSON_MODE" != "1" ]; then
+        echo ""
+        # Exit code 1 when any step failed — so scripts/cron can detect it
+        if [ "$LOG_FAIL_COUNT" -gt 0 ]; then
+            warn "Finished — some steps had errors; see the log for details."
+            exit 1
+        fi
+        success "Finished — all requested tasks completed."
+    elif [ "$LOG_FAIL_COUNT" -gt 0 ]; then
         exit 1
     fi
-    success "Finished — all requested tasks completed."
     exit 0
 fi
 

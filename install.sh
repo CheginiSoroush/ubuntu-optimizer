@@ -61,7 +61,7 @@ COMPLETION_SRC="$SCRIPT_DIR/completions/uo"
 COMPLETION_DIR="$HOME/.local/share/bash-completion/completions"
 COMPLETION_DST="$COMPLETION_DIR/uo"
 
-REQUIRED_MODULES=(common network system fixnet packages targz appmgmt snapflatpak recovery report github doctor disk gitssh menus)
+REQUIRED_MODULES=(common network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk gitssh undo profile menus)
 
 # ───────────────────────────────────────────────────────────────────────────────
 # version() — print the project version (vX.Y) from lib/common.sh

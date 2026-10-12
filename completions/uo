@@ -31,6 +31,10 @@ _uo() {
 
     # Value completion for options that take an argument
     case "$prev" in
+        --profile)
+            mapfile -t COMPREPLY < <(compgen -W "laptop server gaming minimal" -- "$cur")
+            return 0
+            ;;
         --cleanup)
             # Tracked app names from both databases (GitHub + tar.gz registry)
             local names
@@ -52,10 +56,10 @@ _uo() {
     # Option completion — while typing a flag, or right after the command
     local opts="
         -h --help -V --version -y --yes --no-color --no-log --dry-run
-        --report --git-ssh --git-ssh-status --doctor --disk --disk-clean
+        --report --json --git-ssh --git-ssh-status --doctor --disk --disk-clean
         --github-install --github-update --github-list --github-remove
         --install-targz
-        --optimize --network --system --security --time
+        --optimize --network --system --security --time --undo --profile
         --fixnet --fixnet-run --test
         --update --update-apt --update-snap --update-flatpak --update-targz
         --list-apps --cleanup --purge-data --snap-clean

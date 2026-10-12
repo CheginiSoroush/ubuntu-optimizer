@@ -8,14 +8,14 @@
 **One command. A faster, cleaner, healthier Ubuntu.**
 
 The all-in-one optimization, app-management and repair toolkit —
-16 friendly menu tools, 35+ CLI options, honest dry-run previews.
+17 friendly menu tools, 35+ CLI options, honest dry-run previews.
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.1-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.5-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-38%20%2F%2038-brightgreen)
+![Tests](https://img.shields.io/badge/bats-77%20%2F%2077-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -38,9 +38,9 @@ The all-in-one optimization, app-management and repair toolkit —
 | 🕐 **Time** | chrony sync with an independent emergency fallback |
 | 🛠 **fixnet** | standalone bilingual script that repairs connectivity after a VPN disconnect — restores resolv.conf and *waits* for the network to come back |
 | 💿 **Disk** | usage analysis by category + one-command cleanup (apt cache, journal, old kernels, snap revisions, crash reports) |
-| 📊 **Diagnostics** | ping, DNS, internet-speed tests · read-only system status report |
+| 📊 **Diagnostics** | ping, DNS, internet-speed tests · read-only system status report · **machine-readable JSON** (`--report --json`, v7.5) for cron & dashboards |
 | 📦 **Install** | deb packages · **smart tar.gz/tgz install** (main-executable detection, architecture check, automatic dependencies) · AppImage |
-| 🐙 **GitHub Releases** | install / update / remove apps — automatic architecture-aware asset pick |
+| 🐙 **GitHub Releases** | install / update / remove apps — automatic architecture-aware asset pick · **SHA-256 checksum verification** when the release ships one (v7.4) |
 | 🧹 **Full removal** | completely remove any app from **any source** (apt / snap / flatpak / tar.gz / manual) — including user data |
 | 🔄 **Updates** | apt + snap + flatpak + tar.gz + GitHub in one command, fully automatic with `-y` |
 | 🚑 **Recovery** | fix broken packages, reinstall the desktop environment |
@@ -63,6 +63,7 @@ source ~/.bashrc      # once — new terminals pick it up automatically
 ```bash
 uo                    # interactive menu
 uo --report           # read-only system report
+uo --report --json | jq '.summary'   # same report, machine-readable (v7.5)
 uo --optimize --dry-run -y   # preview everything before changing anything
 ```
 
@@ -83,6 +84,26 @@ uo --optimize --dry-run -y   # preview everything before changing anything
 
 ---
 
+## ⚡ Profiles — one flag for the whole scenario
+
+Instead of memorizing steps, pick the situation you are in — the profile runs
+a safe, curated subset of the optimizer (plan shown first, reversible with
+`uo --undo`):
+
+| Profile | Runs | Deliberately skips |
+|---|---|---|
+| `laptop` | memory · noatime · TLP · BBR/TCP · Wi-Fi powersave off · journal cap | preload |
+| `server` | memory · noatime · journal cap · BBR/TCP · unneeded services off | TLP, Wi-Fi steps, preload |
+| `gaming` | memory · BBR/TCP · Wi-Fi powersave off · journal cap | noatime, services, installs |
+| `minimal` | memory · journal cap · unneeded services off | everything else — installs nothing |
+
+```bash
+uo --profile laptop --dry-run -y   # preview the exact plan first
+uo --profile server -y             # apply it hands-free
+```
+
+---
+
 ## 🌐 Website — live on GitHub Pages
 
 The project ships with a bilingual landing page (فارسی / English) — RTL/LTR aware,
@@ -100,7 +121,7 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 
 ---
 
-## 🖥 The menu — 16 tools, zero memorization
+## 🖥 The menu — 17 tools, zero memorization
 
 | # | Tool | What it does |
 |:--:|---|---|
@@ -108,18 +129,19 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 | 2 | 💾 System &amp; memory optimization | swappiness, noatime, preload, TLP, journal limit |
 | 3 | 🔐 Security &amp; passwords | sudo timeout + polkit settings |
 | 4 | 🕐 Time &amp; NTP | sync the system clock |
-| 5 | 🛠 Create &amp; run fixnet | build the standalone network-repair script |
-| 6 | 📊 Network &amp; speed tests | ping, DNS, speed, full network info |
-| 7 | 📦 Install packages &amp; apps | deb · tar.gz · GitHub Releases · AppImage |
-| 8 | 🧹 Manage &amp; fully remove apps | any app, from any source, incl. user data |
-| 9 | 🔄 Update apps | all sources in one go |
-| 10 | 🧩 snap &amp; flatpak management | list, install, remove, clean revisions |
-| 11 | 🚑 System recovery &amp; rescue | broken packages, desktop reinstall |
-| 12 | ☠ Advanced tools *(dangerous)* | clearly separated, explicit warnings |
-| 13 | 📜 Activity log | what happened, when |
-| 14 | 📊 System status report | read-only health &amp; optimization snapshot |
-| 15 | 📊 Disk space analysis | where your gigabytes went |
-| 16 | 🧹 Disk cleanup | reclaim them |
+| 5 | ⚡ Optimization profiles | curated presets: laptop · server · gaming · minimal |
+| 6 | 🛠 Create &amp; run fixnet | build the standalone network-repair script |
+| 7 | 📊 Network &amp; speed tests | ping, DNS, speed, full network info |
+| 8 | 📦 Install packages &amp; apps | deb · tar.gz · GitHub Releases · AppImage |
+| 9 | 🧹 Manage &amp; fully remove apps | any app, from any source, incl. user data |
+| 10 | 🔄 Update apps | all sources in one go |
+| 11 | 🧩 snap &amp; flatpak management | list, install, remove, clean revisions |
+| 12 | 🚑 System recovery &amp; rescue | broken packages, desktop reinstall, `--undo` |
+| 13 | ☠ Advanced tools *(dangerous)* | clearly separated, explicit warnings |
+| 14 | 📜 Activity log | what happened, when |
+| 15 | 📊 System status report | read-only health &amp; optimization snapshot |
+| 16 | 📊 Disk space analysis | where your gigabytes went |
+| 17 | 🧹 Disk cleanup | reclaim them |
 
 ---
 
@@ -129,8 +151,10 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 |---|---|
 | `uo --optimize` | all network + system optimizations |
 | `uo --network` / `--system` / `--security` / `--time` | just one area |
-| `uo --dry-run` | **preview** commands without executing (with the five above) |
-| `uo --report` · `--disk` · `--disk-clean` | status report · disk analysis · cleanup |
+| `uo --undo` | **reverse everything** the optimizer changed — one command |
+| `uo --profile laptop\|server\|gaming\|minimal` | apply a curated preset for the scenario |
+| `uo --dry-run` | **preview** commands without executing (with the six above) |
+| `uo --report` · `--report --json` · `--disk` | status report · JSON report for automation · disk analysis · cleanup |
 | `uo --doctor` | health check &amp; repair of all installed/tracked apps |
 | `uo --github-install OWNER/REPO [NAME]` | install an app from the latest GitHub release |
 | `uo --github-update` · `--github-list` · `--github-remove` | update · list · remove GitHub apps |
@@ -198,7 +222,18 @@ This tool changes system settings — so it is built to be **reversible and hone
 - 📖 **Read-only mode** — `--report` and `--disk` never touch anything.
 
 <details>
-<summary><b>↩️ Undoing changes</b> — every optimization is a removable drop-in file</summary>
+<summary><b>↩️ Undoing changes</b> — one command, or every file by hand</summary>
+
+**The easy way — v7.2 and later:**
+
+```bash
+uo --undo                 # shows the plan, asks for confirmation, then reverses:
+                          # drop-in files, fstab backup, disabled services,
+                          # DNS / Wi-Fi power management overrides
+uo --undo --dry-run -y    # preview the plan first
+```
+
+**The manual way (all versions):**
 
 ```bash
 # Kernel/network parameters (BBR, swappiness, TCP…)
@@ -298,12 +333,15 @@ ubuntu-optimizer/
 │   ├── appmgmt.sh             ← full app removal from all sources
 │   ├── snapflatpak.sh         ← snap/flatpak management & updates
 │   ├── recovery.sh            ← system recovery + advanced tools
+│   ├── undo.sh                ← one-command reversal of all optimizations
+│   ├── profile.sh             ← curated presets: laptop / server / gaming / minimal
 │   ├── report.sh              ← system status report
+│   ├── jsonreport.sh          ← the same report as one JSON document
 │   ├── doctor.sh              ← app health check & repair
 │   ├── disk.sh                ← disk space analysis & cleanup
 │   ├── gitssh.sh              ← GitHub SSH setup
 │   └── menus.sh               ← menu engine & all menus
-├── test/                      ← bats unit tests (common, appmgmt, syntax)
+├── test/                      ← bats unit tests (common, appmgmt, github, undo, profile, jsonreport, syntax)
 ├── .github/workflows/
 │   ├── lint.yml               ← CI: shellcheck + syntax + bats on every push
 │   └── website.yml            ← CI: build & publish the website to GitHub Pages
@@ -320,9 +358,9 @@ ubuntu-optimizer/
 
 | Gate | Status |
 |---|---|
-| `bash -n` syntax check | ✅ all 18 shell files |
+| `bash -n` syntax check | ✅ all 21 shell files |
 | ShellCheck (strict) | ✅ zero findings — enforced in CI |
-| bats unit tests | ✅ 38 / 38 passing |
+| bats unit tests | ✅ 77 / 77 passing |
 | `install.sh --check` | ✅ self-health verification built in |
 | GitHub Actions CI | ✅ every push & pull request |
 

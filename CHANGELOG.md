@@ -4,6 +4,106 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.5.0]
+
+### Added
+- **Machine-readable JSON report: `uo --report --json`** (new
+  `lib/jsonreport.sh` module): the read-only system status report is now also
+  emitted as a single valid JSON document — built with pure Bash parameter
+  expansion, no jq/python dependency on the machine that produces it.
+- The document mirrors the plain-text report one-to-one (host, memory, disks,
+  failed services, optimization status, network, top memory consumers, last
+  logged events) but in automation-friendly form: sizes in raw bytes, real
+  JSON booleans, `null` for unavailable values, load averages as numbers and
+  a compact top-level `summary` block with a `good` / `attention` / `critical`
+  health verdict, optimization score, RAM/swap percentages and disk warnings.
+- **Strict purity guarantees:** the CLI banner, the closing summary and every
+  human-only line are suppressed in JSON mode, colors are force-disabled and
+  the exit code still reports failure to scripts (`0` ok / `1` errors) —
+  the stream can be piped straight into `jq`, cron mail or a dashboard.
+- `--json` is strictly validated: only valid together with `--report`; any
+  other combination is rejected with a clear error instead of emitting a
+  corrupt document.
+- Strings are escaped by a dedicated `_json_escape` helper (quotes,
+  backslashes, newlines, control characters) and all numeric fields pass
+  through sanitizer helpers, so a tool changing its output format can never
+  inject invalid JSON.
+- 13 new bats tests (`test/jsonreport.bats`, fully offline): JSON validity
+  against python3/jq, required keys, status verdict, version echo, counter
+  consistency and the escape/sanitizer helpers — 77 total.
+
+## [7.4.0]
+
+### Added
+- **SHA-256 checksum verification for GitHub Releases installs** (new
+  `gh_verify_checksum` and helpers in `lib/github.sh`): when a release ships
+  a checksum file — `checksums.txt`, goreleaser's `<project>_checksums.txt`,
+  `SHA256SUMS`, `<file>.sha256` / `.sha256sum` / `.sha256sum.txt` or
+  `<file>.dgst` — the downloaded asset is verified against it before
+  anything is installed. Three checksum-file formats are parsed
+  (`sha256sum -c` lists, OpenSSL `.dgst` output and bare single-hash files).
+- A **checksum mismatch aborts the install** and deletes the download — a
+  tampered or truncated asset can never reach the system through
+  `--github-install` or the update flow (both go through the same verified
+  download path).
+- Verification is graceful by design: releases without any checksum file, or
+  with a checksum file that does not list the picked asset (multi-platform
+  releases), install as before with an explanatory message. A bare-hash
+  fallback can never pick another file's hash from a name-based list.
+- `UO_SKIP_CHECKSUM=1` escape hatch for broken upstream releases (prints a
+  warning; the check stays on by default).
+- 13 new bats tests (`test/github.bats`) covering checksum-asset detection,
+  all three hash-file formats, multi-file lists, malformed hashes and the
+  no-entry regression — 64 total.
+
+## [7.3.0]
+
+### Added
+- `uo --profile laptop|server|gaming|minimal` (new `lib/profile.sh` module and
+  main-menu entry 5 "Optimization profiles"): curated presets that run a safe,
+  scenario-specific subset of the existing optimizer steps.
+  - `laptop` — memory, noatime, TLP, BBR/TCP, Wi-Fi power management off,
+    journal cap (no preload).
+  - `server` — memory, noatime, journal cap, BBR/TCP, unneeded services off
+    (no TLP, no Wi-Fi steps, no preload).
+  - `gaming` — memory, BBR/TCP, Wi-Fi power management off, journal cap
+    (no fstab edit, no services, installs nothing).
+  - `minimal` — memory, journal cap, unneeded services off (installs nothing).
+- `profile_steps()` is the single source of truth for profile composition;
+  the intent and the numbered plan are printed and confirmed before anything
+  runs, `--dry-run` is fully supported, and every step reuses the battle-tested
+  optimizer functions (including their own confirmations and warnings).
+  Profiles are reversible with `uo --undo`.
+- 7 new bats tests (`test/profile.bats`) pinning name validation and the exact
+  composition of every profile — 51 total.
+
+### Changed
+- `install.sh` module check and bash completion cover `--profile` (with value
+  completion for the four profile names).
+
+## [7.2.0]
+
+### Added
+- `uo --undo` (new `lib/undo.sh` module, also in the recovery menu): reverses
+  every optimization the tool applied in one command. The plan is detected
+  read-only first and shown before anything runs — confirmation by default
+  (`-y` auto-confirms), full `--dry-run` support. The undo covers: the sysctl
+  drop-in (removed, defaults reloaded with `sysctl --system`), the journald
+  cap, the sudo timeout file, the polkit rule, `/etc/fstab` (restored from
+  the automatic backup only when it matches the expected noatime edit, so
+  later manual edits are never lost), the disabled services
+  (cups-browsed/whoopsie/avahi-daemon are re-enabled with `--now`) and the
+  NetworkManager overrides (DNS back to automatic, Wi-Fi power management
+  back to the connection default — with the same SSH warning as the
+  optimizers). Packages installed along the way (preload, tlp, chrony) are
+  deliberately **left in place** and only reported with a removal hint.
+- 6 new bats tests (`test/undo.bats`) for the undo function surface and the
+  fstab root-line detector that guards the backup restore — 44 total.
+
+### Changed
+- `install.sh` module check now covers `lib/undo.sh` (`REQUIRED_MODULES`).
+- bash completion lists `--undo`.
+
 ## [7.1.0]
 
 ### Added

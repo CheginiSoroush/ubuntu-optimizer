@@ -4,9 +4,10 @@
 # ───────────────────────────────────────────────────────────────────────────────
 #  Install, update, list and remove apps directly from GitHub Releases:
 #  authenticate sudo up front, fetch the latest release, pick the best asset
-#  automatically, download into a temp dir, install, register in github.db
-#  and clean up. Updates ask one question per app; after confirmation
-#  everything else is automatic.
+#  automatically, download into a temp dir, verify the SHA-256 checksum when
+#  the release ships one, install, register in github.db and clean up.
+#  Updates ask one question per app; after confirmation everything else is
+#  automatic.
 #
 #  Reached from the “Install Packages & Apps”, “Manage & Fully Remove Apps”
 #  and “Update Apps” menus, and from the CLI flags --github-install
@@ -290,6 +291,154 @@ gh_pick_asset() {
     return 0
 }
 
+# ── SHA-256 verification of the downloaded asset ───────────────────────────────
+#  Supply-chain check: when a release ships a checksum file (checksums.txt,
+#  SHA256SUMS, fzf_checksums.txt, <file>.sha256 / .sha256sum / .dgst, ...),
+#  the downloaded asset is verified against it before anything is installed.
+#  A mismatch aborts the install and deletes the download. Releases without
+#  any checksum file simply continue (with an info line). The check can be
+#  skipped explicitly with UO_SKIP_CHECKSUM=1 for broken releases.
+
+# ───────────────────────────────────────────────────────────────────────────────
+# gh_is_checksum_asset() — does this release-asset name look like a checksum?
+#
+# Name-based detection (case-insensitive) covering the common conventions:
+# checksums.txt / <project>_checksums.txt (goreleaser), SHA256SUMS,
+# <file>.sha256, <file>.sha256sum, <file>.sha256sum.txt and <file>.dgst.
+#
+# Arguments: $1 — asset file name
+# Returns:   0 — the name looks like a checksum file
+#            1 — anything else (installable payload)
+# ───────────────────────────────────────────────────────────────────────────────
+gh_is_checksum_asset() {   # $1 = file name (any case)
+    local low=${1,,}
+    case "$low" in
+        *checksums*|sha256sums*|*.sha256|*.sha256sum|*.sha256sum.txt|*.dgst) return 0 ;;
+    esac
+    return 1
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# gh_extract_expected_hash() — pull the expected SHA-256 for a file from a
+# checksum file
+#
+# Three formats are understood, tried in order:
+#   1) sha256sum -c style:  "<64-hex>  <name>"  or  "<64-hex> *<name>"
+#      (exact name match, binary-marker asterisk stripped)
+#   2) any line that mentions the file name and carries a 64-hex token —
+#      covers OpenSSL ".dgst" output like "SHA2-256(<name>)= <hash>"
+#   3) a lone 64-hex token in the whole file (bare-hash ".sha256" files)
+#
+# Globals:   none
+# Arguments: $1 — checksum file path
+#            $2 — target file name to look up
+# Returns:   0 — prints the expected hash (64 hex chars, any case)
+#            1 — the file has no usable entry for $2
+# ───────────────────────────────────────────────────────────────────────────────
+gh_extract_expected_hash() {   # $1=checksum file  $2=target basename
+    local ck="$1" target="$2" hash=""
+
+    # 1) sha256sum format with exact name match
+    hash=$(awk -v f="$target" '
+        NF >= 2 {
+            fn = $2; sub(/^\*/, "", fn)
+            if (fn == f && $1 ~ /^[0-9a-fA-F]{64}$/) { print $1; exit }
+        }' "$ck" 2>/dev/null)
+
+    # 2) the target name is on the line and a 64-hex token is present
+    if [ -z "$hash" ]; then
+        hash=$(awk -v f="$target" '
+            index($0, f) {
+                n = split($0, toks, /[^0-9a-fA-F]+/)
+                for (i = 1; i <= n; i++)
+                    if (toks[i] ~ /^[0-9a-fA-F]{64}$/) { print toks[i]; exit }
+            }' "$ck" 2>/dev/null)
+    fi
+
+    # 3) a single 64-hex token in the whole file (bare-hash style) — only
+    #    when the file carries nothing else: if it holds non-hex text (a
+    #    sha256sum list or a .dgst file), it simply has no entry for the
+    #    target and falling through would risk picking ANOTHER file's hash
+    if [ -z "$hash" ]; then
+        if [ -n "$(sed 's/[0-9a-fA-F]//g; s/[[:space:]]//g' "$ck" 2>/dev/null)" ]; then
+            return 1
+        fi
+        hash=$(grep -Eo '[0-9a-fA-F]{64}' "$ck" 2>/dev/null | sort -u)
+        if [ "$(printf '%s\n' "$hash" | grep -c .)" != "1" ]; then
+            hash=""
+        fi
+    fi
+
+    [ -n "$hash" ] || return 1
+    printf '%s\n' "$hash"
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# gh_verify_checksum() — verify a downloaded release asset against the
+# release's own checksum file
+#
+# Looks for a checksum asset among GH_URLS, downloads the first one into the
+# temp work dir, extracts the expected hash for the target file and compares
+# it (case-insensitively) with sha256sum. On a mismatch the downloaded file
+# must not be used: the caller is expected to abort and clean up. When the
+# release ships no checksum file, or a checksum file without an entry for
+# this particular file (multi-file releases), verification is skipped with a
+# warning — never a hard failure. UO_SKIP_CHECKSUM=1 disables the check.
+#
+# Globals:   GH_URLS — read; all asset URLs of the current release
+#            UO_SKIP_CHECKSUM — optional env escape hatch ("1" skips)
+# Arguments: $1 — target file name (basename of the download)
+#            $2 — target file path (the downloaded asset)
+#            $3 — temp work dir the checksum file may be downloaded into
+# Returns:   0 — verified OK, or verification not possible (skip)
+#            1 — CHECKSUM MISMATCH — the asset must not be installed
+# ───────────────────────────────────────────────────────────────────────────────
+gh_verify_checksum() {   # $1=target basename $2=target path $3=work dir
+    local base="$1" target="$2" workdir="$3"
+
+    if [ "${UO_SKIP_CHECKSUM:-}" = "1" ]; then
+        warn "Checksum verification skipped (UO_SKIP_CHECKSUM=1)."
+        return 0
+    fi
+
+    local ck_url ck_name expected actual
+    for ck_url in "${GH_URLS[@]}"; do
+        ck_name=$(basename "$ck_url")
+        [ "$ck_name" = "$base" ] && continue
+        gh_is_checksum_asset "$ck_name" || continue
+
+        info "Verifying checksum with $ck_name ..."
+        if ! curl -fsSL --connect-timeout 15 --max-time 60 -o "$workdir/$ck_name" "$ck_url"; then
+            warn "Checksum file could not be downloaded — verification skipped."
+            continue
+        fi
+
+        if ! expected=$(gh_extract_expected_hash "$workdir/$ck_name" "$base"); then
+            # This checksum file does not list our file (multi-asset releases
+            # often ship several per-platform checksum files) — try the next one
+            continue
+        fi
+
+        if ! actual=$(sha256sum "$target" 2>/dev/null | awk '{print $1}'); then
+            warn "sha256sum failed — verification skipped."
+            return 0
+        fi
+
+        if [ "${expected,,}" = "${actual,,}" ]; then
+            success "Checksum verified — the download is intact."
+            return 0
+        fi
+
+        failure "CHECKSUM MISMATCH for $base"
+        info "  expected: $expected"
+        info "  actual:   $actual"
+        return 1
+    done
+
+    info "This release ships no matching checksum file — verification skipped."
+    return 0
+}
+
 # ── Download, install, register and clean up ───────────────────────────────────
 
 # ───────────────────────────────────────────────────────────────────────────────
@@ -341,6 +490,16 @@ gh_download_and_install() {   # $1=url $2=name $3=repo $4=tag
         return 1
     fi
     success "Download complete."
+
+    # Supply-chain check — verify the SHA-256 checksum when the release
+    # ships one (checksums.txt, SHA256SUMS, <file>.sha256, .dgst, ...).
+    # A mismatch deletes the download and aborts before anything runs.
+    if ! gh_verify_checksum "$base" "$tmpfile" "$d"; then
+        rm -rf "$d"
+        failure "Install aborted — the download did not match the release checksum."
+        info "The file was deleted. Re-check the release or report it upstream."
+        return 1
+    fi
 
     if [ "$ext" = ".AppImage" ]; then
         info "Installing AppImage..."

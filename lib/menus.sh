@@ -259,7 +259,24 @@ menu_updates() {
 }
 
 # ───────────────────────────────────────────────────────────────────────────────
-# menu_recovery() — submenu 11: System Recovery & Rescue
+# menu_profiles() — submenu 5: Optimization Profiles
+#
+# Curated presets (lib/profile.sh): each runs a safe, scenario-specific
+# subset of the optimizer steps after showing its plan.
+#
+# Arguments: none
+# Returns:   0 — on Back/EOF
+# ───────────────────────────────────────────────────────────────────────────────
+menu_profiles() {
+    menu_loop "⚡ Optimization Profiles" \
+        "Laptop — battery & responsiveness|profile_run_laptop" \
+        "Server — throughput, no desktop extras|profile_run_server" \
+        "Gaming — lowest latency only|profile_run_gaming" \
+        "Minimal — the conservative core|profile_run_minimal"
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# menu_recovery() — submenu 12: System Recovery & Rescue
 #
 # Thin wrapper: renders the submenu via menu_loop; every entry dispatches
 # to its repair function in lib/recovery.sh.
@@ -271,7 +288,8 @@ menu_recovery() {
     menu_loop "🚑 System Recovery & Rescue" \
         "Fix broken packages (apt --fix-broken)|fix_broken" \
         "Reinstall the desktop environment|reinstall_desktop" \
-        "Configure pending packages with dpkg|fix_dpkg_configure"
+        "Configure pending packages with dpkg|fix_dpkg_configure" \
+        "Undo all optimizations (restore defaults)|undo_all_optimizations"
 }
 
 # ───────────────────────────────────────────────────────────────────────────────
@@ -297,9 +315,9 @@ menu_dangerous() {
 #
 # Interactive entry point used when no CLI flags are given. Draws the banner
 # box — the border width (54) matches the printf %-54s lines, so the
-# alignment can never drift — lists the 16 numbered entries plus Exit, and
-# loops until Exit or EOF. Entries 1–12 open the submenus above; 13–16 call
-# show_log, system_report, disk_analyze and disk_cleanup directly.
+# alignment can never drift — lists the 17 numbered entries plus Exit, and
+# loops until Exit or EOF. Entries 1–12 open the submenus above; 13–17 call
+# show_log, system_report, disk_analyze, disk_cleanup and the profile menu.
 #
 # Globals:   SCRIPT_VERSION (read), colour codes from lib/common.sh
 # Arguments: none
@@ -325,24 +343,25 @@ main_menu() {
         echo "   2) 💾 System & memory optimization"
         echo "   3) 🔐 Security & passwords"
         echo "   4) 🕐 Time & NTP"
+        echo "   5) ⚡ Optimization profiles (laptop/server/gaming/minimal)"
         echo ""
         echo -e "${BOLD}   ── Emergency & Diagnostics ──${NC}"
-        echo "   5) 🛠 Create & run fixnet"
-        echo "   6) 📊 Network & speed tests"
+        echo "   6) 🛠 Create & run fixnet"
+        echo "   7) 📊 Network & speed tests"
         echo ""
         echo -e "${BOLD}   ── Applications ──${NC}"
-        echo "   7) 📦 Install packages & apps"
-        echo "   8) 🧹 Manage & fully remove apps"
-        echo "   9) 🔄 Update apps"
-        echo "  10) 🧩 snap & flatpak management"
+        echo "   8) 📦 Install packages & apps"
+        echo "   9) 🧹 Manage & fully remove apps"
+        echo "  10) 🔄 Update apps"
+        echo "  11) 🧩 snap & flatpak management"
         echo ""
         echo -e "${BOLD}   ── System & Info ──${NC}"
-        echo "  11) 🚑 System recovery & rescue"
-        echo "  12) ☠ Advanced tools (dangerous)"
-        echo "  13) 📜 Activity log"
-        echo "  14) 📊 System status report"
-        echo "  15) 📊 Disk space analysis"
-        echo "  16) 🧹 Disk cleanup"
+        echo "  12) 🚑 System recovery & rescue"
+        echo "  13) ☠ Advanced tools (dangerous)"
+        echo "  14) 📜 Activity log"
+        echo "  15) 📊 System status report"
+        echo "  16) 📊 Disk space analysis"
+        echo "  17) 🧹 Disk cleanup"
         echo ""
         echo "   0) Exit"
         echo ""
@@ -355,18 +374,19 @@ main_menu() {
             2) menu_system ;;
             3) menu_security ;;
             4) menu_time ;;
-            5) menu_fixnet ;;
-            6) menu_testing ;;
-            7) menu_packages ;;
-            8) menu_appmgmt ;;
-            9) menu_updates ;;
-            10) menu_snapflat ;;
-            11) menu_recovery ;;
-            12) menu_dangerous ;;
-            13) show_log; press_enter ;;
-            14) system_report; press_enter ;;
-            15) disk_analyze; press_enter ;;
-            16) disk_cleanup; press_enter ;;
+            5) menu_profiles ;;
+            6) menu_fixnet ;;
+            7) menu_testing ;;
+            8) menu_packages ;;
+            9) menu_appmgmt ;;
+            10) menu_updates ;;
+            11) menu_snapflat ;;
+            12) menu_recovery ;;
+            13) menu_dangerous ;;
+            14) show_log; press_enter ;;
+            15) system_report; press_enter ;;
+            16) disk_analyze; press_enter ;;
+            17) disk_cleanup; press_enter ;;
             0) clear; echo -e "${GREEN}Goodbye! 👋${NC}"; exit 0 ;;
             # Invalid user input is not a system error — logged as WARN, not ERROR
             *) warn "Invalid choice"; sleep 1 ;;

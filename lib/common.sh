@@ -13,7 +13,7 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ── Version (single source of truth for the whole project) ─────────────
-readonly SCRIPT_VERSION="7.1"
+readonly SCRIPT_VERSION="7.5"
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 readonly SYSCTL_CONF="/etc/sysctl.d/99-ubuntu-optimizer.conf"
