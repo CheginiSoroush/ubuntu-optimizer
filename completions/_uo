@@ -36,6 +36,8 @@ _uo() {
         '--dry-run[preview what would change without changing anything]'
         '--report[system status report (read-only)]'
         '--json[(with --report) machine-readable JSON output]'
+        '--output[(with --report) write the report to FILE instead of stdout]:file:_files'
+        '--append[(with --output) append instead of overwrite]'
         '--disk[disk usage analysis (read-only)]'
         '--disk-clean[disk cleanup]'
         '--git-ssh[GitHub SSH key setup wizard]'

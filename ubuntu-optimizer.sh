@@ -47,6 +47,8 @@ GITHUB_INSTALL_NAME=""
 GITHUB_REMOVE_TARGET=""
 PROFILE_NAME=""
 JSON_MODE=0
+OUTPUT_FILE=""
+APPEND_MODE=0
 ORIG_ARGS="$*"   # original arguments for logging
 
 # ───────────────────────────────────────────────────────────────────────────────
@@ -92,6 +94,10 @@ Options:
 
   --report            system status report (read-only)
   --json              (with --report) machine-readable JSON output
+  --output FILE       (with --report) write the report to FILE instead of
+                      stdout (JSON + --append produces a JSONL time-series
+                      log that dashboards can tail)
+  --append            (with --output) append instead of overwrite
   --disk              disk usage analysis (read-only)
   --disk-clean        disk cleanup
 
@@ -155,6 +161,10 @@ Examples:
   uo --undo             # reverse everything the optimizer changed
   uo --self-update      # keep the toolkit itself on the latest version
   uo --report --json | jq '.summary'   # pipe the report into scripts
+  uo --report --json --output ~/report.json           # snapshot into a file
+  uo --report --json --append \
+     --output ~/.local/share/ubuntu-optimizer/report-log.jsonl
+  #  → one JSON line per run: a time-series log for dashboards (cron-friendly)
 EOF
 }
 
@@ -190,6 +200,15 @@ while [ $# -gt 0 ]; do
         --no-log)         LOG_ENABLED=0; shift ;;
         --report)         CLI_ACTIONS+=("system_report|system status report"); shift ;;
         --json)           JSON_MODE=1; shift ;;
+        --output)
+            if [ $# -ge 2 ] && [ -n "$2" ] && [[ "$2" != -* ]]; then
+                OUTPUT_FILE="$2"; shift 2
+            else
+                echo "--output requires a file path: --output <file>" >&2
+                exit 1
+            fi
+            ;;
+        --append)         APPEND_MODE=1; shift ;;
         --git-ssh)        CLI_ACTIONS+=("gitssh_setup|GitHub SSH setup"); shift ;;
         --git-ssh-status) CLI_ACTIONS+=("gitssh_status|GitHub SSH status"); shift ;;
         --github-update)  CLI_ACTIONS+=("github_update_apps|GitHub updates"); shift ;;
@@ -322,6 +341,37 @@ if [ "$PURGE_DATA" = "1" ] && [ -z "$CLEANUP_TARGET" ]; then
     exit 1
 fi
 
+# --output is a report-only destination: every other action prints
+# human-only progress that must stay on the terminal. --append only makes
+# sense relative to a file.
+if [ -n "$OUTPUT_FILE" ]; then
+    if [ ${#CLI_ACTIONS[@]} -eq 0 ] || [ "${CLI_ACTIONS[0]%%|*}" != "system_report" ]; then
+        echo "--output is only valid together with --report." >&2
+        exit 1
+    fi
+    if [ "$APPEND_MODE" = "1" ]; then
+        # append: the directory must exist+be writable, and an existing file
+        # must be writable — nothing is truncated here, ever
+        if [ ! -w "$(dirname -- "$OUTPUT_FILE")" ] || \
+           { [ -e "$OUTPUT_FILE" ] && [ ! -w "$OUTPUT_FILE" ]; }; then
+            echo "Cannot write to file: $OUTPUT_FILE" >&2
+            exit 1
+        fi
+    else
+        # overwrite: an existing file must be writable, otherwise its
+        # directory must be (this check replaces the file only at write time)
+        if { [ -e "$OUTPUT_FILE" ] && [ ! -w "$OUTPUT_FILE" ]; } || \
+           [ ! -w "$(dirname -- "$OUTPUT_FILE")" ]; then
+            echo "Cannot write to file: $OUTPUT_FILE" >&2
+            exit 1
+        fi
+    fi
+fi
+if [ "$APPEND_MODE" = "1" ] && [ -z "$OUTPUT_FILE" ]; then
+    echo "--append is only valid together with --output." >&2
+    exit 1
+fi
+
 # --json is a strict output format for exactly one flow: --report. Every other
 # action prints human-only text (banners, confirmations, progress), so a mixed
 # invocation would produce a corrupt document — rejected instead.
@@ -379,14 +429,31 @@ if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TA
     fi
     # Each queued action is "function|label" — dispatch to the function part.
     # JSON mode swaps the plain-text report for its machine-readable twin.
+    # --output redirects the report into a file (>> appends a JSONL series);
+    # everything else keeps printing to the terminal as usual.
     for cli_action in "${CLI_ACTIONS[@]}"; do
         cli_dispatch_fn="${cli_action%%|*}"
         if [ "$JSON_MODE" = "1" ] && [ "$cli_dispatch_fn" = "system_report" ]; then
             cli_dispatch_fn="system_report_json"
         fi
-        "$cli_dispatch_fn"
+        if [ -n "$OUTPUT_FILE" ] && { [ "$cli_dispatch_fn" = "system_report_json" ] || [ "$cli_dispatch_fn" = "system_report" ]; }; then
+            if [ "$APPEND_MODE" = "1" ]; then
+                "$cli_dispatch_fn" >> "$OUTPUT_FILE"
+            else
+                "$cli_dispatch_fn" > "$OUTPUT_FILE"
+            fi
+        else
+            "$cli_dispatch_fn"
+        fi
     done
     unset cli_dispatch_fn
+    if [ -n "$OUTPUT_FILE" ]; then
+        if [ "$JSON_MODE" = "1" ]; then
+            echo "Report saved to: $OUTPUT_FILE" >&2
+        else
+            echo "ℹ Report saved to: $OUTPUT_FILE"
+        fi
+    fi
     if [ -n "$INSTALL_TARGZ_FILE" ]; then
         install_targz_cli "$INSTALL_TARGZ_FILE" "$INSTALL_TARGZ_NAME"
     fi

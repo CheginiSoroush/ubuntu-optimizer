@@ -4,6 +4,36 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.7.0]
+
+### Added
+- **Report-to-file output: `uo --report --output FILE`** — the report (plain
+  text or JSON) can now be written straight into a file instead of stdout,
+  with writability checked up front (`Cannot write to file` before anything
+  runs — an unwritable path never truncates or creates a partial file).
+- **JSONL time-series logging: `uo --report --json --append --output FILE`** —
+  append mode turns repeated runs into a self-describing JSON Lines log: one
+  complete report document (each with its own `generated_at` timestamp) per
+  line, ready for `cron` jobs and dashboard tailing:
+
+  ```bash
+  # /etc/cron.d or crontab — a health snapshot every 15 minutes
+  */15 * * * * uo --report --json --append --output ~/.local/share/ubuntu-optimizer/report-log.jsonl
+  ```
+
+- Append never truncates (existing content — even non-report lines — is
+  preserved), while the default overwrite mode keeps snapshot files clean
+  (two runs → exactly one document). The file path is confirmed with
+  `Report saved to: …` on stdout in text mode and on stderr in JSON mode, so
+  piped JSON streams stay pure.
+- Validation mirrors the existing flag style: `--output` only together with
+  `--report`, `--append` only together with `--output`; both completions
+  (bash + zsh) learn the new flags, `--output` offers file completion.
+- 9 new bats tests (`test/reportfile.bats`, fully offline, running the real
+  CLI in an isolated temp tree): all validation rejections, valid-JSON +
+  pure-stdout guarantees, truncate vs append semantics, per-line JSONL
+  validity and monotonic `generated_at` ordering — 104 total.
+
 ## [7.6.0]
 
 ### Added
