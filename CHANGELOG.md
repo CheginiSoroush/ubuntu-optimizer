@@ -4,6 +4,47 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.6.0]
+
+### Added
+- **`uo --self-update` — the toolkit updates itself** (new `lib/selfupdate.sh`
+  module): a version check against the official repository
+  (`raw.githubusercontent.com`, default branch detected automatically — `main`
+  first, then `master`) followed by one of two update strategies, chosen by how
+  the tool was installed:
+  - **git checkout** (a `.git` directory beside the script): a dirty working
+    tree is warned about and confirmed first, then `git pull --ff-only` — a
+    diverged checkout fails safely with precise manual fix/rollback commands
+    instead of force-overwriting anything.
+  - **static copy** (no `.git`): the branch archive tarball is downloaded,
+    extracted and verified with `bash -n` on the main script and every module
+    **before** anything is touched, the current files are moved into a
+    timestamped backup under
+    `~/.local/share/ubuntu-optimizer/selfupdate-backups/`, and the new tree is
+    swapped in with atomic renames — a running bash process keeps reading its
+    own inodes, so in-place writes can never corrupt an executing script. A
+    failed post-update verification restores the backup automatically.
+- **Safety rails on every path:** updates are accepted from the official
+  repository only (not configurable), the downloaded tree must match the
+  expected remote version, both update paths end with a rollback hint, and
+  `--dry-run` prints the exact plan (installation kind, remote version, method)
+  while touching nothing.
+- Installed **bash and zsh completions are refreshed automatically** after a
+  successful update; a note reminds that running sessions keep the old code in
+  memory until the next `uo` run.
+- **zsh completion** (new `completions/_uo`): full flag/value completion
+  mirroring the bash one — profile names, tracked app names from both
+  databases and `.tar.gz` file completion. `install.sh` copies it into
+  `~/.zfunc` and appends a guarded fpath/compinit block to `~/.zshrc` (only
+  when zsh is in use; duplicate-safe; removed again by `--uninstall`).
+- New menu entry **"Update this toolkit itself (self-update)"** in
+  Update Apps.
+- 18 new bats tests (`test/selfupdate.bats`, fully offline): version
+  comparison incl. the 7.10 > 7.9 numeric edge case, git-checkout detection,
+  tree verification (healthy / broken main / broken module / empty lib), and
+  remote-version parsing with a stubbed curl (main-branch success, master
+  fallback, total failure, missing version line, stale-state reset) — 95 total.
+
 ## [7.5.0]
 
 ### Added

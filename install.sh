@@ -60,8 +60,11 @@ BIN_LINK="$BIN_DIR/uo"
 COMPLETION_SRC="$SCRIPT_DIR/completions/uo"
 COMPLETION_DIR="$HOME/.local/share/bash-completion/completions"
 COMPLETION_DST="$COMPLETION_DIR/uo"
+ZSH_COMPLETION_SRC="$SCRIPT_DIR/completions/_uo"
+ZFUNC_DIR="$HOME/.zfunc"
+ZSH_COMPLETION_DST="$ZFUNC_DIR/_uo"
 
-REQUIRED_MODULES=(common network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk gitssh undo profile menus)
+REQUIRED_MODULES=(common network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk gitssh undo profile selfupdate menus)
 
 # ───────────────────────────────────────────────────────────────────────────────
 # version() — print the project version (vX.Y) from lib/common.sh
@@ -95,6 +98,36 @@ _install_completion() {
     [ -f "$COMPLETION_SRC" ] || return 0
     mkdir -p "$COMPLETION_DIR"
     cp -f "$COMPLETION_SRC" "$COMPLETION_DST"
+    return 0
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# _install_zsh_completion() — copy the zsh completion into ~/.zfunc
+#
+# Copies completions/_uo into ~/.zfunc and appends a guarded "ubuntu-optimizer
+# zfunc" block to ~/.zshrc that adds the directory to fpath and runs compinit.
+# Skipped entirely when ~/.zshrc does not exist (zsh not in use). Duplicate-safe:
+# both the file copy and the rc block return immediately when already present.
+# Takes effect in new terminals only.
+#
+# Globals:   ZSH_COMPLETION_SRC, ZFUNC_DIR, ZSH_COMPLETION_DST (read/write)
+# Arguments: none
+# Returns:   0 — always
+# ───────────────────────────────────────────────────────────────────────────────
+_install_zsh_completion() {
+    [ -f "$HOME/.zshrc" ] || return 0
+    [ -f "$ZSH_COMPLETION_SRC" ] || return 0
+    mkdir -p "$ZFUNC_DIR"
+    cp -f "$ZSH_COMPLETION_SRC" "$ZSH_COMPLETION_DST"
+    if ! grep -q "ubuntu-optimizer zfunc" "$HOME/.zshrc" 2>/dev/null; then
+        {
+            echo ""
+            echo "# >>> ubuntu-optimizer zfunc >>>"
+            echo 'fpath=("'"$ZFUNC_DIR"'" $fpath)'
+            echo "autoload -Uz compinit && compinit"
+            echo "# <<< ubuntu-optimizer zfunc <<<"
+        } >> "$HOME/.zshrc"
+    fi
     return 0
 }
 
@@ -321,6 +354,12 @@ do_install() {
     _install_completion
     ok "Bash completion installed: $COMPLETION_DST"
 
+    # zsh completion — only when zsh is in use (~/.zshrc exists)
+    _install_zsh_completion
+    if [ -f "$ZSH_COMPLETION_DST" ]; then
+        ok "zsh completion installed: $ZSH_COMPLETION_DST"
+    fi
+
     echo ""
     inf "To activate in this terminal:  source ~/.bashrc"
     inf "In new terminals, 'uo' is available automatically."
@@ -351,8 +390,9 @@ do_update() {
                 bad "Some files are broken after the update!"
                 exit 1
             fi
-            # Refresh the installed completion file with the updated version
+            # Refresh the installed completion files with the updated versions
             _install_completion
+            _install_zsh_completion
             echo ""
             ok "Update complete. Current version: $(version)"
         else
@@ -390,6 +430,15 @@ do_uninstall() {
     fi
     rm -f "$COMPLETION_DST"
     ok "Bash completion removed."
+    if [ -f "$ZSH_COMPLETION_DST" ]; then
+        rm -f "$ZSH_COMPLETION_DST"
+        ok "zsh completion removed."
+    fi
+    if [ -f "$HOME/.zshrc" ]; then
+        sed -i --follow-symlinks \
+            '/^# >>> ubuntu-optimizer zfunc >>>$/,/^# <<< ubuntu-optimizer zfunc <<<$/d' \
+            "$HOME/.zshrc" 2>/dev/null
+    fi
     ok "alias and PATH block removed from shell rc files."
     inf "The project itself in $SCRIPT_DIR is untouched."
     inf "To delete the project entirely: rm -rf \"$SCRIPT_DIR\""

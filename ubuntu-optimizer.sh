@@ -15,7 +15,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # ── Load modules ───────────────────────────────────────────────────────────────
-for _lib in common network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk gitssh undo profile menus; do
+for _lib in common network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk gitssh undo profile selfupdate menus; do
     _libfile="$SCRIPT_DIR/lib/${_lib}.sh"
     if [ -f "$_libfile" ]; then
         # shellcheck source=/dev/null
@@ -118,6 +118,8 @@ Options:
                       files, fstab backup, disabled services, DNS/powersave)
   --profile NAME      apply a curated preset: laptop | server | gaming | minimal
                       (a safe, profile-specific subset of the optimizer steps)
+  --self-update       update the toolkit itself from the official GitHub repo
+                      (git pull for clones, verified archive for static copies)
   --fixnet            create the fixnet script
   --fixnet-run        run fixnet (network repair)
   --test              network tests (ping, DNS, speed)
@@ -151,6 +153,7 @@ Examples:
   uo --optimize --dry-run -y
   uo --profile laptop   # one safe preset for the whole scenario
   uo --undo             # reverse everything the optimizer changed
+  uo --self-update      # keep the toolkit itself on the latest version
   uo --report --json | jq '.summary'   # pipe the report into scripts
 EOF
 }
@@ -266,6 +269,7 @@ while [ $# -gt 0 ]; do
         --security)       CLI_ACTIONS+=("all_security_opts|security settings"); shift ;;
         --time)           CLI_ACTIONS+=("fix_time|time sync"); shift ;;
         --undo)           CLI_ACTIONS+=("undo_all_optimizations|undo optimizations"); shift ;;
+        --self-update)    CLI_ACTIONS+=("self_update_interactive|self update"); shift ;;
         --profile)
             if [ $# -ge 2 ]; then
                 if [ -n "$PROFILE_NAME" ]; then
@@ -340,7 +344,7 @@ if [ "$DRY_RUN" = "1" ]; then
         exit 1
     fi
     if [ ${#CLI_ACTIONS[@]} -eq 0 ]; then
-        echo "--dry-run requires an action: --optimize, --network, --system, --security, --time, --undo or --profile." >&2
+        echo "--dry-run requires an action: --optimize, --network, --system, --security, --time, --undo, --profile or --self-update." >&2
         exit 1
     fi
     for cli_action in "${CLI_ACTIONS[@]}"; do
@@ -349,12 +353,12 @@ if [ "$DRY_RUN" = "1" ]; then
         cli_fn="${cli_action%%|*}"
         cli_fn="${cli_fn%% *}"
         case "$cli_fn" in
-            all_network_opts|all_system_opts|all_security_opts|fix_time|undo_all_optimizations|apply_profile|run_cli_profile|\
+            all_network_opts|all_system_opts|all_security_opts|fix_time|undo_all_optimizations|apply_profile|run_cli_profile|self_update_interactive|\
             disable_wifi_powersave|set_dns|enable_bbr|set_mtu|optimize_tcp|\
             optimize_memory|set_noatime|disable_extra_services|install_preload|\
             install_tlp|limit_journal|extend_sudo_timeout|setup_polkit_rule) ;;
             *)
-                echo "--dry-run is only valid with --optimize, --network, --system, --security, --time, --undo or --profile." >&2
+                echo "--dry-run is only valid with --optimize, --network, --system, --security, --time, --undo, --profile or --self-update." >&2
                 exit 1
                 ;;
         esac

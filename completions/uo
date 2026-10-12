@@ -60,6 +60,7 @@ _uo() {
         --github-install --github-update --github-list --github-remove
         --install-targz
         --optimize --network --system --security --time --undo --profile
+        --self-update
         --fixnet --fixnet-run --test
         --update --update-apt --update-snap --update-flatpak --update-targz
         --list-apps --cleanup --purge-data --snap-clean

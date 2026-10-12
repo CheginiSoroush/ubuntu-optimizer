@@ -12,10 +12,10 @@
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.5-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.6-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-77%20%2F%2077-brightgreen)
+![Tests](https://img.shields.io/badge/bats-95%20%2F%2095-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -41,6 +41,7 @@
 | 📊 **عیب‌یابی** | ping، DNS، تست سرعت اینترنت · گزارش وضعیت سیستم فقط-خواندنی |
 | 📦 **نصب** | بسته‌های deb · **نصب هوشمند tar.gz/tgz** (تشخیص فایل اجرایی اصلی، بررسی معماری، نصب خودکار وابستگی‌ها) · AppImage |
 | 🐙 **GitHub Releases** | نصب / به‌روزرسانی / حذف برنامه‌ها — انتخاب خودکار فایل سازگار با معماری سیستم · **بررسی checksum شی‌آر-۲۵۶** وقتی ریلیز فایل checksum دارد (v7.4) |
+| ⬆ **به‌روزرسانی خود ابزار** | `uo --self-update` — خود ابزار خودش را به‌روز می‌کند: بررسی نسخه از مخزن رسمی، git pull برای کلون‌ها، آرشیو تأییدشده + پشتیبان خودکار برای کپی‌های ثابت (v7.6) |
 | 🧹 **حذف کامل** | حذف کامل هر برنامه از **هر منبعی** (apt / snap / flatpak / tar.gz / دستی) — به‌همراه داده‌های کاربر |
 | 🔄 **به‌روزرسانی** | apt + snap + flatpak + tar.gz + GitHub در یک دستور، با `-y` کاملاً خودکار |
 | 🚑 **بازیابی** | تعمیر بسته‌های خراب، نصب مجدد محیط دسکتاپ |
@@ -64,6 +65,7 @@ source ~/.bashrc      # یک‌بار — ترمینال‌های جدید خو�
 uo                    # منوی تعاملی
 uo --report           # گزارش سیستم (فقط خواندن)
 uo --report --json | jq '.summary'   # همان گزارش، خروجی ماشین‌خوان (v7.5)
+uo --self-update      # خود ابزار را روی آخرین نسخه نگه دارید (v7.6)
 uo --optimize --dry-run -y   # پیش‌نمایش همه‌چیز قبل از هر تغییری
 ```
 
@@ -154,6 +156,7 @@ uo --profile server -y             # اعمال بدون سؤال
 | `uo --undo` | **برگرداندن همه‌چیز** با یک دستور — هر چه بهینه‌ساز تغییر داده |
 | `uo --profile laptop\|server\|gaming\|minimal` | اعمال پیش‌تنظیم منتخب برای سناریوی شما |
 | `uo --dry-run` | **پیش‌نمایش** دستورات بدون اجرا (به‌همراه شش گزینهٔ بالا) |
+| `uo --self-update` | به‌روزرسانی خودِ ابزار — git pull یا آرشیو تأییدشده، با پشتیبان و بازگشت (v7.6) |
 | `uo --report` · `--report --json` · `--disk` | گزارش وضعیت · گزارش JSON برای اتوماسیون · تحلیل دیسک · پاک‌سازی |
 | `uo --doctor` | بررسی سلامت و تعمیر همهٔ برنامه‌های نصب‌شده/ردیابی‌شده |
 | `uo --github-install OWNER/REPO [NAME]` | نصب برنامه از آخرین ریلیز GitHub |
@@ -333,13 +336,15 @@ ubuntu-optimizer/
 │   ├── recovery.sh            ← بازیابی سیستم + ابزارهای پیشرفته
 │   ├── undo.sh                ← برگرداندن همهٔ بهینه‌سازی‌ها با یک دستور
 │   ├── profile.sh             ← پیش‌تنظیم‌های منتخب: laptop / server / gaming / minimal
+│   ├── selfupdate.sh          ← ‪--self-update‬: بررسی نسخه + به‌روزرسانی git/آرشیو
 │   ├── report.sh              ← گزارش وضعیت سیستم
 │   ├── jsonreport.sh          ← همان گزارش در قالب یک سند JSON
 │   ├── doctor.sh              ← بررسی سلامت و تعمیر برنامه‌ها
 │   ├── disk.sh                ← تحلیل فضای دیسک و پاک‌سازی
 │   ├── gitssh.sh              ← راه‌اندازی SSH گیت‌هاب
 │   └── menus.sh               ← موتور منو و همهٔ منوها
-├── test/                      ← تست‌های واحد bats (common، appmgmt، github، undo، profile، jsonreport، syntax)
+├── test/                      ← تست‌های واحد bats (common، appmgmt، github، undo، profile، jsonreport، selfupdate، syntax)
+├── completions/               ← uo (bash) · ‪_uo‬ (zsh) — تکمیل تب برای همهٔ فلگ‌ها
 ├── .github/workflows/
 │   ├── lint.yml               ← CI: shellcheck + syntax + bats در هر push
 │   └── website.yml            ← CI: build و انتشار وب‌سایت روی GitHub Pages
@@ -356,9 +361,9 @@ ubuntu-optimizer/
 
 | گیت کیفیت | وضعیت |
 |---|---|
-| بررسی سینتکس `bash -n` | ✅ هر ۲۱ فایل شل |
+| بررسی سینتکس `bash -n` | ✅ هر ۲۲ فایل شل |
 | ShellCheck (سخت‌گیرانه) | ✅ صفر ایراد — در CI اجباری است |
-| تست‌های واحد bats | ✅ ۷۷ از ۷۷ پاس |
+| تست‌های واحد bats | ✅ ۹۵ از ۹۵ پاس |
 | `install.sh --check` | ✅ خودارزیابی سلامت داخلی |
 | GitHub Actions CI | ✅ روی هر push و pull request |
 

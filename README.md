@@ -12,10 +12,10 @@ The all-in-one optimization, app-management and repair toolkit —
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.5-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.6-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-77%20%2F%2077-brightgreen)
+![Tests](https://img.shields.io/badge/bats-95%20%2F%2095-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -41,6 +41,7 @@ The all-in-one optimization, app-management and repair toolkit —
 | 📊 **Diagnostics** | ping, DNS, internet-speed tests · read-only system status report · **machine-readable JSON** (`--report --json`, v7.5) for cron & dashboards |
 | 📦 **Install** | deb packages · **smart tar.gz/tgz install** (main-executable detection, architecture check, automatic dependencies) · AppImage |
 | 🐙 **GitHub Releases** | install / update / remove apps — automatic architecture-aware asset pick · **SHA-256 checksum verification** when the release ships one (v7.4) |
+| ⬆ **Self-update** | `uo --self-update` — the toolkit updates itself: version check against the official repo, git pull for clones, verified archive + automatic backup for static copies (v7.6) |
 | 🧹 **Full removal** | completely remove any app from **any source** (apt / snap / flatpak / tar.gz / manual) — including user data |
 | 🔄 **Updates** | apt + snap + flatpak + tar.gz + GitHub in one command, fully automatic with `-y` |
 | 🚑 **Recovery** | fix broken packages, reinstall the desktop environment |
@@ -64,6 +65,7 @@ source ~/.bashrc      # once — new terminals pick it up automatically
 uo                    # interactive menu
 uo --report           # read-only system report
 uo --report --json | jq '.summary'   # same report, machine-readable (v7.5)
+uo --self-update      # keep the toolkit itself on the latest version (v7.6)
 uo --optimize --dry-run -y   # preview everything before changing anything
 ```
 
@@ -154,6 +156,7 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 | `uo --undo` | **reverse everything** the optimizer changed — one command |
 | `uo --profile laptop\|server\|gaming\|minimal` | apply a curated preset for the scenario |
 | `uo --dry-run` | **preview** commands without executing (with the six above) |
+| `uo --self-update` | update the toolkit itself — git pull or verified archive, with backup & rollback (v7.6) |
 | `uo --report` · `--report --json` · `--disk` | status report · JSON report for automation · disk analysis · cleanup |
 | `uo --doctor` | health check &amp; repair of all installed/tracked apps |
 | `uo --github-install OWNER/REPO [NAME]` | install an app from the latest GitHub release |
@@ -335,13 +338,15 @@ ubuntu-optimizer/
 │   ├── recovery.sh            ← system recovery + advanced tools
 │   ├── undo.sh                ← one-command reversal of all optimizations
 │   ├── profile.sh             ← curated presets: laptop / server / gaming / minimal
+│   ├── selfupdate.sh          ← `--self-update`: version check + git/archive update
 │   ├── report.sh              ← system status report
 │   ├── jsonreport.sh          ← the same report as one JSON document
 │   ├── doctor.sh              ← app health check & repair
 │   ├── disk.sh                ← disk space analysis & cleanup
 │   ├── gitssh.sh              ← GitHub SSH setup
 │   └── menus.sh               ← menu engine & all menus
-├── test/                      ← bats unit tests (common, appmgmt, github, undo, profile, jsonreport, syntax)
+├── test/                      ← bats unit tests (common, appmgmt, github, undo, profile, jsonreport, selfupdate, syntax)
+├── completions/               ← uo (bash) · _uo (zsh) — tab completion for every flag
 ├── .github/workflows/
 │   ├── lint.yml               ← CI: shellcheck + syntax + bats on every push
 │   └── website.yml            ← CI: build & publish the website to GitHub Pages
@@ -358,9 +363,9 @@ ubuntu-optimizer/
 
 | Gate | Status |
 |---|---|
-| `bash -n` syntax check | ✅ all 21 shell files |
+| `bash -n` syntax check | ✅ all 22 shell files |
 | ShellCheck (strict) | ✅ zero findings — enforced in CI |
-| bats unit tests | ✅ 77 / 77 passing |
+| bats unit tests | ✅ 95 / 95 passing |
 | `install.sh --check` | ✅ self-health verification built in |
 | GitHub Actions CI | ✅ every push & pull request |
 

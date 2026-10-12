@@ -255,7 +255,8 @@ menu_updates() {
         "Update snap|update_snap" \
         "Update flatpak|update_flatpak" \
         "Check tar.gz app updates|update_targz_apps" \
-        "Check GitHub app updates|github_update_apps"
+        "Check GitHub app updates|github_update_apps" \
+        "Update this toolkit itself (self-update)|self_update_interactive"
 }
 
 # ───────────────────────────────────────────────────────────────────────────────

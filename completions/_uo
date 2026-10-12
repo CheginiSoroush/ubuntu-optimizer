@@ -1,0 +1,94 @@
+#compdef uo
+# ═══════════════════════════════════════════════════════════════════════════════
+#  Ubuntu Optimizer & Fixer — completions/_uo (zsh)
+# ───────────────────────────────────────────────────────────────────────────────
+#  zsh completion for the 'uo' command, mirroring completions/uo (bash):
+#  value completion for the options that take an argument (--profile,
+#  --cleanup, --github-remove, --install-targz) and flag completion for
+#  everything else. install.sh copies this file into ~/.zfunc and adds that
+#  directory to fpath; it loads automatically in new zsh terminals.
+#
+#  Project : ubuntu-optimizer — github.com/CheginiSoroush/ubuntu-optimizer
+#  Author  : Soroush Chegini (CheginiSoroush)
+#  License : MIT
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# ───────────────────────────────────────────────────────────────────────────────
+# _uo() — compute completions for the uo command
+#
+# _arguments drives the whole completion: every flag is a boolean action with
+# its one-line help text from `uo --help`; the four argument-taking options
+# declare their own value actions. Tracked app names are offered dynamically
+# for --cleanup (both databases) and --github-remove (GitHub database only).
+#
+# Globals:   $words, $CURRENT (read by _arguments), compstate
+# Arguments: none (standard zsh completion function contract)
+# Returns:   0 — always
+# ───────────────────────────────────────────────────────────────────────────────
+_uo() {
+    local -a opts
+    opts=(
+        '(-h --help)'{-h,--help}'[show help]'
+        '(-V --version)'{-V,--version}'[show the version]'
+        '(-y --yes)'{-y,--yes}'[auto-confirm all questions]'
+        '--no-color[disable colored output]'
+        '--no-log[do not log this run]'
+        '--dry-run[preview what would change without changing anything]'
+        '--report[system status report (read-only)]'
+        '--json[(with --report) machine-readable JSON output]'
+        '--disk[disk usage analysis (read-only)]'
+        '--disk-clean[disk cleanup]'
+        '--git-ssh[GitHub SSH key setup wizard]'
+        '--git-ssh-status[SSH key / GitHub authentication status]'
+        '--github-install[install an app from the latest GitHub release]:repo (OWNER/REPO):app name (optional)'
+        '--github-update[check and install updates for GitHub apps]'
+        '--github-list[list tracked GitHub apps]'
+        '--github-remove[fully remove a GitHub app]:tracked app:_uo_tracked_github'
+        '--install-targz[install an app from a .tar.gz file]:tar.gz file:_files -g '"'"'*.tar.gz'"'"':app name (optional)'
+        '--optimize[all network + system optimizations]'
+        '--network[network optimizations (BBR, DNS, MTU, TCP)]'
+        '--system[system and memory optimizations]'
+        '--security[sudo timeout + polkit settings]'
+        '--time[sync system time]'
+        '--undo[reverse all optimizations this tool made]'
+        '--profile[apply a curated preset]:profile:(laptop server gaming minimal)'
+        '--fixnet[create the fixnet script]'
+        '--fixnet-run[run fixnet (network repair)]'
+        '--test[network tests (ping, DNS, speed)]'
+        '--update[update all sources (apt, snap, flatpak, tar.gz, github)]'
+        '--update-apt[apt only]'
+        '--update-snap[snap only]'
+        '--update-flatpak[flatpak only]'
+        '--update-targz[check updates for tar.gz apps]'
+        '--self-update[update the toolkit itself from the official GitHub repo]'
+        '--list-apps[list all apps from all sources]'
+        '--cleanup[fully remove an app from any source]:tracked app:_uo_tracked_any'
+        '--purge-data[(with --cleanup) also remove user data]'
+        '--snap-clean[clean old snap revisions + unused flatpaks]'
+        '--log[show the last log lines]'
+        '--log-clear[delete the log file]'
+    )
+    _arguments -S "$opts[@]" && return 0
+    return 1
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# _uo_tracked_github() — complete names tracked in github.db
+# ───────────────────────────────────────────────────────────────────────────────
+_uo_tracked_github() {
+    local -a names
+    names=($(awk -F'|' '{print $1}' "$HOME/.local/share/ubuntu-optimizer/github.db" 2>/dev/null))
+    _describe 'tracked GitHub app' names
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# _uo_tracked_any() — complete names tracked in github.db + apps.db
+# ───────────────────────────────────────────────────────────────────────────────
+_uo_tracked_any() {
+    local -a names
+    names=($( { awk -F'|' '{print $1}' "$HOME/.local/share/ubuntu-optimizer/github.db" 2>/dev/null
+                 awk -F'|' '{print $1}' "$HOME/.local/share/ubuntu-optimizer/apps.db" 2>/dev/null; } | sort -u))
+    _describe 'tracked app' names
+}
+
+_uo "$@"
