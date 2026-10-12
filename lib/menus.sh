@@ -316,9 +316,10 @@ menu_dangerous() {
 #
 # Interactive entry point used when no CLI flags are given. Draws the banner
 # box — the border width (54) matches the printf %-54s lines, so the
-# alignment can never drift — lists the 17 numbered entries plus Exit, and
+# alignment can never drift — lists the 18 numbered entries plus Exit, and
 # loops until Exit or EOF. Entries 1–12 open the submenus above; 13–17 call
-# show_log, system_report, disk_analyze, disk_cleanup and the profile menu.
+# show_log, system_report, disk_analyze, disk_cleanup and the profile menu;
+# 18 opens the systemd timer menu.
 #
 # Globals:   SCRIPT_VERSION (read), colour codes from lib/common.sh
 # Arguments: none
@@ -363,6 +364,7 @@ main_menu() {
         echo "  15) 📊 System status report"
         echo "  16) 📊 Disk space analysis"
         echo "  17) 🧹 Disk cleanup"
+        echo "  18) ⏰ Scheduled updates (systemd timer)"
         echo ""
         echo "   0) Exit"
         echo ""
@@ -388,6 +390,7 @@ main_menu() {
             15) system_report; press_enter ;;
             16) disk_analyze; press_enter ;;
             17) disk_cleanup; press_enter ;;
+            18) menu_timer ;;
             0) clear; echo -e "${GREEN}Goodbye! 👋${NC}"; exit 0 ;;
             # Invalid user input is not a system error — logged as WARN, not ERROR
             *) warn "Invalid choice"; sleep 1 ;;

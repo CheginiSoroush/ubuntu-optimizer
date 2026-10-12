@@ -4,6 +4,52 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.10.0]
+
+### Added
+- **Scheduled updates as a systemd timer** (new `lib/timer.sh`) —
+  `uo --timer-install weekly` installs and enables a real `uo-update.timer`
+  that runs `uo --update -y --no-color` on a schedule; missed runs are
+  replayed after downtime (`Persistent=true`) and the load on mirrors is
+  spread with `RandomizedDelaySec=15m`:
+  - **Two scopes:** the default *user* timer lives in
+    `~/.config/systemd/user` and needs no root at all (with an
+    `enable-linger` hint so it also fires while you are logged out);
+    `--timer-system` places the classical units in `/etc/systemd/system`
+    via sudo — the right choice for headless servers.
+  - **Two modes:** apply (default — unattended updates) and **monitor**
+    (`--timer-notify-only`): the schedule runs `uo --timer-tick` instead,
+    which mutates nothing — it appends a read-only JSON report snapshot to
+    `~/.local/share/ubuntu-optimizer/report-log.jsonl` (the exact JSONL
+    series the dashboard Trends tab charts), logs the verdict to the
+    journal and raises a desktop notification only when the summary is not
+    "good" (RAM/disk/failed-services details included).
+- **Transparency & control around the timer:**
+  - `--timer-preview [PERIOD]` — print the unit files an install would
+    write, byte for byte. Pure text rendering works everywhere, including
+    machines and containers without systemd.
+  - `--timer-status` — installed? enabled? next runs? last journal verdict?
+  - `--timer-log [N]` — the last N journal lines of the scheduled runs.
+  - `--timer-remove` — disable + delete the units (clean no-op when absent).
+  - Periods are a strict whitelist (hourly · daily · weekly · monthly)
+    mapped onto systemd calendar keywords — user input never reaches the
+    unit files, so there is nothing to inject.
+- **Interactive menu, entry 18:** ⏰ Scheduled updates — install (apply or
+  monitor), preview, status, log and remove, all through the same
+  validated CLI code paths.
+- Both completions (bash + zsh) learn the eight new flags (period words and
+  line counts complete their values); `lib/timer.sh` joins
+  `install.sh`'s required modules and the CI gate.
+- 32 new bats tests (`test/timer.bats`): rendering parity between preview
+  and install, the four calendar mappings, monitor/system-scope unit
+  variants, modifier cross-validation, graceful degradation without
+  systemd, install/remove verified end-to-end against a recording
+  systemctl stub, and the monitor tick's snapshot/notification behavior
+  (healthy verdicts never notify; critical ones always do).
+
+### Changed
+- Test count 150 → **182**.
+
 ## [7.9.0]
 
 ### Added

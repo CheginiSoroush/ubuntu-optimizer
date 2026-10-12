@@ -8,14 +8,14 @@
 **One command. A faster, cleaner, healthier Ubuntu.**
 
 The all-in-one optimization, app-management and repair toolkit —
-17 friendly menu tools, 35+ CLI options, honest dry-run previews.
+18 friendly menu tools, 40+ CLI options, honest dry-run previews.
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.9-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.10-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-150%20%2F%20150-brightgreen)
+![Tests](https://img.shields.io/badge/bats-182%20%2F%20182-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -41,6 +41,7 @@ The all-in-one optimization, app-management and repair toolkit —
 | 📊 **Diagnostics** | ping, DNS, internet-speed tests · read-only system status report · **machine-readable JSON** (`--report --json`, v7.5) for cron & dashboards · **JSONL time-series log** (`--report --json --append --output`, v7.7) |
 | ⚙ **Config file** | `~/.config/uo/config.conf` — persist ASSUME_YES / NO_COLOR / NO_LOG / DRY_RUN / DNS_SERVERS / NO_CACHE for cron & shared machines; never sourced, never eval'd — every line is parsed and validated (v7.8) |
 | ⚡ **TTL cache** | costly results (connectivity probe, apt list refresh, GitHub release lookups) are cached with an expiry timestamp — repeated runs skip the wait; inspect with `--cache-stats`, wipe with `--cache-clear`, bypass with `--no-cache` (v7.9) |
+| ⏰ **Scheduled updates** | `uo --timer-install weekly` puts a real **systemd timer** in place that runs `uo --update -y --no-color` unattended — `Persistent=true` replays missed runs after downtime; user scope (no root) by default, `--timer-system` for servers, and `--timer-notify-only` for a read-only monitor tick that snapshots the JSON report + notifies on trouble (v7.10) |
 | 📦 **Install** | deb packages · **smart tar.gz/tgz install** (main-executable detection, architecture check, automatic dependencies) · AppImage |
 | 🐙 **GitHub Releases** | install / update / remove apps — automatic architecture-aware asset pick · **SHA-256 checksum verification** when the release ships one (v7.4) |
 | ⬆ **Self-update** | `uo --self-update` — the toolkit updates itself: version check against the official repo, git pull for clones, verified archive + automatic backup for static copies (v7.6) |
@@ -128,7 +129,7 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 
 ---
 
-## 🖥 The menu — 17 tools, zero memorization
+## 🖥 The menu — 18 tools, zero memorization
 
 | # | Tool | What it does |
 |:--:|---|---|
@@ -178,6 +179,10 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 | `uo --config FILE` · `--no-config` | use an alternative config file · ignore configs for one run (v7.8) |
 | `uo --cache-stats` · `--cache-clear` | show cache entries + remaining TTL · wipe the cache (v7.9) |
 | `uo --no-cache` | bypass the TTL cache for one run (v7.9) |
+| `uo --timer-install [PERIOD]` | install + enable the update timer — hourly · daily · weekly (default) · monthly (v7.10) |
+| `uo --timer-remove` · `--timer-status` · `--timer-log [N]` | remove it · inspect it · read its journald run log (v7.10) |
+| `uo --timer-preview [PERIOD]` | print the unit files an install would write — no systemd needed (v7.10) |
+| `uo --timer-system` · `--timer-notify-only` | (with install/preview) system-wide units · read-only monitor mode (v7.10) |
 | `uo -y` · `--no-color` · `--no-log` | auto-confirm · plain output · don't log |
 
 ### Real-world examples
@@ -336,6 +341,7 @@ run — interactive or cron — picks your preferences up automatically:
 uo --config-example > ~/.config/uo/config.conf   # start from the annotated template
 nano ~/.config/uo/config.conf
 uo --config-show                                 # verify what is in effect
+uo --timer-install weekly                        # keep the system updated on a schedule
 ```
 
 ```ini
@@ -362,6 +368,35 @@ NO_CACHE=0
 
 ---
 
+## ⏰ Scheduled updates (systemd timer)
+
+Stop remembering to update — put a systemd timer in place once and let the
+tool do it on a schedule (v7.10):
+
+```bash
+uo --timer-install weekly            # apply 'uo --update -y --no-color' weekly
+uo --timer-install daily             # hourly · daily · weekly · monthly
+uo --timer-preview weekly            # inspect the unit files, install nothing
+uo --timer-status                    # installed? enabled? next runs?
+```
+
+- **No cron syntax, no root:** the default timer lives in
+  `~/.config/systemd/user` (user scope). For headless servers use
+  `--timer-system` — the units then land in `/etc/systemd/system` via sudo.
+- **Missed runs are replayed:** `Persistent=true` catches up after downtime,
+  `RandomizedDelaySec=15m` is polite to the mirrors.
+- **Monitor mode** (`--timer-notify-only`) never touches the system: on
+  schedule it appends a read-only JSON report snapshot to
+  `~/.local/share/ubuntu-optimizer/report-log.jsonl` — the same series the
+  dashboard Trends tab charts — and notifies you only when something needs
+  attention. Perfect for an unattended eye on RAM/disk/services.
+- **Full lifecycle:** `--timer-log 100` reads the journal log of past runs,
+  `--timer-remove` cleans everything up. Schedule words are whitelisted and
+  the unit files are rendered from static templates — nothing you type can
+  end up inside a unit.
+
+---
+
 ## 📁 Project structure
 
 ```
@@ -373,6 +408,7 @@ ubuntu-optimizer/
 ├── lib/
 │   ├── common.sh              ← colors, helpers, registry, logging
 │   ├── cache.sh               ← TTL cache for costly operations
+│   ├── timer.sh               ← systemd timer: scheduled updates / monitor ticks
 │   ├── network.sh             ← network optimization & tests
 │   ├── system.sh              ← system, memory, security, time
 │   ├── fixnet.sh              ← creates & runs the bilingual fixnet script
@@ -391,7 +427,7 @@ ubuntu-optimizer/
 │   ├── disk.sh                ← disk space analysis & cleanup
 │   ├── gitssh.sh              ← GitHub SSH setup
 │   └── menus.sh               ← menu engine & all menus
-├── test/                      ← bats unit tests (common, appmgmt, github, undo, profile, jsonreport, selfupdate, reportfile, config, cache, syntax)
+├── test/                      ← bats unit tests (common, appmgmt, github, undo, profile, jsonreport, selfupdate, reportfile, config, cache, timer, syntax)
 ├── completions/               ← uo (bash) · _uo (zsh) — tab completion for every flag
 ├── .github/workflows/
 │   ├── lint.yml               ← CI: shellcheck + syntax + bats on every push
@@ -409,9 +445,9 @@ ubuntu-optimizer/
 
 | Gate | Status |
 |---|---|
-| `bash -n` syntax check | ✅ all 23 shell files |
+| `bash -n` syntax check | ✅ all 24 shell files |
 | ShellCheck (strict) | ✅ zero findings — enforced in CI |
-| bats unit tests | ✅ 150 / 150 passing |
+| bats unit tests | ✅ 182 / 182 passing |
 | `install.sh --check` | ✅ self-health verification built in |
 | GitHub Actions CI | ✅ every push & pull request |
 

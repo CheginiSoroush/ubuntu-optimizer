@@ -15,7 +15,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # ── Load modules ───────────────────────────────────────────────────────────────
-for _lib in common cache config network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk gitssh undo profile selfupdate menus; do
+for _lib in common cache config network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk gitssh undo profile selfupdate timer menus; do
     _libfile="$SCRIPT_DIR/lib/${_lib}.sh"
     if [ -f "$_libfile" ]; then
         # shellcheck source=/dev/null
@@ -60,6 +60,10 @@ CLI_NO_CACHE=0
 CONFIG_PATH_OVERRIDE=""
 NO_CONFIG=0
 CONFIG_SHOW=0
+TIMER_PERIOD=""
+TIMER_SCOPE="user"
+TIMER_NOTIFY=0
+TIMER_LOG_LINES=50
 
 # ───────────────────────────────────────────────────────────────────────────────
 # run_cli_profile() — dispatch --profile from the queued action list
@@ -158,6 +162,23 @@ Options:
   --update-flatpak    flatpak only
   --update-targz      check updates for tar.gz apps
 
+  --timer-install [PERIOD]
+                      install + enable a systemd timer that runs on schedule
+                      (hourly | daily | weekly | monthly — default: weekly)
+  --timer-remove      disable + remove the timer and its unit files
+  --timer-status      installed? enabled? next runs? last result?
+  --timer-log [N]     show the last N journal lines of the runs (default 50)
+  --timer-preview [PERIOD]
+                      print the unit files an install would write
+                      (works everywhere — no systemd needed)
+  --timer-system      (with --timer-install/--timer-preview) system-wide
+                      units in /etc/systemd/system (sudo) instead of the
+                      default user scope (~/.config/systemd/user)
+  --timer-notify-only (with --timer-install/--timer-preview) monitor mode:
+                      the schedule snapshots the read-only JSON report into
+                      report-log.jsonl + notifies on trouble — it never
+                      applies updates
+
   --list-apps         list all apps from all sources
   --cleanup NAME      fully remove app NAME from any source
   --purge-data        (with --cleanup) also remove user data
@@ -185,6 +206,13 @@ Cache:
   probes) are TTL-cached under ~/.local/share/ubuntu-optimizer/cache so
   repeated runs skip the wait. Inspect: uo --cache-stats · wipe: uo --cache-clear
 
+Scheduled updates:
+  uo --timer-install weekly puts a systemd user timer in place that runs
+  'uo --update -y --no-color' every week (Persistent=true replays missed
+  runs after downtime). Monitor mode (--timer-notify-only) only snapshots
+  the read-only JSON report to report-log.jsonl on schedule and notifies
+  when something needs attention. Inspect: uo --timer-status
+
 Examples:
   uo --report
   uo --github-install junegunn/fzf fzf
@@ -205,6 +233,9 @@ Examples:
   uo --config-example > ~/.config/uo/config.conf   # start a config file
   uo --cache-clear --update-apt    # force a fresh apt list refresh
   uo --cache-stats    # what is cached right now, and for how long
+  uo --timer-install weekly          # weekly unattended 'uo --update -y'
+  uo --timer-preview monthly         # show the unit files, install nothing
+  uo --timer-install daily --timer-notify-only   # read-only monitor tick
 EOF
 }
 
@@ -267,6 +298,50 @@ while [ $# -gt 0 ]; do
         --no-cache)       NO_CACHE=1; CLI_NO_CACHE=1; shift ;;
         --cache-clear)    CLI_ACTIONS+=("cache_maintenance_clear|cache clear"); shift ;;
         --cache-stats)    CLI_ACTIONS+=("cache_maintenance_stats|cache stats"); shift ;;
+        --timer-install)
+            if [ $# -ge 2 ] && [[ "$2" != -* ]]; then
+                if ! timer_period_is_valid "$2"; then
+                    echo "Invalid timer period: $2" >&2
+                    echo "  ℹ Valid periods: hourly · daily · weekly · monthly" >&2
+                    exit 1
+                fi
+                TIMER_PERIOD="$2"; shift 2
+            else
+                shift
+            fi
+            CLI_ACTIONS+=("timer_cli_install|timer install")
+            ;;
+        --timer-remove)   CLI_ACTIONS+=("timer_cli_remove|timer remove"); shift ;;
+        --timer-status)   CLI_ACTIONS+=("timer_cli_status|timer status"); shift ;;
+        --timer-tick)     CLI_ACTIONS+=("timer_tick|monitor tick"); shift ;;
+        --timer-log)
+            if [ $# -ge 2 ] && [[ "$2" != -* ]]; then
+                if ! [[ "$2" =~ ^[1-9][0-9]*$ ]]; then
+                    echo "Invalid line count: $2" >&2
+                    echo "  ℹ Usage: --timer-log [N] (a positive integer, default 50)" >&2
+                    exit 1
+                fi
+                TIMER_LOG_LINES="$2"; shift 2
+            else
+                shift
+            fi
+            CLI_ACTIONS+=("timer_cli_log|timer log")
+            ;;
+        --timer-preview)
+            if [ $# -ge 2 ] && [[ "$2" != -* ]]; then
+                if ! timer_period_is_valid "$2"; then
+                    echo "Invalid timer period: $2" >&2
+                    echo "  ℹ Valid periods: hourly · daily · weekly · monthly" >&2
+                    exit 1
+                fi
+                TIMER_PERIOD="$2"; shift 2
+            else
+                shift
+            fi
+            CLI_ACTIONS+=("timer_cli_preview|timer preview")
+            ;;
+        --timer-system)      TIMER_SCOPE="system"; shift ;;
+        --timer-notify-only) TIMER_NOTIFY=1; shift ;;
         --git-ssh)        CLI_ACTIONS+=("gitssh_setup|GitHub SSH setup"); shift ;;
         --git-ssh-status) CLI_ACTIONS+=("gitssh_status|GitHub SSH status"); shift ;;
         --github-update)  CLI_ACTIONS+=("github_update_apps|GitHub updates"); shift ;;
@@ -440,6 +515,25 @@ if [ "$APPEND_MODE" = "1" ] && [ -z "$OUTPUT_FILE" ]; then
     echo "--append is only valid together with --output." >&2
     exit 1
 fi
+
+# --timer-system / --timer-notify-only are unit-rendering modifiers: they
+# only have meaning where unit files are rendered (install / preview).
+if [ "$TIMER_SCOPE" = "system" ] || [ "$TIMER_NOTIFY" = "1" ]; then
+    timer_modifier_ok=0
+    if [ ${#CLI_ACTIONS[@]} -gt 0 ]; then
+        for timer_action in "${CLI_ACTIONS[@]}"; do
+            case "${timer_action%%|*}" in
+                timer_cli_install|timer_cli_preview) timer_modifier_ok=1 ;;
+            esac
+        done
+    fi
+    if [ "$timer_modifier_ok" = "0" ]; then
+        echo "--timer-system / --timer-notify-only are only valid together with --timer-install or --timer-preview." >&2
+        exit 1
+    fi
+    unset timer_action
+fi
+unset timer_modifier_ok
 
 # --json is a strict output format for exactly one flow: --report. Every other
 # action prints human-only text (banners, confirmations, progress), so a mixed

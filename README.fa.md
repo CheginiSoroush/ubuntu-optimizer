@@ -8,14 +8,14 @@
 **یک دستور؛ اوبونتویی سریع‌تر، تمیزتر و سالم‌تر.**
 
 جعبه‌ابزار همه‌کارهٔ بهینه‌سازی، مدیریت برنامه‌ها و تعمیر اوبونتو —
-۱۷ ابزار در منویی ساده، بیش از ۳۵ گزینهٔ خط فرمان و پیش‌نمایش صادقانهٔ dry-run.
+۱۸ ابزار در منویی ساده، بیش از ۴۰ گزینهٔ خط فرمان و پیش‌نمایش صادقانهٔ dry-run.
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.9-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.10-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-150%20%2F%20150-brightgreen)
+![Tests](https://img.shields.io/badge/bats-182%20%2F%20182-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -41,6 +41,7 @@
 | 📊 **عیب‌یابی** | ping، DNS، تست سرعت اینترنت · گزارش وضعیت سیستم فقط-خواندنی · گزارش JSON ماشین‌خوان (`--report --json`) · لاگ سری‌زمانی JSONL (`--report --json --append --output`, v7.7) |
 | ⚙ **فایل کانفیگ** | `~/.config/uo/config.conf` — ماندگارسازی ASSUME_YES / NO_COLOR / NO_LOG / DRY_RUN / DNS_SERVERS / NO_CACHE برای کرون و سیستم‌های مشترک؛ هرگز source یا eval نمی‌شود — هر خط parse و اعتبارسنجی می‌شود (v7.8) |
 | ⚡ **کش TTL** | نتایج پرهزینه (بررسی اتصال، به‌روزرسانی لیست apt، استعلام ریلیز GitHub) با زمان انقضا کش می‌شوند — اجراهای پشت‌سرهم منتظر نمی‌مانند؛ بازرسی با --cache-stats، پاک‌سازی با --cache-clear، دورزدن با --no-cache (v7.9) |
+| ⏰ **آپدیت زمان‌بندی‌شده** | «uo --timer-install weekly» یک **تایمر systemd** واقعی می‌سازد که هفتگی «uo --update -y --no-color» را بی‌سؤال اجرا می‌کند — با Persistent=true اجرای ازدست‌رفته بعد از خاموشی جبران می‌شود؛ به‌صورت پیش‌فرض دامنهٔ کاربر (بدون روت)، با --timer-system برای سرورها، و --timer-notify-only برای تیک پایش فقط-خواندنی که گزارش JSON را ثبت و هنگام مشکل اعلان می‌دهد (v7.10) |
 | 📦 **نصب** | بسته‌های deb · **نصب هوشمند tar.gz/tgz** (تشخیص فایل اجرایی اصلی، بررسی معماری، نصب خودکار وابستگی‌ها) · AppImage |
 | 🐙 **GitHub Releases** | نصب / به‌روزرسانی / حذف برنامه‌ها — انتخاب خودکار فایل سازگار با معماری سیستم · **بررسی checksum شی‌آر-۲۵۶** وقتی ریلیز فایل checksum دارد (v7.4) |
 | ⬆ **به‌روزرسانی خود ابزار** | `uo --self-update` — خود ابزار خودش را به‌روز می‌کند: بررسی نسخه از مخزن رسمی، git pull برای کلون‌ها، آرشیو تأییدشده + پشتیبان خودکار برای کپی‌های ثابت (v7.6) |
@@ -71,6 +72,7 @@ uo --report --json --append --output ~/.local/share/ubuntu-optimizer/report-log.
                       # هر بار اجرا یک خط JSON → لاگ سری‌زمانی برای داشبوردها (v7.7)
 uo --config-show      # بازرسی کانفیگ مؤثر (v7.8)
 uo --cache-stats      # چه چیزی کش شده و تا کِی (v7.9)
+uo --timer-install weekly   # آپدیت دوره‌ای بدون دخالت کاربر (v7.10)
 uo --self-update      # خود ابزار را روی آخرین نسخه نگه دارید (v7.6)
 uo --optimize --dry-run -y   # پیش‌نمایش همه‌چیز قبل از هر تغییری
 ```
@@ -129,7 +131,7 @@ uo --profile server -y             # اعمال بدون سؤال
 
 ---
 
-## 🖥 منوی تعاملی — ۱۷ ابزار، بدون نیاز به حفظ‌کردن هیچ‌چیز
+## 🖥 منوی تعاملی — ۱۸ ابزار، بدون نیاز به حفظ‌کردن هیچ‌چیز
 
 | # | ابزار | چه کاری می‌کند |
 |:--:|---|---|
@@ -169,6 +171,10 @@ uo --profile server -y             # اعمال بدون سؤال
 | `uo --config FILE` · `--no-config` | استفاده از فایل کانفیگ جایگزین · نادیده‌گرفتن کانفیگ‌ها برای یک اجرا (v7.8) |
 | `uo --cache-stats` · `--cache-clear` | نمایش ورودی‌های کش + زمان باقی‌مانده · پاک‌کردن کش (v7.9) |
 | `uo --no-cache` | دورزدن کش TTL برای یک اجرا (v7.9) |
+| `uo --timer-install [PERIOD]` | نصب و فعال‌سازی تایمر آپدیت — hourly · daily · weekly (پیش‌فرض) · monthly (v7.10) |
+| `uo --timer-remove` · `--timer-status` · `--timer-log [N]` | حذف تایمر · وضعیت · خواندن لاگ اجراها از ژورنال (v7.10) |
+| `uo --timer-preview [PERIOD]` | چاپ فایل‌های unit که نصب می‌نویسد — بدون نیاز به systemd (v7.10) |
+| `uo --timer-system` · `--timer-notify-only` | (با install/preview) یونیت سراسری سیستم · حالت پایش فقط-خواندنی (v7.10) |
 | `uo --doctor` | بررسی سلامت و تعمیر همهٔ برنامه‌های نصب‌شده/ردیابی‌شده |
 | `uo --github-install OWNER/REPO [NAME]` | نصب برنامه از آخرین ریلیز GitHub |
 | `uo --github-update` · `--github-list` · `--github-remove` | به‌روزرسانی · فهرست · حذف برنامه‌های GitHub |
@@ -358,6 +364,37 @@ DNS_SERVERS="1.1.1.1 9.9.9.9"
 
 ---
 
+## ⏰ آپدیت‌های زمان‌بندی‌شده (تایمر systemd)
+
+یک‌بار تایمر را بسازید و یادآوری آپدیت‌کردن را فراموش کنید — ابزار خودش طبق
+برنامه کار را انجام می‌دهد (v7.10):
+
+```bash
+uo --timer-install weekly            # هفتگی «uo --update -y --no-color» بی‌سؤال
+uo --timer-install daily             # hourly · daily · weekly · monthly
+uo --timer-preview weekly            # دیدن فایل‌های unit، بدون نصب چیزی
+uo --timer-status                    # نصب است؟ فعال است؟ اجرای بعدی کِی؟
+```
+
+- **بدون سینتکس کرون، بدون روت:** تایمر پیش‌فرض در `~/.config/systemd/user`
+  (دامنهٔ کاربر) ساخته می‌شود. برای سرورهای بدون کاربر لاگین‌شده از
+  `--timer-system` استفاده کنید — یونیت‌ها با sudo در `/etc/systemd/system`
+  نوشته می‌شوند.
+- **اجرای ازدست‌رفته جبران می‌شود:** `Persistent=true` بعد از خاموشی یا
+  تعلیق سیستم به آن می‌رسد و `RandomizedDelaySec=15m` مودبانه بار را روی
+  آینه‌ها پخش می‌کند.
+- **حالت پایش** (`--timer-notify-only`) هیچ چیزی را تغییر نمی‌دهد: طبق
+  برنامه، یک اسنپ‌شات فقط-خواندنی از گزارش JSON به
+  `~/.local/share/ubuntu-optimizer/report-log.jsonl` اضافه می‌کند — همان
+  سری‌زمانی که تب «روندها» داشبورد رسم می‌کشد — و فقط وقتی چیزی به توجه
+  نیاز دارد اعلان می‌دهد.
+- **چرخهٔ کامل:** `--timer-log 100` لاگ اجراهای گذشته از ژورنال می‌خواند و
+  `--timer-remove` همه‌چیز را پاک می‌کند. واژه‌های تقویم whitelist هستند و
+  یونیت‌ها از قالب‌های ایستا ساخته می‌شوند — هیچ ورودی‌ای نمی‌تواند وارد
+  فایل unit شود.
+
+---
+
 ## 📁 ساختار پروژه
 
 ```
@@ -369,6 +406,7 @@ ubuntu-optimizer/
 ├── lib/
 │   ├── common.sh              ← رنگ‌ها، توابع کمکی، رجیستری، گزارش‌گیری
 │   ├── cache.sh               ← کش TTL برای عملیات‌های پرهزینه
+│   ├── timer.sh               ← تایمر systemd: آپدیت زمان‌بندی‌شده / تیک پایش
 │   ├── network.sh             ← بهینه‌سازی و تست‌های شبکه
 │   ├── system.sh              ← سیستم، حافظه، امنیت، زمان
 │   ├── fixnet.sh              ← ساخت و اجرای اسکریپت دوزبانهٔ fixnet
@@ -387,7 +425,7 @@ ubuntu-optimizer/
 │   ├── disk.sh                ← تحلیل فضای دیسک و پاک‌سازی
 │   ├── gitssh.sh              ← راه‌اندازی SSH گیت‌هاب
 │   └── menus.sh               ← موتور منو و همهٔ منوها
-├── test/                      ← تست‌های واحد bats (common، appmgmt، github، undo، profile، jsonreport، selfupdate، reportfile، config، cache، syntax)
+├── test/                      ← تست‌های واحد bats (common، appmgmt، github، undo، profile، jsonreport، selfupdate، reportfile، config، cache، timer، syntax)
 ├── completions/               ← uo (bash) · ‪_uo‬ (zsh) — تکمیل تب برای همهٔ فلگ‌ها
 ├── .github/workflows/
 │   ├── lint.yml               ← CI: shellcheck + syntax + bats در هر push
@@ -405,9 +443,9 @@ ubuntu-optimizer/
 
 | گیت کیفیت | وضعیت |
 |---|---|
-| بررسی سینتکس `bash -n` | ✅ هر ۲۳ فایل شل |
+| بررسی سینتکس `bash -n` | ✅ هر ۲۴ فایل شل |
 | ShellCheck (سخت‌گیرانه) | ✅ صفر ایراد — در CI اجباری است |
-| تست‌های واحد bats | ✅ ۱۵۰ از ۱۵۰ پاس |
+| تست‌های واحد bats | ✅ ۱۸۲ از ۱۸۲ پاس |
 | `install.sh --check` | ✅ خودارزیابی سلامت داخلی |
 | GitHub Actions CI | ✅ روی هر push و pull request |
 

@@ -35,6 +35,14 @@ _uo() {
             mapfile -t COMPREPLY < <(compgen -W "laptop server gaming minimal" -- "$cur")
             return 0
             ;;
+        --timer-install|--timer-preview)
+            mapfile -t COMPREPLY < <(compgen -W "hourly daily weekly monthly" -- "$cur")
+            return 0
+            ;;
+        --timer-log)
+            mapfile -t COMPREPLY < <(compgen -W "10 20 50 100 200" -- "$cur")
+            return 0
+            ;;
         --output)
             mapfile -t COMPREPLY < <(compgen -f -- "$cur")
             return 0
@@ -66,6 +74,8 @@ _uo() {
         -h --help -V --version -y --yes --no-color --no-log --dry-run
         --config --no-config --config-show --config-example
         --no-cache --cache-clear --cache-stats
+        --timer-install --timer-remove --timer-status --timer-log
+        --timer-preview --timer-system --timer-notify-only --timer-tick
         --report --json --output --append --git-ssh --git-ssh-status --doctor
         --disk --disk-clean
         --github-install --github-update --github-list --github-remove
