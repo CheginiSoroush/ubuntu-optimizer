@@ -43,3 +43,37 @@ jobs:
 
       - name: Run tests
         run: bats test/ --print-output-on-failure
+
+  # Compatibility matrix — the suite must behave identically on every Bash
+  # the tool supports. Informational (continue-on-error) so an upstream
+  # image hiccup can never block main; the ubuntu job above is the gate.
+  bash-matrix:
+    name: Bats on Bash ${{ matrix.bash }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        bash: ["4.4", "5.0", "5.1", "5.2"]
+    container:
+      image: bash:${{ matrix.bash }}
+    steps:
+      - name: Install tooling (checkout + bats prerequisites)
+        run: |
+          apk add --no-cache git coreutils grep sed findutils diffutils
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install bats-core (pinned)
+        run: |
+          git clone --depth 1 --branch v1.11.0 \
+            https://github.com/bats-core/bats-core.git /tmp/bats-core
+          ln -sf /tmp/bats-core/bin/bats /usr/local/bin/bats
+          bats --version
+
+      - name: Bash version
+        run: bash --version | head -n1
+
+      - name: Run tests
+        run: bats test/ --print-output-on-failure
