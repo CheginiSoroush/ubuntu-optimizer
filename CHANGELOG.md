@@ -4,6 +4,45 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.9.0]
+
+### Added
+- **TTL cache for costly operations** (new `lib/cache.sh`) — results that do
+  not change within minutes are stored on disk with an expiry timestamp and
+  served instantly on the next run:
+  - **Internet connectivity verdict** (`--report`, JSON report): the
+    multi-method probe can cost up to ~10 s of timeouts; the verdict is
+    cached for 120 s when online and only 60 s when offline, so a
+    just-fixed connection is noticed quickly.
+  - **apt list freshness** (`--update-apt`, `--update`): when this tool
+    already ran a successful `apt update` within the last 10 minutes, the
+    redundant refresh is skipped with an informational note — the marker
+    is written only by this tool, so manually refreshed lists never
+    cause a skip.
+  - **GitHub release metadata** (`--github-install`, `--github-update`):
+    the raw `releases/latest` API response is cached per repository for
+    5 minutes — the anonymous API allows only 60 requests/hour per IP,
+    and repeated installs/update checks within the TTL now cost zero API
+    calls. Error responses are never cached.
+- **Cache transparency & control:**
+  - `--cache-stats` — list every entry with its size and remaining TTL
+  - `--cache-clear` — wipe the cache; composes with other actions
+    (`uo --cache-clear --update-apt` forces a fresh apt refresh)
+  - `--no-cache` — bypass the cache for one run (reads miss, writes skipped)
+  - `NO_CACHE=0|1` — new config-file key (same precedence machinery as the
+    other keys); `UO_NO_CACHE=1` environment variable for one-off overrides
+- **Engineering guarantees:** keys are restricted to a safe charset
+  (path traversal impossible by construction), writes are atomic
+  (tmp file + `mv`), a failing command is never cached, and cache reads
+  return the value through a variable (not stdout) so the hit/miss session
+  counters always stay accurate. The session summary now reports
+  `⚡ Cache: N hit(s), M miss(es)` whenever the cache was consulted.
+- Both completions (bash + zsh) learn the three new flags; `NO_CACHE` joins
+  the `--config-show` key list and the annotated `--config-example` template.
+- 27 new bats tests (`test/cache.bats`, fully offline — network probes and
+  curl are replaced by stub functions with call counters, apt by a stubbed
+  `sudo`) — 150 total.
+
 ## [7.8.0]
 
 ### Added

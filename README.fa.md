@@ -12,10 +12,10 @@
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.8-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.9-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-123%20%2F%20123-brightgreen)
+![Tests](https://img.shields.io/badge/bats-150%20%2F%20150-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -39,7 +39,8 @@
 | 🛠 **fixnet** | اسکریپت مستقل دوزبانه که پس از قطع‌شدن VPN اتصال را تعمیر می‌کند — resolv.conf را بازمی‌گرداند و *منتظر بازگشت شبکه می‌ماند* |
 | 💿 **دیسک** | تحلیل مصرف فضا بر اساس دسته‌بندی + پاک‌سازی با یک دستور (کش apt، ژورنال، کرنل‌های قدیمی، نسخه‌های snap، گزارش‌های کرش) |
 | 📊 **عیب‌یابی** | ping، DNS، تست سرعت اینترنت · گزارش وضعیت سیستم فقط-خواندنی · گزارش JSON ماشین‌خوان (`--report --json`) · لاگ سری‌زمانی JSONL (`--report --json --append --output`, v7.7) |
-| ⚙ **فایل کانفیگ** | `~/.config/uo/config.conf` — ماندگارسازی ASSUME_YES / NO_COLOR / NO_LOG / DRY_RUN / DNS_SERVERS برای کرون و سیستم‌های مشترک؛ هرگز source یا eval نمی‌شود — هر خط parse و اعتبارسنجی می‌شود (v7.8) |
+| ⚙ **فایل کانفیگ** | `~/.config/uo/config.conf` — ماندگارسازی ASSUME_YES / NO_COLOR / NO_LOG / DRY_RUN / DNS_SERVERS / NO_CACHE برای کرون و سیستم‌های مشترک؛ هرگز source یا eval نمی‌شود — هر خط parse و اعتبارسنجی می‌شود (v7.8) |
+| ⚡ **کش TTL** | نتایج پرهزینه (بررسی اتصال، به‌روزرسانی لیست apt، استعلام ریلیز GitHub) با زمان انقضا کش می‌شوند — اجراهای پشت‌سرهم منتظر نمی‌مانند؛ بازرسی با --cache-stats، پاک‌سازی با --cache-clear، دورزدن با --no-cache (v7.9) |
 | 📦 **نصب** | بسته‌های deb · **نصب هوشمند tar.gz/tgz** (تشخیص فایل اجرایی اصلی، بررسی معماری، نصب خودکار وابستگی‌ها) · AppImage |
 | 🐙 **GitHub Releases** | نصب / به‌روزرسانی / حذف برنامه‌ها — انتخاب خودکار فایل سازگار با معماری سیستم · **بررسی checksum شی‌آر-۲۵۶** وقتی ریلیز فایل checksum دارد (v7.4) |
 | ⬆ **به‌روزرسانی خود ابزار** | `uo --self-update` — خود ابزار خودش را به‌روز می‌کند: بررسی نسخه از مخزن رسمی، git pull برای کلون‌ها، آرشیو تأییدشده + پشتیبان خودکار برای کپی‌های ثابت (v7.6) |
@@ -69,6 +70,7 @@ uo --report --json | jq '.summary'   # همان گزارش، خروجی ماشی
 uo --report --json --append --output ~/.local/share/ubuntu-optimizer/report-log.jsonl
                       # هر بار اجرا یک خط JSON → لاگ سری‌زمانی برای داشبوردها (v7.7)
 uo --config-show      # بازرسی کانفیگ مؤثر (v7.8)
+uo --cache-stats      # چه چیزی کش شده و تا کِی (v7.9)
 uo --self-update      # خود ابزار را روی آخرین نسخه نگه دارید (v7.6)
 uo --optimize --dry-run -y   # پیش‌نمایش همه‌چیز قبل از هر تغییری
 ```
@@ -165,6 +167,8 @@ uo --profile server -y             # اعمال بدون سؤال
 | `uo --report --json --output FILE [--append]` | نوشتن گزارش در فایل — `--append` یک لاگ سری‌زمانی JSONL برای داشبوردها می‌سازد (v7.7) |
 | `uo --config-show` · `--config-example` | بازرسی کانفیگ مؤثر · چاپ قالب کامنت‌گذاری‌شده (v7.8) |
 | `uo --config FILE` · `--no-config` | استفاده از فایل کانفیگ جایگزین · نادیده‌گرفتن کانفیگ‌ها برای یک اجرا (v7.8) |
+| `uo --cache-stats` · `--cache-clear` | نمایش ورودی‌های کش + زمان باقی‌مانده · پاک‌کردن کش (v7.9) |
+| `uo --no-cache` | دورزدن کش TTL برای یک اجرا (v7.9) |
 | `uo --doctor` | بررسی سلامت و تعمیر همهٔ برنامه‌های نصب‌شده/ردیابی‌شده |
 | `uo --github-install OWNER/REPO [NAME]` | نصب برنامه از آخرین ریلیز GitHub |
 | `uo --github-update` · `--github-list` · `--github-remove` | به‌روزرسانی · فهرست · حذف برنامه‌های GitHub |
@@ -346,7 +350,7 @@ DNS_SERVERS="1.1.1.1 9.9.9.9"
 - **پارس عمداً محتاطانه است:** فایل هرگز `source` یا `eval` نمی‌شود — فقط
   خطوط `KEY=VALUE` خوانده می‌شوند (کامنت و گیومه اختیاری مجاز است)، پس یک
   فایل کانفیگ هرگز نمی‌تواند فرمانی اجرا کند.
-- **اولویت:** پیش‌فرض‌های داخلی < فایل کانفیگ < محیط (`UO_DNS_SERVERS`)
+- **اولویت:** پیش‌فرض‌های داخلی < فایل کانفیگ < محیط (`UO_DNS_SERVERS`، `UO_NO_CACHE`)
   < فلگ‌های صریح CLI (`-y`، `--dry-run`، `--no-color`، `--no-log`).
 - **کنترل برای هر اجرا:** `uo --config FILE` فایل جایگزین را استفاده می‌کند،
   `--no-config` همهٔ کانفیگ‌ها را برای یک اجرا نادیده می‌گیرد، `--config-show`
@@ -364,6 +368,7 @@ ubuntu-optimizer/
 ├── docs/                      ← لوگو و تصاویر README (SVG)
 ├── lib/
 │   ├── common.sh              ← رنگ‌ها، توابع کمکی، رجیستری، گزارش‌گیری
+│   ├── cache.sh               ← کش TTL برای عملیات‌های پرهزینه
 │   ├── network.sh             ← بهینه‌سازی و تست‌های شبکه
 │   ├── system.sh              ← سیستم، حافظه، امنیت، زمان
 │   ├── fixnet.sh              ← ساخت و اجرای اسکریپت دوزبانهٔ fixnet
@@ -382,7 +387,7 @@ ubuntu-optimizer/
 │   ├── disk.sh                ← تحلیل فضای دیسک و پاک‌سازی
 │   ├── gitssh.sh              ← راه‌اندازی SSH گیت‌هاب
 │   └── menus.sh               ← موتور منو و همهٔ منوها
-├── test/                      ← تست‌های واحد bats (common، appmgmt، github، undo، profile، jsonreport، selfupdate، reportfile، config، syntax)
+├── test/                      ← تست‌های واحد bats (common، appmgmt، github، undo، profile، jsonreport، selfupdate، reportfile، config، cache، syntax)
 ├── completions/               ← uo (bash) · ‪_uo‬ (zsh) — تکمیل تب برای همهٔ فلگ‌ها
 ├── .github/workflows/
 │   ├── lint.yml               ← CI: shellcheck + syntax + bats در هر push
@@ -402,7 +407,7 @@ ubuntu-optimizer/
 |---|---|
 | بررسی سینتکس `bash -n` | ✅ هر ۲۳ فایل شل |
 | ShellCheck (سخت‌گیرانه) | ✅ صفر ایراد — در CI اجباری است |
-| تست‌های واحد bats | ✅ ۱۲۳ از ۱۲۳ پاس |
+| تست‌های واحد bats | ✅ ۱۵۰ از ۱۵۰ پاس |
 | `install.sh --check` | ✅ خودارزیابی سلامت داخلی |
 | GitHub Actions CI | ✅ روی هر push و pull request |
 

@@ -4,16 +4,17 @@
 # ───────────────────────────────────────────────────────────────────────────────
 #  Optional user configuration file: ~/.config/uo/config.conf (respects
 #  $XDG_CONFIG_HOME). Lets recurring setups (cron jobs, shared machines)
-#  persist their preferences — ASSUME_YES, NO_COLOR, NO_LOG, DRY_RUN and
-#  DNS_SERVERS — without repeating flags on every invocation.
+#  persist their preferences — ASSUME_YES, NO_COLOR, NO_LOG, DRY_RUN,
+#  DNS_SERVERS and NO_CACHE — without repeating flags on every invocation.
 #
 #  Parsing is deliberately paranoid: the file is NEVER sourced or eval'd.
 #  Only KEY=VALUE lines are accepted (blank lines and '#' comments allowed,
 #  optional matching quotes stripped), every value is validated against its
 #  key, unknown keys and malformed lines are reported and skipped. Precedence
 #  is documented and enforced:
-#      built-in defaults < config file < environment (UO_DNS_SERVERS)
-#      < explicit CLI flags (-y, --dry-run, --no-color, --no-log)
+#      built-in defaults < config file < environment (UO_DNS_SERVERS,
+#      UO_NO_CACHE) < explicit CLI flags (-y, --dry-run, --no-color,
+#      --no-log, --no-cache)
 #
 #  Project : ubuntu-optimizer — github.com/CheginiSoroush/ubuntu-optimizer
 #  Author  : Soroush Chegini (CheginiSoroush)
@@ -64,6 +65,10 @@ uo_config_example() {
 # Custom DNS servers for --network/--optimize (space-separated IPv4)
 # The UO_DNS_SERVERS environment variable wins over this key.
 #DNS_SERVERS="1.1.1.1 9.9.9.9"
+
+# Disable the TTL cache: lookups always miss and results are not stored
+# (the UO_NO_CACHE environment variable and --no-cache win over this key)
+#NO_CACHE=0
 EOF
 }
 
@@ -80,7 +85,7 @@ EOF
 uo_config_value_is_valid() {
     local key="$1" value="$2"
     case "$key" in
-        ASSUME_YES|NO_COLOR|NO_LOG|DRY_RUN)
+        ASSUME_YES|NO_COLOR|NO_LOG|DRY_RUN|NO_CACHE)
             [[ "$value" == "0" || "$value" == "1" ]] ;;
         DNS_SERVERS)
             [ -n "$value" ] && [[ "$value" =~ ^[0-9.[:space:]]+$ ]] ;;
@@ -140,6 +145,15 @@ uo_config_apply_key() {
                 UO_DNS_SERVERS="$value"; CONFIG_SOURCES[$key]="config"
             fi
             ;;
+        NO_CACHE)
+            if [ "${CLI_NO_CACHE:-0}" = "1" ]; then
+                CONFIG_SOURCES[$key]="cli"
+            elif [ -n "${UO_NO_CACHE:-}" ]; then
+                CONFIG_SOURCES[$key]="env"
+            else
+                NO_CACHE="$value"; CONFIG_SOURCES[$key]="config"
+            fi
+            ;;
     esac
 }
 
@@ -160,7 +174,7 @@ uo_config_apply_key() {
 uo_config_load() {
     # Seed every tracked key with its documented default source
     local k
-    for k in ASSUME_YES NO_COLOR NO_LOG DRY_RUN DNS_SERVERS; do
+    for k in ASSUME_YES NO_COLOR NO_LOG DRY_RUN DNS_SERVERS NO_CACHE; do
         CONFIG_SOURCES[$k]="default"
     done
     # Explicit CLI preference flags are recorded even when no config file is
@@ -169,8 +183,10 @@ uo_config_load() {
     [ "${CLI_NO_COLOR:-0}" = "1" ] && CONFIG_SOURCES[NO_COLOR]="cli"
     [ "${CLI_NO_LOG:-0}" = "1" ]   && CONFIG_SOURCES[NO_LOG]="cli"
     [ "${CLI_DRY_RUN:-0}" = "1" ]  && CONFIG_SOURCES[DRY_RUN]="cli"
-    # An exported UO_DNS_SERVERS is the documented env-level override
+    [ "${CLI_NO_CACHE:-0}" = "1" ] && CONFIG_SOURCES[NO_CACHE]="cli"
+    # Exported UO_* variables are the documented env-level overrides
     [ -n "${UO_DNS_SERVERS:-}" ]   && CONFIG_SOURCES[DNS_SERVERS]="env"
+    [ -n "${UO_NO_CACHE:-}" ]      && CONFIG_SOURCES[NO_CACHE]="env"
 
     [ "${NO_CONFIG:-0}" = "1" ] && return 0
 
@@ -248,7 +264,7 @@ uo_config_show() {
     # tracked by LOG_ENABLED (NO_LOG is its logical inverse).
     [ -z "$RED" ] && eff_no_color=1
     [ "$LOG_ENABLED" = "0" ] && eff_no_log=1
-    for k in ASSUME_YES NO_COLOR NO_LOG DRY_RUN DNS_SERVERS; do
+    for k in ASSUME_YES NO_COLOR NO_LOG DRY_RUN DNS_SERVERS NO_CACHE; do
         case "$k" in
             DNS_SERVERS)
                 printf '%s=%s (%s)\n' "$k" "${UO_DNS_SERVERS:-$default_dns}" "${CONFIG_SOURCES[$k]}"
@@ -265,6 +281,6 @@ uo_config_show() {
         esac
     done
     echo ""
-    info "Template: uo --config-example · precedence: defaults < config < env < CLI flags"
+    info "Template: uo --config-example · precedence: defaults < config < env < CLI flags (incl. NO_CACHE / UO_NO_CACHE)"
     return 0
 }

@@ -45,18 +45,18 @@ _fmt_size() {
 }
 
 # ───────────────────────────────────────────────────────────────────────────────
-# _net_has_internet() — multi-method connectivity check
+# _net_has_internet_probe() — multi-method connectivity check (uncached)
 #
 # ICMP is unreliable because some ISPs block or deprioritize it, so the
 # check escalates: ping two public IPs, then raw TCP probes via bash
 # /dev/tcp, then an HTTP request to Ubuntu's connectivity-check URL. Any
-# single hit counts as "online".
+# single hit counts as "online". Costs up to ~10 s when everything fails.
 #
 # Arguments: none
 # Returns:   0 — at least one method succeeded
 #            1 — all methods failed
 # ───────────────────────────────────────────────────────────────────────────────
-_net_has_internet() {
+_net_has_internet_probe() {
     ping -c 1 -W 2 8.8.8.8 > /dev/null 2>&1 && return 0
     ping -c 1 -W 2 1.1.1.1 > /dev/null 2>&1 && return 0
 
@@ -67,6 +67,33 @@ _net_has_internet() {
         curl -s --connect-timeout 3 --max-time 5 -o /dev/null \
              "http://connectivity-check.ubuntu.com" 2>/dev/null && return 0
     fi
+    return 1
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# _net_has_internet() — connectivity check with a short TTL cache
+#
+# Wraps the probe with the lib/cache.sh TTL cache: the verdict is stored
+# for 120 s when online and only 60 s when offline, so a just-fixed
+# connection is noticed quickly while repeated report runs within a
+# session skip the multi-second timeout chain entirely.
+#
+# Escape hatches: --no-cache / NO_CACHE=1 / UO_NO_CACHE=1 / --cache-clear.
+#
+# Arguments: none
+# Returns:   0 — at least one method succeeded (now or within the TTL)
+#            1 — all methods failed (now or within the TTL)
+# ───────────────────────────────────────────────────────────────────────────────
+_net_has_internet() {
+    if cache_lookup "net:internet"; then
+        [ "$_CACHE_VALUE" = "1" ]
+        return
+    fi
+    if _net_has_internet_probe; then
+        cache_set "net:internet" "1" 120
+        return 0
+    fi
+    cache_set "net:internet" "0" 60
     return 1
 }
 

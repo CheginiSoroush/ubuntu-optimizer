@@ -347,7 +347,15 @@ clean_snap_flatpak_junk() {
 # runs with DEBIAN_FRONTEND=noninteractive so dpkg questions (e.g. config
 # file conflicts) get the default answer instead of blocking the run.
 #
-# Globals:   ASSUME_YES (read)
+# The refresh itself is TTL-cached (lib/cache.sh): when this tool already
+# ran a successful `apt update` within the last 10 minutes, the redundant
+# refresh is skipped with an informational note — the marker is written
+# only by this tool, so a manually refreshed list never causes a skip.
+# Staleness is bounded and harmless (apt upgrade works with older lists);
+# force a fresh refresh with --no-cache, the NO_CACHE config key or
+# `uo --cache-clear`.
+#
+# Globals:   ASSUME_YES (read), cache helpers (read/write)
 # Arguments: none
 # Returns:   0 — update, upgrade and autoremove finished
 #            1 — apt update or the upgrade failed
@@ -355,7 +363,20 @@ clean_snap_flatpak_junk() {
 update_apt() {
     header "Update apt (System & deb Packages)"
     info "Checking for updates..."
-    sudo apt update || { failure "apt update failed."; return 1; }
+    local now age_min
+    if cache_lookup "apt:lists"; then
+        now=$(printf '%(%s)T' -1)
+        age_min=$(( (now - _CACHE_VALUE) / 60 + 1 ))
+        info "apt lists were refreshed ${age_min} minute(s) ago by this tool — skipping the redundant update."
+        info "Force a fresh refresh: uo --no-cache (or uo --cache-clear)."
+    else
+        if sudo apt update; then
+            cache_set "apt:lists" "$(printf '%(%s)T' -1)" 600
+        else
+            failure "apt update failed."
+            return 1
+        fi
+    fi
     # In -y mode, dpkg questions (config file conflicts) get the default answer
     local -a upgrade_cmd=(apt upgrade -y)
     [ "$ASSUME_YES" = "1" ] && upgrade_cmd=(env DEBIAN_FRONTEND=noninteractive apt upgrade -y)

@@ -65,6 +65,7 @@ _uo() {
     local opts="
         -h --help -V --version -y --yes --no-color --no-log --dry-run
         --config --no-config --config-show --config-example
+        --no-cache --cache-clear --cache-stats
         --report --json --output --append --git-ssh --git-ssh-status --doctor
         --disk --disk-clean
         --github-install --github-update --github-list --github-remove

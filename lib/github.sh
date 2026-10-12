@@ -118,15 +118,22 @@ gh_set_auth() {
 #
 # Normalizes OWNER/REPO input (URL and git-remote forms accepted), installs
 # curl on demand and calls the releases/latest API with a 15 s connect /
-# 30 s total timeout. Fills GH_TAG and the GH_URLS asset list, parsing with
-# jq when available and with grep/sed otherwise. API errors are matched on
-# the "message" field only — release notes (the "body" field) may
-# legitimately contain words like "rate limit".
+# 30 s total timeout, then fills GH_TAG and the GH_URLS asset list,
+# parsing with jq when available and with grep/sed otherwise. API errors
+# are matched on the "message" field only — release notes (the "body"
+# field) may legitimately contain words like "rate limit".
+#
+# The raw API response is TTL-cached (lib/cache.sh) under the key
+# gh:latest:<owner>::<repo> for 5 minutes: the anonymous API allows only 60 requests/hour per IP,
+# and repeated installs/update checks within the TTL now cost zero API
+# calls. A cached response passes through the exact same validation and
+# parsing as a fresh one; error responses and unparseable bodies are
+# never cached. Bypass: --no-cache / NO_CACHE=1 / UO_NO_CACHE=1.
 #
 # Globals:   GH_CURL_AUTH — auth arguments consumed
 #            GH_TAG, GH_URLS — written; release tag and asset URLs
 # Arguments: $1 — OWNER/REPO or a full github.com URL
-# Returns:   0 — release metadata parsed
+# Returns:   0 — release metadata parsed (fresh or cached)
 #            1 — bad repository format, network/API failure, or an
 #                unparseable response (private repository?)
 # ───────────────────────────────────────────────────────────────────────────────
@@ -139,7 +146,7 @@ gh_fetch_latest() {   # $1 = OWNER/REPO or a full URL
         sudo apt install -y curl > /dev/null 2>&1 || { failure "Failed to install curl."; return 1; }
     fi
 
-    local repo="$1" resp
+    local repo="$1" resp="" from_cache=0
     repo=${repo#https://github.com/}
     repo=${repo#git@github.com:}
     repo=${repo%/}
@@ -153,12 +160,21 @@ gh_fetch_latest() {   # $1 = OWNER/REPO or a full URL
 
     gh_set_auth
 
-    info "Checking the latest release of $repo ..."
-    # stderr is kept separate so a curl failure shows as an empty response, not broken JSON
-    if ! resp=$(curl -sSL --connect-timeout 15 --max-time 30 "${GH_CURL_AUTH[@]}" \
-        "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null) || [ -z "$resp" ]; then
-        failure "Failed to get a response from the GitHub API — check your internet connection."
-        return 1
+    # The key joins owner and repo with "::" — a separator that cannot
+    # occur inside the validated OWNER/REPO format, so no two repositories
+    # can ever share an entry ("/" itself is not allowed in cache keys).
+    if cache_lookup "gh:latest:${repo//\//::}"; then
+        from_cache=1
+        resp="$_CACHE_VALUE"
+        info "Using cached release info for $repo (5 min TTL — bypass with --no-cache) ..."
+    else
+        info "Checking the latest release of $repo ..."
+        # stderr is kept separate so a curl failure shows as an empty response, not broken JSON
+        if ! resp=$(curl -sSL --connect-timeout 15 --max-time 30 "${GH_CURL_AUTH[@]}" \
+            "https://api.github.com/repos/${repo}/releases/latest" 2>/dev/null) || [ -z "$resp" ]; then
+            failure "Failed to get a response from the GitHub API — check your internet connection."
+            return 1
+        fi
     fi
 
     # Errors are matched on the API's "message" field only — release notes
@@ -190,6 +206,9 @@ gh_fetch_latest() {   # $1 = OWNER/REPO or a full URL
         failure "The API response could not be parsed (private repository?)."
         return 1
     fi
+    # Only a fully validated response is cached — errors and parse
+    # failures above already returned, so they are never stored
+    [ "$from_cache" = "0" ] && cache_set "gh:latest:${repo//\//::}" "$resp" 300
     return 0
 }
 

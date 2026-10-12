@@ -15,7 +15,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # ── Load modules ───────────────────────────────────────────────────────────────
-for _lib in common config network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk gitssh undo profile selfupdate menus; do
+for _lib in common cache config network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk gitssh undo profile selfupdate menus; do
     _libfile="$SCRIPT_DIR/lib/${_lib}.sh"
     if [ -f "$_libfile" ]; then
         # shellcheck source=/dev/null
@@ -56,6 +56,7 @@ CLI_YES=0
 CLI_NO_COLOR=0
 CLI_NO_LOG=0
 CLI_DRY_RUN=0
+CLI_NO_CACHE=0
 CONFIG_PATH_OVERRIDE=""
 NO_CONFIG=0
 CONFIG_SHOW=0
@@ -106,6 +107,12 @@ Options:
   --no-config         ignore every config file for this run
   --config-show       print the effective configuration and exit
   --config-example    print an annotated template config and exit
+
+  --no-cache          bypass the TTL cache for this run (lookups miss,
+                      new results are not stored)
+  --cache-clear       delete every cached entry (apt lists, GitHub
+                      release info, connectivity verdict)
+  --cache-stats       show the cache entries with their remaining TTL
 
   --report            system status report (read-only)
   --json              (with --report) machine-readable JSON output
@@ -163,13 +170,20 @@ Environment:
   UO_DNS_SERVERS      custom DNS servers for --network/--optimize
                       (space-separated IPv4; default: "8.8.8.8 1.1.1.1")
                       config file key DNS_SERVERS applies when this is unset
+  UO_NO_CACHE         set to 1 to bypass the TTL cache for this run
+                      (config file key NO_CACHE applies when this is unset)
   GH_TOKEN            GitHub token — raises the API rate limit to 5000/hour
 
 Config file:
   ~/.config/uo/config.conf — optional KEY=VALUE preferences loaded for every
-  run: ASSUME_YES, NO_COLOR, NO_LOG, DRY_RUN, DNS_SERVERS. Precedence:
-  built-in defaults < config file < environment < explicit CLI flags.
+  run: ASSUME_YES, NO_COLOR, NO_LOG, DRY_RUN, DNS_SERVERS, NO_CACHE.
+  Precedence: built-in defaults < config file < environment < CLI flags.
   Template: uo --config-example · inspect: uo --config-show
+
+Cache:
+  Costly results (apt list refresh, GitHub release lookups, connectivity
+  probes) are TTL-cached under ~/.local/share/ubuntu-optimizer/cache so
+  repeated runs skip the wait. Inspect: uo --cache-stats · wipe: uo --cache-clear
 
 Examples:
   uo --report
@@ -189,6 +203,8 @@ Examples:
   #  → one JSON line per run: a time-series log for dashboards (cron-friendly)
   uo --config-show      # inspect the effective configuration
   uo --config-example > ~/.config/uo/config.conf   # start a config file
+  uo --cache-clear --update-apt    # force a fresh apt list refresh
+  uo --cache-stats    # what is cached right now, and for how long
 EOF
 }
 
@@ -248,6 +264,9 @@ while [ $# -gt 0 ]; do
         --no-config)      NO_CONFIG=1; shift ;;
         --config-show)    CONFIG_SHOW=1; shift ;;
         --config-example) uo_config_example; exit 0 ;;
+        --no-cache)       NO_CACHE=1; CLI_NO_CACHE=1; shift ;;
+        --cache-clear)    CLI_ACTIONS+=("cache_maintenance_clear|cache clear"); shift ;;
+        --cache-stats)    CLI_ACTIONS+=("cache_maintenance_stats|cache stats"); shift ;;
         --git-ssh)        CLI_ACTIONS+=("gitssh_setup|GitHub SSH setup"); shift ;;
         --git-ssh-status) CLI_ACTIONS+=("gitssh_status|GitHub SSH status"); shift ;;
         --github-update)  CLI_ACTIONS+=("github_update_apps|GitHub updates"); shift ;;

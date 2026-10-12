@@ -13,7 +13,7 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ── Version (single source of truth for the whole project) ─────────────
-readonly SCRIPT_VERSION="7.8"
+readonly SCRIPT_VERSION="7.9"
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 readonly SYSCTL_CONF="/etc/sysctl.d/99-ubuntu-optimizer.conf"
@@ -163,6 +163,10 @@ print_session_summary() {
     echo ""
     echo -e "${BOLD}── Session summary ──${NC}"
     echo -e "   ✓ OK: $LOG_OK_COUNT     ✗ Errors: $LOG_FAIL_COUNT     ⚠ Warnings: $LOG_WARN_COUNT"
+    # TTL cache line only when the cache was actually consulted this run
+    if [ "${CACHE_HITS:-0}" -gt 0 ] || [ "${CACHE_MISSES:-0}" -gt 0 ]; then
+        echo -e "   ⚡ Cache: ${CACHE_HITS:-0} hit(s), ${CACHE_MISSES:-0} miss(es) — ${CACHE_DIR:-unknown}"
+    fi
     if [ "$LOG_ENABLED" = "1" ]; then
         echo -e "   ℹ Full log: $LOG_FILE"
     fi
