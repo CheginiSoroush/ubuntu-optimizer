@@ -58,6 +58,7 @@ _uo() {
         '--disk-report[write the disk analysis as a self-contained HTML report]:output file:_files'
         '--git-ssh[GitHub SSH key setup wizard]'
         '--git-ssh-status[SSH key / GitHub authentication status]'
+        '--doctor[health check & repair all installed/tracked apps]'
         '--boot[boot time analysis (total, slowest units, failed units — read-only)]'
         '--autostart[list the startup applications (XDG autostart)]'
         '--autostart-on[enable a startup application again]:name:_uo_autostart_names'

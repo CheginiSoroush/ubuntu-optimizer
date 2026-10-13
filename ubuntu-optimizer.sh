@@ -249,6 +249,8 @@ Options:
                       the schedule snapshots the read-only JSON report into
                       report-log.jsonl + notifies on trouble — it never
                       applies updates
+  --timer-tick        internal: one monitor tick (report snapshot +
+                      notification — used by the installed timer unit)
 
   --list-apps         list all apps from all sources
   --cleanup NAME      fully remove app NAME from any source

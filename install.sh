@@ -123,7 +123,7 @@ _install_zsh_completion() {
         {
             echo ""
             echo "# >>> ubuntu-optimizer zfunc >>>"
-            echo 'fpath=("'"$ZFUNC_DIR"'" $fpath)'
+            echo "fpath=(\"$ZFUNC_DIR\" \$fpath)"
             echo "autoload -Uz compinit && compinit"
             echo "# <<< ubuntu-optimizer zfunc <<<"
         } >> "$HOME/.zshrc"

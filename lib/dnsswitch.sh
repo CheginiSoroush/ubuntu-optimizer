@@ -298,7 +298,10 @@ dnsswitch_apply_resolvconf() {
     [ -e "$rc" ] && [ ! -L "$rc" ] || { warn "/etc/resolv.conf is a symlink or missing — refusing to write it directly."; return 1; }
     if [ "$1" = "auto" ]; then
         local backup
-        backup=$(ls -1t /etc/resolv.conf.bak-uo-* 2> /dev/null | head -n 1)
+        # find + sort by mtime instead of "ls -1t | head" (SC2012); the
+        # backup prefix is created by this tool, so the names are safe
+        backup=$(find /etc -maxdepth 1 -name 'resolv.conf.bak-uo-*' -printf '%T@\t%p\n' 2>/dev/null \
+            | sort -rn | head -n 1 | cut -f2-)
         if [ -n "$backup" ]; then
             sudo cp "$backup" "$rc" && { info "Restored $backup → $rc"; return 0; }
             return 1
