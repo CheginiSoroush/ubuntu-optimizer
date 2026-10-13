@@ -81,8 +81,10 @@ jobs:
       - name: Run tests (non-root — the toolkit refuses a root shell)
         run: |
           # the bash:X images ship bash at $(command -v bash) — there is
-          # no /bin/bash there — so the shell is resolved dynamically
+          # no /bin/bash there — so the shell is resolved dynamically;
+          # busybox su narrows PATH, /usr/local/bin (bash + bats) is
+          # re-added explicitly for the test shell
           SHELL_BIN="$(command -v bash)"
           adduser -D -s "$SHELL_BIN" uo
           chmod -R a+rX "$PWD"
-          su uo -c "cd '$PWD' && bats test/ --print-output-on-failure"
+          su uo -c "export PATH=/usr/local/bin:\$PATH; cd '$PWD' && bats test/ --print-output-on-failure"
