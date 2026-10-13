@@ -17,10 +17,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     the currently effective resolvers detected and the matching preset
     flagged `(current)`;
   - three apply mechanisms in order — NetworkManager (physical connection,
-    never a VPN), systemd-resolved (`resolvectl`, all non-loopback links)
-    and a last-resort `/etc/resolv.conf` rewrite guarded by a symlink check
-    (the resolved stub is never clobbered) with a timestamped
-    `/etc/resolv.conf.bak-uo-*` backup that `auto` restores;
+    never a VPN), systemd-resolved (`resolvectl`, default-route link first,
+    then every non-loopback link) and a last-resort `/etc/resolv.conf`
+    rewrite guarded by a symlink check (the resolved stub is never
+    clobbered) with a timestamped `/etc/resolv.conf.bak-uo-*` backup that
+    `auto` restores;
   - after applying, a 5-second `getent` lookup reports whether the new
     resolvers actually answer (offline machines get an info note, never an
     error); every mutation goes through the sudo wrapper, so `--dry-run`
@@ -66,7 +67,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   the project tree updated; CHANGELOG (this section).
 
 ### Fixed
-- none — this release adds only new surface (42 new bats tests, 359 total).
+- none — this release adds only new surface (45 new bats tests, 362 total).
 
 ## [7.15.0]
 

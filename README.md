@@ -15,7 +15,7 @@ The all-in-one optimization, app-management and repair toolkit —
 [![Version](https://img.shields.io/badge/version-v7.16-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-359%20%2F%20359-brightgreen)
+![Tests](https://img.shields.io/badge/bats-362%20%2F%20362-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -505,7 +505,7 @@ ubuntu-optimizer/
 |---|---|
 | `bash -n` syntax check | ✅ all 35 shell files |
 | ShellCheck (strict) | ✅ zero findings — enforced in CI |
-| bats unit tests | ✅ 359 / 359 passing |
+| bats unit tests | ✅ 362 / 362 passing |
 | `install.sh --check` | ✅ self-health verification built in |
 | GitHub Actions CI | ✅ every push & pull request |
 

@@ -211,11 +211,44 @@ dnsswitch_apply_nm() {
 }
 
 # ───────────────────────────────────────────────────────────────────────────────
+# _dnsswitch_parse_links() — extract interfaces from `resolvectl list` output
+#
+# The list prints "Link <n> (<iface>)" lines — the interface name is inside
+# the parentheses (the whole line is NOT "iface: something"). Loopback is
+# skipped; the default-route interface ($1, when non-empty) comes first and
+# is not repeated. Pure function: reads the listing on stdin, prints one
+# interface per line.
+#
+# Arguments: $1 — the default-route interface ("" when there is none)
+# Returns:   0 — always
+# ───────────────────────────────────────────────────────────────────────────────
+_dnsswitch_parse_links() {
+    local dr="$1" line iface
+    if [ -n "$dr" ] && [ "$dr" != "lo" ]; then
+        printf '%s\n' "$dr"
+    fi
+    while IFS= read -r line; do
+        case "$line" in
+            "Link "*")"*) ;;
+            *) continue ;;
+        esac
+        iface="${line##* (}"
+        iface="${iface%)}"
+        [ -n "$iface" ] || continue
+        [ "$iface" = "lo" ] && continue
+        [ "$iface" = "$dr" ] && continue
+        printf '%s\n' "$iface"
+    done
+    return 0
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
 # dnsswitch_apply_resolved() — apply servers via systemd-resolved (internal)
 #
-# resolvectl sets per-link resolvers; the interface with a default route is
-# used, falling back to the first non-loopback link. "auto" reverts the
-# link. Returns 2 when resolvectl or the systemd-resolved bus is missing.
+# resolvectl sets per-link resolvers; _dnsswitch_parse_links extracts the
+# non-loopback links with the default-route interface first. "auto" reverts
+# the links. Returns 2 when resolvectl or the systemd-resolved bus is
+# missing.
 #
 # Arguments: $1 — "auto" or a servers string
 # Returns:   0 — applied · 1 — the resolvectl call failed · 2 — unavailable
@@ -224,18 +257,15 @@ dnsswitch_apply_resolved() {
     command -v resolvectl > /dev/null 2>&1 || return 2
     resolvectl status > /dev/null 2>&1 || return 2
     [ -d /run/systemd/system ] || return 2
-    local -a servers=() ifaces=() iface line
+    local -a servers=() ifaces=()
+    local dr iface
     if [ "$1" != "auto" ]; then
         local s
         for s in $1; do servers+=("$s"); done
     fi
-    # interface with the default route first, else the first real link
-    while IFS= read -r line; do
-        case "$line" in
-            lo:*|lo\ *) continue ;;
-        esac
-        ifaces+=("${line%%:*}")
-    done < <(resolvectl list 2> /dev/null | grep -v '^$')
+    # the interface with the default route is where DNS matters most
+    dr=$(ip -o route show default 2> /dev/null | awk '{for (i = 1; i <= NF; i++) if ($i == "dev") { print $(i + 1); exit }}')
+    mapfile -t ifaces < <(resolvectl list 2> /dev/null | _dnsswitch_parse_links "$dr")
     [ ${#ifaces[@]} -gt 0 ] || return 2
     for iface in "${ifaces[@]}"; do
         if [ "$1" = "auto" ]; then

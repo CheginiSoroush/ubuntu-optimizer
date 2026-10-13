@@ -166,15 +166,23 @@ load_swap() {
 }
 
 @test "cli: --swap-on in dry-run prints the plan and changes nothing" {
-    # the swapfile must NOT already be active for the create flow to run
+    # the swapfile must NOT already be active for the create flow to run;
+    # GitHub runners ship a pre-existing /swapfile, so only the unchanged
+    # before/after state is asserted — a dry-run never creates or removes it
+    local existed=0
+    [ -e /swapfile ] && existed=1
     printf 'Filename\t\t\t\tType\t\tSize\tUsed\tPriority\n/dev/sda2  partition  4194300  0  -3\n' > "$TEST_HOME/part-only"
     UO_SWAP_FAKE_SWAPS="$TEST_HOME/part-only" run run_uo --dry-run --swap-on 2048 -y
     [ "$status" -eq 0 ]
     [[ "$output" == *"2048 MB"* ]]
     [[ "$output" == *"dry-run"* ]]
     [[ "$output" == *"would be enabled"* ]]
-    # proof that nothing was executed: no swapfile materialized
-    [ ! -e /swapfile ]
+    # proof that nothing was executed: the before/after state is identical
+    if [ "$existed" = "0" ]; then
+        [ ! -e /swapfile ]
+    else
+        [ -e /swapfile ]
+    fi
 }
 
 @test "cli: --swappiness validation rejects out-of-range values" {

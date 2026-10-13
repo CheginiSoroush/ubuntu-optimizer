@@ -15,7 +15,7 @@
 [![Version](https://img.shields.io/badge/version-v7.16-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-359%20%2F%20359-brightgreen)
+![Tests](https://img.shields.io/badge/bats-362%20%2F%20362-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -499,7 +499,7 @@ ubuntu-optimizer/
 |---|---|
 | بررسی سینتکس `bash -n` | ✅ هر ۳۵ فایل شل |
 | ShellCheck (سخت‌گیرانه) | ✅ صفر ایراد — در CI اجباری است |
-| تست‌های واحد bats | ✅ ۳۵۹ از ۳۵۹ پاس |
+| تست‌های واحد bats | ✅ ۳۶۲ از ۳۶۲ پاس |
 | `install.sh --check` | ✅ خودارزیابی سلامت داخلی |
 | GitHub Actions CI | ✅ روی هر push و pull request |
 

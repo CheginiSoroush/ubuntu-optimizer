@@ -21,6 +21,33 @@ setup() {
     cp -r "$BATS_TEST_DIRNAME/.." "$TEST_HOME/uo-tree"
     chmod +x "$TEST_HOME/uo-tree/ubuntu-optimizer.sh"
     cd "$TEST_HOME/uo-tree" || fail "cannot cd into the copied tree"
+
+    # Deterministic network tools — the real nmcli/resolvectl of the test
+    # machine must never decide which apply mechanism runs. The stub nmcli
+    # answers one active ethernet connection and an unset ipv4.dns; the
+    # stub resolvectl always fails (drives the flow to nmcli / resolv.conf).
+    STUB_BIN="$TEST_HOME/stub-bin"
+    mkdir -p "$STUB_BIN"
+    cat > "$STUB_BIN/nmcli" << 'EOF'
+#!/usr/bin/env bash
+case " $* " in
+    *" -t -f NAME,DEVICE,TYPE con show --active "*)
+        printf 'Wired connection 1:eth0:802-3-ethernet\n'
+        ;;
+    *" -g ipv4.dns connection show "*)
+        printf -- '--\n'
+        ;;
+    *)
+        exit 0
+        ;;
+esac
+EOF
+    cat > "$STUB_BIN/resolvectl" << 'EOF'
+#!/usr/bin/env bash
+exit 1
+EOF
+    chmod +x "$STUB_BIN/nmcli" "$STUB_BIN/resolvectl"
+    export PATH="$STUB_BIN:$PATH"
 }
 
 teardown() {
@@ -91,6 +118,45 @@ load_dns() {
         [ "$status" -eq 0 ]
         [ -n "$output" ]
     done
+}
+
+# ---------- function level: the resolvectl link parser ----------
+
+@test "_dnsswitch_parse_links extracts 'Link N (iface)' lines, skips loopback" {
+    load_dns
+    run _dnsswitch_parse_links "" << 'EOF'
+Global
+Link 1 (lo)
+Link 2 (eth0)
+Link 3 (wlan0)
+EOF
+    [ "$status" -eq 0 ]
+    [ "${#lines[@]}" -eq 2 ]
+    [ "${lines[0]}" = "eth0" ]
+    [ "${lines[1]}" = "wlan0" ]
+}
+
+@test "_dnsswitch_parse_links puts the default-route interface first" {
+    load_dns
+    run _dnsswitch_parse_links "wlan0" << 'EOF'
+Global
+Link 1 (lo)
+Link 2 (eth0)
+Link 3 (wlan0)
+EOF
+    [ "$status" -eq 0 ]
+    [ "${#lines[@]}" -eq 2 ]
+    [ "${lines[0]}" = "wlan0" ]
+    [ "${lines[1]}" = "eth0" ]
+}
+
+@test "_dnsswitch_parse_links on an empty listing prints nothing" {
+    load_dns
+    # stdin MUST be closed — the parser reads the listing from stdin and
+    # would otherwise block on the test runner's inherited input
+    run _dnsswitch_parse_links "" < /dev/null
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
 }
 
 # ---------- function level: the current-resolver detection ----------
@@ -166,6 +232,7 @@ EOF
     [[ "$output" == *"Switch DNS"* ]]
     [[ "$output" == *"178.22.122.100 185.51.200.2"* ]]
     [[ "$output" == *"dry-run"* ]]
+    [[ "$output" == *"NetworkManager connection 'Wired connection 1'"* ]]
 }
 
 @test "cli: --dns auto is accepted as a valid preset" {
@@ -173,6 +240,7 @@ EOF
     [ "$status" -eq 0 ]
     [[ "$output" == *"Switch DNS → auto"* ]]
     [[ "$output" == *"DHCP"* ]]
+    [[ "$output" == *"NetworkManager connection 'Wired connection 1'"* ]]
 }
 
 # ---------- interactive picker ----------

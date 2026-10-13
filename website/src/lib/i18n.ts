@@ -17,7 +17,7 @@ const en = {
     github: "GitHub",
   },
   hero: {
-    badge: `${VERSION} — 22 tools · 359/359 tests · MIT`,
+    badge: `${VERSION} — 22 tools · 362/362 tests · MIT`,
     titleA: "One command.",
     titleB: "A faster, cleaner, healthier Ubuntu.",
     subtitle:
@@ -30,7 +30,7 @@ const en = {
   stats: [
     { value: 22, suffix: "", label: "menu tools" },
     { value: 57, suffix: "+", label: "CLI options" },
-    { value: 359, suffix: "/359", label: "tests passing" },
+    { value: 362, suffix: "/362", label: "tests passing" },
     { value: 0, suffix: "", label: "ShellCheck issues" },
   ],
   tools: {
@@ -278,7 +278,7 @@ sudo rm /etc/polkit-1/rules.d/10-disable-password-timeout.rules`,
       },
       {
         q: "What's new in v7.16?",
-        a: "The Maintenance & hardware family: uo --dns (one-word DNS switching — Iranian bypass resolvers shecan/403online/radar/electro plus cloudflare/google/quad9/adguard and auto back to DHCP), uo --kernel-clean (old-kernel removal where the running and newest kernels are protected by construction) and the swap manager (--swap-on / --swap-off / --swappiness). 359/359 tests pass, ShellCheck is clean.",
+        a: "The Maintenance & hardware family: uo --dns (one-word DNS switching — Iranian bypass resolvers shecan/403online/radar/electro plus cloudflare/google/quad9/adguard and auto back to DHCP), uo --kernel-clean (old-kernel removal where the running and newest kernels are protected by construction) and the swap manager (--swap-on / --swap-off / --swappiness). 362/362 tests pass, ShellCheck is clean.",
       },
     ],
   },
@@ -336,7 +336,7 @@ const fa: typeof en = {
     github: "گیت‌هاب",
   },
   hero: {
-    badge: `${VERSION} — ۲۲ ابزار · ۳۵۹/۳۵۹ تست · MIT`,
+    badge: `${VERSION} — ۲۲ ابزار · ۳۶۲/۳۶۲ تست · MIT`,
     titleA: "یک دستور؛",
     titleB: "اوبونتویی سریع‌تر، تمیزتر و سالم‌تر.",
     subtitle:
@@ -349,7 +349,7 @@ const fa: typeof en = {
   stats: [
     { value: 22, suffix: "", label: "ابزار در منو" },
     { value: 57, suffix: "+", label: "گزینهٔ خط فرمان" },
-    { value: 359, suffix: "/۳۵۹", label: "تست پاس‌شده" },
+    { value: 362, suffix: "/۳۶۲", label: "تست پاس‌شده" },
     { value: 0, suffix: "", label: "خطای ShellCheck" },
   ],
   tools: {
@@ -597,7 +597,7 @@ sudo rm /etc/polkit-1/rules.d/10-disable-password-timeout.rules`,
       },
       {
         q: "تازگی‌های نسخهٔ ۷٫۱۶ چیست؟",
-        a: "خانوادهٔ جدید «نگهداشت و سخت‌افزار»: uo --dns (تعویض DNS با یک کلمه — رزولورهای عبور از تحریم شکن/۴۰۳/رادار/الکترو به‌علاوه cloudflare/google/quad9/adguard و auto برای برگشت به DHCP)، uo --kernel-clean (حذف کرنل‌های قدیمی که در آن کرنل در حال اجرا و تازه‌ترین کرنل ذاتاً محفوظ‌اند) و مدیر swap (‎--swap-on‎ / ‎--swap-off‎ / ‎--swappiness‎). ۳۵۹/۳۵۹ تست پاس و ShellCheck تمیز است.",
+        a: "خانوادهٔ جدید «نگهداشت و سخت‌افزار»: uo --dns (تعویض DNS با یک کلمه — رزولورهای عبور از تحریم شکن/۴۰۳/رادار/الکترو به‌علاوه cloudflare/google/quad9/adguard و auto برای برگشت به DHCP)، uo --kernel-clean (حذف کرنل‌های قدیمی که در آن کرنل در حال اجرا و تازه‌ترین کرنل ذاتاً محفوظ‌اند) و مدیر swap (‎--swap-on‎ / ‎--swap-off‎ / ‎--swappiness‎). ۳۶۲/۳۶۲ تست پاس و ShellCheck تمیز است.",
       },
     ],
   },
