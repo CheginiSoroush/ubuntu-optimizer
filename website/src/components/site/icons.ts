@@ -22,6 +22,7 @@ import {
   CircleCheck,
   BookOpen,
   type LucideIcon,
+  Rocket,
 } from "lucide-react";
 
 export const toolIcons: Record<string, LucideIcon> = {
@@ -42,6 +43,8 @@ export const toolIcons: Record<string, LucideIcon> = {
   harddrive: HardDrive,
   sparkles: Sparkles,
   inspect: Eye,
+  wrench2: Wrench,
+  rocket: Rocket,
 };
 
 export const safetyIcons: Record<string, LucideIcon> = {
