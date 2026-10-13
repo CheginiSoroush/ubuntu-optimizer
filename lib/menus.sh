@@ -313,6 +313,29 @@ menu_monitor() {
 }
 
 # ───────────────────────────────────────────────────────────────────────────────
+# menu_maintenance() — submenu 22: Maintenance & Hardware
+#
+# Thin wrapper: the DNS entries dispatch to lib/dnsswitch.sh, the kernel
+# entries to lib/kernels.sh and the swap entries to lib/swap.sh. Only
+# the read-only inspectors are safe everywhere; the writing entries ask
+# their own confirmation before anything changes.
+#
+# Arguments: none
+# Returns:   0 — on Back/EOF
+# ───────────────────────────────────────────────────────────────────────────────
+menu_maintenance() {
+    menu_loop "🧰 Maintenance & Hardware" \
+        "DNS presets (switch with one word)|dnsswitch_pick" \
+        "Show DNS presets + current resolvers|dnsswitch_show" \
+        "List installed kernels|kernels_show" \
+        "Remove old kernels (keep running + newest)|kernels_clean" \
+        "Swap status|swap_show" \
+        "Create / enable a swapfile|swap_menu_on" \
+        "Remove the swapfile|swap_off" \
+        "Tune vm.swappiness|swap_menu_swappiness"
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
 # menu_recovery() — submenu 12: System Recovery & Rescue
 #
 # Thin wrapper: renders the submenu via menu_loop; every entry dispatches
@@ -352,11 +375,12 @@ menu_dangerous() {
 #
 # Interactive entry point used when no CLI flags are given. Draws the banner
 # box — the border width (54) matches the printf %-54s lines, so the
-# alignment can never drift — lists the 21 numbered entries plus Exit, and
+# alignment can never drift — lists the 22 numbered entries plus Exit, and
 # loops until Exit or EOF. Entries 1–12 open the submenus above; 13–17 call
 # show_log, system_report, disk_analyze, disk_cleanup and the profile menu;
-# 18 opens the systemd timer menu; 19–21 open the disk report, the boot
-# submenu and the monitor & inspect submenu.
+# 18 opens the systemd timer menu; 19–22 open the disk report, the boot
+# submenu, the monitor & inspect submenu and the maintenance & hardware
+# submenu.
 #
 # Globals:   SCRIPT_VERSION (read), colour codes from lib/common.sh
 # Arguments: none
@@ -405,6 +429,7 @@ main_menu() {
         echo "  19) 🖥 Disk report (HTML, shareable)"
         echo "  20) 🥾 Boot & startup"
         echo "  21) 🔍 Monitor & inspect"
+        echo "  22) 🧰 Maintenance & hardware (DNS · kernels · swap)"
         echo ""
         echo "   0) Exit"
         echo ""
@@ -434,6 +459,7 @@ main_menu() {
             19) menu_disk_report ;;
             20) menu_boot ;;
             21) menu_monitor ;;
+            22) menu_maintenance ;;
             0) clear; echo -e "${GREEN}Goodbye! 👋${NC}"; exit 0 ;;
             # Invalid user input is not a system error — logged as WARN, not ERROR
             *) warn "Invalid choice"; sleep 1 ;;

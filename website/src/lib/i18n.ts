@@ -1,7 +1,7 @@
 export type Lang = "fa" | "en";
 
 export const REPO_URL = "https://github.com/CheginiSoroush/ubuntu-optimizer";
-export const VERSION = "v7.15";
+export const VERSION = "v7.16";
 
 const en = {
   dir: "ltr" as const,
@@ -17,25 +17,25 @@ const en = {
     github: "GitHub",
   },
   hero: {
-    badge: `${VERSION} — 21 tools · 317/317 tests · MIT`,
+    badge: `${VERSION} — 22 tools · 359/359 tests · MIT`,
     titleA: "One command.",
     titleB: "A faster, cleaner, healthier Ubuntu.",
     subtitle:
-      "The all-in-one toolbox for optimizing, app management and repairing Ubuntu — 21 tools in a simple menu, 49+ CLI options, and an honest dry-run preview. Pure Bash, fully reversible.",
+      "The all-in-one toolbox for optimizing, app management and repairing Ubuntu — 22 tools in a simple menu, 57+ CLI options, and an honest dry-run preview. Pure Bash, fully reversible.",
     ctaGithub: "Star on GitHub",
     ctaInstall: "Get started",
     scroll: "Scroll to explore",
     termTitle: "soroush@ubuntu: ~",
   },
   stats: [
-    { value: 21, suffix: "", label: "menu tools" },
-    { value: 49, suffix: "+", label: "CLI options" },
-    { value: 317, suffix: "/317", label: "tests passing" },
+    { value: 22, suffix: "", label: "menu tools" },
+    { value: 57, suffix: "+", label: "CLI options" },
+    { value: 359, suffix: "/359", label: "tests passing" },
     { value: 0, suffix: "", label: "ShellCheck issues" },
   ],
   tools: {
     kicker: "What's inside",
-    title: "21 tools, zero guesswork",
+    title: "22 tools, zero guesswork",
     subtitle:
       "Everything a fresh Ubuntu install needs — from network tuning to full app removal — behind one command and a friendly menu.",
     items: [
@@ -142,6 +142,12 @@ const en = {
         title: "Monitor & inspect",
         desc: "Health snapshot (load, memory verdict, temps, battery, failed units), big-file finder, listening ports with exposure flags and safe browser-cache cleanup.",
       },
+      {
+        icon: "wrench",
+        tag: "Maintenance",
+        title: "Maintenance & hardware",
+        desc: "DNS preset switcher (shecan · 403online · radar · electro · cloudflare · quad9 · adguard · auto), old-kernel cleanup (running + newest always protected) and a swap manager with swappiness tuning.",
+      },
     ],
   },
   terminal: {
@@ -240,6 +246,9 @@ sudo rm /etc/polkit-1/rules.d/10-disable-password-timeout.rules`,
       { cmd: "uo --bigfiles [DIR]", desc: "The 20 biggest files under a directory (floor: UO_BIGFILES_MIN_MB)" },
       { cmd: "uo --ports", desc: "Listening ports + owners — all-interface binds flagged ⚠" },
       { cmd: "uo --browser-clean", desc: "Empty browser caches — running browsers skipped, data untouched" },
+      { cmd: "uo --dns [PRESET]", desc: "Switch DNS with one word — shecan · 403online · radar · electro · cloudflare · google · quad9 · adguard · auto" },
+      { cmd: "uo --kernel-clean", desc: "Remove old kernels — running + newest always protected" },
+      { cmd: "uo --swap-on [MB] · --swappiness N", desc: "Create the recommended swapfile · tune swappiness (1-100)" },
     ],
     examplesTitle: "Real-world examples",
   },
@@ -268,8 +277,8 @@ sudo rm /etc/polkit-1/rules.d/10-disable-password-timeout.rules`,
         a: "Only for installing/updating packages and network tests. All optimizations, reports, disk analysis and app management work fully offline.",
       },
       {
-        q: "What's new in v7.15?",
-        a: "The new Monitor & inspect family: uo --health (read-only health snapshot), uo --bigfiles (largest files), uo --ports (listening sockets with exposure flags) and uo --browser-clean (safe browser cache cleanup that skips running browsers and never touches your data). 317/317 tests pass, ShellCheck is clean.",
+        q: "What's new in v7.16?",
+        a: "The Maintenance & hardware family: uo --dns (one-word DNS switching — Iranian bypass resolvers shecan/403online/radar/electro plus cloudflare/google/quad9/adguard and auto back to DHCP), uo --kernel-clean (old-kernel removal where the running and newest kernels are protected by construction) and the swap manager (--swap-on / --swap-off / --swappiness). 359/359 tests pass, ShellCheck is clean.",
       },
     ],
   },
@@ -327,25 +336,25 @@ const fa: typeof en = {
     github: "گیت‌هاب",
   },
   hero: {
-    badge: `${VERSION} — ۲۱ ابزار · ۳۱۷/۳۱۷ تست · MIT`,
+    badge: `${VERSION} — ۲۲ ابزار · ۳۵۹/۳۵۹ تست · MIT`,
     titleA: "یک دستور؛",
     titleB: "اوبونتویی سریع‌تر، تمیزتر و سالم‌تر.",
     subtitle:
-      "جعبه‌ابزار همه‌کارهٔ بهینه‌سازی، مدیریت برنامه‌ها و تعمیر اوبونتو — ۲۱ ابزار در منویی ساده، بیش از ۴۹ گزینهٔ خط فرمان و پیش‌نمایش صادقانهٔ dry-run. خالص با Bash، کاملاً قابل بازگشت.",
+      "جعبه‌ابزار همه‌کارهٔ بهینه‌سازی، مدیریت برنامه‌ها و تعمیر اوبونتو — ۲۲ ابزار در منویی ساده، بیش از ۵۷ گزینهٔ خط فرمان و پیش‌نمایش صادقانهٔ dry-run. خالص با Bash، کاملاً قابل بازگشت.",
     ctaGithub: "ستاره در گیت‌هاب",
     ctaInstall: "شروع کنید",
     scroll: "برای ادامه اسکرول کنید",
     termTitle: "soroush@ubuntu: ~",
   },
   stats: [
-    { value: 21, suffix: "", label: "ابزار در منو" },
-    { value: 49, suffix: "+", label: "گزینهٔ خط فرمان" },
-    { value: 317, suffix: "/۳۱۷", label: "تست پاس‌شده" },
+    { value: 22, suffix: "", label: "ابزار در منو" },
+    { value: 57, suffix: "+", label: "گزینهٔ خط فرمان" },
+    { value: 359, suffix: "/۳۵۹", label: "تست پاس‌شده" },
     { value: 0, suffix: "", label: "خطای ShellCheck" },
   ],
   tools: {
     kicker: "چه چیزهایی به دست می‌آورید؟",
-    title: "۲۱ ابزار، بدون حدس‌زدن",
+    title: "۲۲ ابزار، بدون حدس‌زدن",
     subtitle:
       "هرچه یک اوبونتوی تازه‌نصب‌شده لازم دارد — از تنظیم شبکه تا حذف کامل برنامه‌ها — پشت یک دستور و یک منوی دوستانه.",
     items: [
@@ -452,6 +461,12 @@ const fa: typeof en = {
         title: "پایش و بازرسی",
         desc: "عکس سلامت سیستم (بار، حکم حافظه، دما، باتری، یونیت‌های خراب)، یافته‌ندهٔ فایل‌های حجیم، پورت‌های گوش‌دهنده با پرچم exposure و پاک‌سازی امن کش مرورگر.",
       },
+      {
+        icon: "wrench",
+        tag: "نگهداشت",
+        title: "نگهداشت و سخت‌افزار",
+        desc: "سوییچر DNS با یک کلمه (شکن · ۴۰۳ · رادار · الکترو · cloudflare · quad9 · adguard · auto)، پاک‌سازی کرنل‌های قدیمی (کرنل در حال اجرا و تازه‌ترین همیشه محفوظ) و مدیر swap با تنظیم swappiness.",
+      },
     ],
   },
   terminal: {
@@ -550,6 +565,9 @@ sudo rm /etc/polkit-1/rules.d/10-disable-password-timeout.rules`,
       { cmd: "uo --bigfiles [DIR]", desc: "۲۰ فایل حجیم یک مسیر (آستانه: UO_BIGFILES_MIN_MB)" },
       { cmd: "uo --ports", desc: "پورت‌های گوش‌دهنده + صاحبشان — اتصال باز با ⚠" },
       { cmd: "uo --browser-clean", desc: "خالی‌کردن کش مرورگرها — مرورگر باز رد می‌شود، داده‌ها سالم" },
+      { cmd: "uo --dns [PRESET]", desc: "تعویض DNS با یک کلمه — shecan · 403online · radar · electro · cloudflare · google · quad9 · adguard · auto" },
+      { cmd: "uo --kernel-clean", desc: "حذف کرنل‌های قدیمی — در حال اجرا و تازه‌ترین همیشه محفوظ" },
+      { cmd: "uo --swap-on [MB] · --swappiness N", desc: "ساخت swapfile پیشنهادی · تنظیم swappiness (۱ تا ۱۰۰)" },
     ],
     examplesTitle: "مثال‌های واقعی",
   },
@@ -578,8 +596,8 @@ sudo rm /etc/polkit-1/rules.d/10-disable-password-timeout.rules`,
         a: "فقط برای نصب/به‌روزرسانی بسته‌ها و تست‌های شبکه. همهٔ بهینه‌سازی‌ها، گزارش‌ها، تحلیل دیسک و مدیریت برنامه‌ها کاملاً آفلاین کار می‌کنند.",
       },
       {
-        q: "تازگی‌های نسخهٔ ۷٫۱۵ چیست؟",
-        a: "خانوادهٔ جدید «پایش و بازرسی»: uo --health (عکس سلامت فقط-خواندنی)، uo --bigfiles (بزرگ‌ترین فایل‌ها)، uo --ports (پورت‌های گوش‌دهنده با پرچم exposure) و uo --browser-clean (پاک‌سازی امن کش مرورگر که مرورگرهای باز را رد می‌کند و هیچ داده‌ای را لمس نمی‌کند). ۳۱۷/۳۱۷ تست پاس و ShellCheck تمیز است.",
+        q: "تازگی‌های نسخهٔ ۷٫۱۶ چیست؟",
+        a: "خانوادهٔ جدید «نگهداشت و سخت‌افزار»: uo --dns (تعویض DNS با یک کلمه — رزولورهای عبور از تحریم شکن/۴۰۳/رادار/الکترو به‌علاوه cloudflare/google/quad9/adguard و auto برای برگشت به DHCP)، uo --kernel-clean (حذف کرنل‌های قدیمی که در آن کرنل در حال اجرا و تازه‌ترین کرنل ذاتاً محفوظ‌اند) و مدیر swap (‎--swap-on‎ / ‎--swap-off‎ / ‎--swappiness‎). ۳۵۹/۳۵۹ تست پاس و ShellCheck تمیز است.",
       },
     ],
   },

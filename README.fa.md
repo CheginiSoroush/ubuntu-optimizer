@@ -8,14 +8,14 @@
 **یک دستور؛ اوبونتویی سریع‌تر، تمیزتر و سالم‌تر.**
 
 جعبه‌ابزار همه‌کارهٔ بهینه‌سازی، مدیریت برنامه‌ها و تعمیر اوبونتو —
-۲۱ ابزار در منویی ساده، بیش از ۴۹ گزینهٔ خط فرمان و پیش‌نمایش صادقانهٔ dry-run.
+۲۲ ابزار در منویی ساده، بیش از ۵۷ گزینهٔ خط فرمان و پیش‌نمایش صادقانهٔ dry-run.
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.15-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.16-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-317%20%2F%20317-brightgreen)
+![Tests](https://img.shields.io/badge/bats-359%20%2F%20359-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -47,6 +47,7 @@
 | ⬆ **به‌روزرسانی خود ابزار** | **خودکار در هر اجرای `uo`** (v7.13): بررسی نسخه با کش TTL، پیشنهاد نسخه تازه‌تر، اعمال و راه‌اندازی دوباره با کد جدید — یک بنر، یک سؤال، هرگز جلوی کار را نمی‌گیرد (خاموشی با `--no-update` / `UO_AUTO_UPDATE=0`) · `uo --self-update` برای حالت دستی: بررسی نسخه از مخزن رسمی، git pull برای کلون‌ها، آرشیو تأییدشده + پشتیبان خودکار برای کپی‌های ثابت (v7.6) |
 | 🥾 **بوت و استارتاپ** | تحلیل زمان بوت با حکم نهایی — کل زمان، ۱۰ یونیت کندترین، زنجیرهٔ بحرانی، یونیت‌های شکست‌خورده (v7.14) · **مدیر استارتاپ XDG**: فهرست و فعال/غیرفعال‌کردن برنامه‌های استارتاپ — هرگز فایل سیستمی لمس نمی‌شود، کاملاً بازگشت‌پذیر با override کاربر (v7.14) |
 | 🔍 **پایش و بازرسی** | **عکس سلامت** (`--health`): بار، حکم حافظه، دیسک، دما، باتری، یونیت‌های خراب، آپدیت‌های در انتظار (v7.15) · **یافته‌ندهٔ فایل‌های حجیم** (`--bigfiles`): ۲۰ فایل بزرگ هر مسیر (v7.15) · **پورت‌های گوش‌دهنده** (`--ports`): هر شنونده + صاحبش، اتصال به همهٔ اینترفیس‌ها با ⚠ (v7.15) · **پاک‌سازی کش مرورگر** (`--browser-clean`): کش‌های Chromium/فایرفاکس/بندانگشتی — مرورگر باز رد می‌شود، فایل داده لمس نمی‌شود (v7.15) |
+| 🧰 **نگهداشت و سخت‌افزار** | **سوییچر DNS** (`--dns`): شکن · ۴۰۳ · رادار · الکترو (عبور از تحریم) · cloudflare · google · quad9 · adguard · auto — با یک کلمه، سه مکانیزم اعمال (NM / systemd-resolved / resolv.conf)، `auto` برگشت به DHCP (v7.16) · **پاک‌سازی کرنل‌های قدیمی** (`--kernel-clean`): کرنل در حال اجرا و تازه‌ترین همیشه محفوظ، پلن دقیق purge بسته‌ها (v7.16) · **مدیر swap** (`--swap-on` / `--swap-off` / `--swappiness`): حجم پیشنهادی از RAM، ورودی fstab علامت‌دار، پارتیشن/zram دست‌نخورده (v7.16) |
 | 🧹 **حذف کامل** | حذف کامل هر برنامه از **هر منبعی** (apt / snap / flatpak / tar.gz / دستی) — به‌همراه داده‌های کاربر |
 | 🔄 **به‌روزرسانی** | apt + snap + flatpak + tar.gz + GitHub در یک دستور، با `-y` کاملاً خودکار |
 | 🚑 **بازیابی** | تعمیر بسته‌های خراب، نصب مجدد محیط دسکتاپ |
@@ -156,6 +157,11 @@ uo --profile server -y             # اعمال بدون سؤال
 | 15 | 📊 گزارش وضعیت سیستم | عکس‌برداری فقط-خواندنی از سلامت و بهینه‌سازی‌ها |
 | 16 | 📊 تحلیل فضای دیسک | گیگابایت‌های شما کجا رفته‌اند |
 | 17 | 🧹 پاک‌سازی دیسک | پس‌گرفتنشان |
+| 18 | ⏰ آپدیت زمان‌بندی‌شده | تایمر systemd برای اجرای بی‌سؤال |
+| 19 | 🖥 گزارش دیسک (HTML) | نمودارها و جدول‌های قابل اشتراک |
+| 20 | 🥾 بوت و استارتاپ | تحلیل بوت · روشن/خاموش‌کردن استارتاپ |
+| 21 | 🔍 پایش و بازرسی | سلامت · فایل‌های حجیم · پورت‌ها · کش مرورگر |
+| 22 | 🧰 نگهداشت و سخت‌افزار | DNS · کرنل‌های قدیمی · swap |
 
 ---
 
@@ -187,6 +193,10 @@ uo --profile server -y             # اعمال بدون سؤال
 | `uo --bigfiles [DIR]` | ۲۰ فایل حجیم یک مسیر — آستانهٔ اندازه با `UO_BIGFILES_MIN_MB` (پیش‌فرض ۱۰۰ مگابایت) (v7.15) |
 | `uo --ports` | هر پورت گوش‌دهندهٔ TCP/UDP + پروسهٔ صاحب — اتصال به همهٔ اینترفیس‌ها با ⚠ علامت می‌خورد + راهنمای ufw (v7.15) |
 | `uo --browser-clean` | خالی‌کردن کش‌های Chromium/فایرفاکس/تصاویر بندانگشتی — مرورگر در حال اجرا رد می‌شود، فایل‌های داده لمس نمی‌شوند (v7.15) |
+| `uo --dns [PRESET]` | تعویض DNS سیستم با یک کلمه — shecan · 403online · radar · electro · cloudflare · google · quad9 · adguard · auto؛ `--dns-list` جدول فقط-خواندنی (v7.16) |
+| `uo --kernel-list` · `--kernel-clean` | فهرست کرنل‌های نصب‌شده · حذف قدیمی‌ها (در حال اجرا و تازه‌ترین همیشه محفوظ، تنظیم نگه‌داشت `UO_KERNEL_KEEP`، پیش‌فرض ۲) (v7.16) |
+| `uo --swap` · `--swap-on [MB]` · `--swap-off` | وضعیت swap · ساخت و فعال‌سازی `/swapfile` پیشنهادی (ورودی fstab علامت‌دار) · حذف آن — پارتیشن/zram دست‌نخورده (v7.16) |
+| `uo --swappiness N` | تنظیم `vm.swappiness` (۱ تا ۱۰۰) از مسیر sysctl قابل-undo (v7.16) |
 | `uo --doctor` | بررسی سلامت و تعمیر همهٔ برنامه‌های نصب‌شده/ردیابی‌شده |
 | `uo --github-install OWNER/REPO [NAME]` | نصب برنامه از آخرین ریلیز GitHub |
 | `uo --github-update` · `--github-list` · `--github-remove` | به‌روزرسانی · فهرست · حذف برنامه‌های GitHub |
@@ -213,6 +223,11 @@ uo --health                                      # بار · حافظه · دی�
 uo --bigfiles ~                                  # فایلم کجا رفته؟ ۲۰ فایل حجیم
 uo --ports                                       # چه کسی گوش می‌دهد — و چه چیزی باز است
 uo --browser-clean                               # خالی‌کردن کش مرورگرها (داده‌ها دست‌نخورده)
+uo --dns shecan                                  # تعویض DNS به رزولور عبور از تحریم
+uo --dns auto                                    # …و برگشت به DHCP
+uo --kernel-clean                                # خالی‌کردن /boot: حذف کرنل‌های قدیمی
+uo --swap-on 4096                                # ساخت swapfile چهار گیگابایتی
+uo --swappiness 10                               # نقطهٔ طلای دسکتاپ
 ```
 
 ---
@@ -449,13 +464,22 @@ ubuntu-optimizer/
 │   ├── undo.sh                ← برگرداندن همهٔ بهینه‌سازی‌ها با یک دستور
 │   ├── profile.sh             ← پیش‌تنظیم‌های منتخب: laptop / server / gaming / minimal
 │   ├── selfupdate.sh          ← ‪--self-update‬: بررسی نسخه + به‌روزرسانی git/آرشیو
+│   ├── boot.sh                ← ‪--boot‬: زمان بوت + کندترین یونیت‌ها
+│   ├── autostart.sh           ← ‪--autostart‬: مدیریت استارتاپ‌های XDG
+│   ├── health.sh              ← ‪--health‬: عکس سلامت فقط-خواندنی
+│   ├── bigfiles.sh            ← ‪--bigfiles‬: حجیم‌ترین فایل‌های یک مسیر
+│   ├── ports.sh               ← ‪--ports‬: پورت‌های گوش‌دهنده + پرچم‌های خطر
+│   ├── browserclean.sh        ← ‪--browser-clean‬: پاک‌سازی کش مرورگر
+│   ├── dnsswitch.sh           ← ‪--dns‬: سوییچر پریست (شکن … adguard · auto)
+│   ├── kernels.sh             ← ‪--kernel-list / --kernel-clean‬: پاک‌سازی کرنل قدیمی
+│   ├── swap.sh                ← خانوادهٔ ‪--swap‬: مدیر swapfile + swappiness
 │   ├── report.sh              ← گزارش وضعیت سیستم
 │   ├── jsonreport.sh          ← همان گزارش در قالب یک سند JSON
 │   ├── doctor.sh              ← بررسی سلامت و تعمیر برنامه‌ها
 │   ├── disk.sh                ← تحلیل فضای دیسک و پاک‌سازی
 │   ├── gitssh.sh              ← راه‌اندازی SSH گیت‌هاب
 │   └── menus.sh               ← موتور منو و همهٔ منوها
-├── test/                      ← تست‌های واحد bats (common، appmgmt، github، undo، profile، jsonreport، selfupdate، reportfile، config، cache، timer، htmlreport، boot، autostart، health، bigfiles، ports، browserclean، syntax)
+├── test/                      ← تست‌های واحد bats (common، appmgmt، github، undo، profile، jsonreport، selfupdate، reportfile، config، cache، timer، htmlreport، boot، autostart، health، bigfiles، ports، browserclean، dnsswitch، kernels، swap، syntax)
 ├── completions/               ← uo (bash) · ‪_uo‬ (zsh) — تکمیل تب برای همهٔ فلگ‌ها
 ├── .github/workflows/
 │   ├── lint.yml               ← CI: shellcheck + syntax + bats در هر push
@@ -473,9 +497,9 @@ ubuntu-optimizer/
 
 | گیت کیفیت | وضعیت |
 |---|---|
-| بررسی سینتکس `bash -n` | ✅ هر ۳۰ فایل شل |
+| بررسی سینتکس `bash -n` | ✅ هر ۳۵ فایل شل |
 | ShellCheck (سخت‌گیرانه) | ✅ صفر ایراد — در CI اجباری است |
-| تست‌های واحد bats | ✅ ۳۱۷ از ۳۱۷ پاس |
+| تست‌های واحد bats | ✅ ۳۵۹ از ۳۵۹ پاس |
 | `install.sh --check` | ✅ خودارزیابی سلامت داخلی |
 | GitHub Actions CI | ✅ روی هر push و pull request |
 

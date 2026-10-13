@@ -92,6 +92,18 @@ _uo() {
             mapfile -t COMPREPLY < <(compgen -d -- "$cur")
             return 0
             ;;
+        --dns)
+            mapfile -t COMPREPLY < <(compgen -W "shecan 403online radar electro cloudflare google quad9 adguard auto" -- "$cur")
+            return 0
+            ;;
+        --swap-on)
+            mapfile -t COMPREPLY < <(compgen -W "1024 2048 4096 8192" -- "$cur")
+            return 0
+            ;;
+        --swappiness)
+            mapfile -t COMPREPLY < <(compgen -W "1 10 20 30 60 100" -- "$cur")
+            return 0
+            ;;
     esac
 
     # Option completion — while typing a flag, or right after the command
@@ -104,6 +116,8 @@ _uo() {
         --report --json --output --append --git-ssh --git-ssh-status --doctor
         --boot --autostart --autostart-on --autostart-off
         --health --bigfiles --ports --browser-clean
+        --dns --dns-list --kernel-list --kernel-clean
+        --swap --swap-on --swap-off --swappiness
         --disk --disk-clean --disk-report
         --github-install --github-update --github-list --github-remove
         --install-targz

@@ -4,6 +4,70 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.16.0]
+
+### Added
+- **DNS preset switcher** (`uo --dns [PRESET]`, lib/dnsswitch.sh) — switch the
+  system resolvers with one word, the most-wanted Iranian-UBUNTU combo:
+  - the popular Iranian bypass resolvers **shecan**, **403online**, **radar**
+    (gaming) and **electro** — plus the international crowd **cloudflare**,
+    **google**, **quad9** (malware blocking) and **adguard** (ad blocking);
+  - `auto` hands DNS control back to DHCP; `--dns` without a preset opens an
+    interactive picker, `--dns-list` prints the read-only preset table with
+    the currently effective resolvers detected and the matching preset
+    flagged `(current)`;
+  - three apply mechanisms in order — NetworkManager (physical connection,
+    never a VPN), systemd-resolved (`resolvectl`, all non-loopback links)
+    and a last-resort `/etc/resolv.conf` rewrite guarded by a symlink check
+    (the resolved stub is never clobbered) with a timestamped
+    `/etc/resolv.conf.bak-uo-*` backup that `auto` restores;
+  - after applying, a 5-second `getent` lookup reports whether the new
+    resolvers actually answer (offline machines get an info note, never an
+    error); every mutation goes through the sudo wrapper, so `--dry-run`
+    prints the exact commands and confirmation is asked first.
+- **Old-kernel cleanup** (`uo --kernel-clean`, lib/kernels.sh) — the classic
+  "/boot is full" fix:
+  - `--kernel-list` shows every installed kernel from `/boot/vmlinuz-*`
+    (oldest first) with the running one marked `← running`, the newest
+    marked `· newest` and each kernel's package footprint in MB;
+  - `--kernel-clean` builds the exact deb purge list
+    (linux-image / -unsigned / -modules / -modules-extra / -headers for
+    each candidate version — meta packages like linux-generic are
+    untouchable by construction), shows the plan, asks, purges and sweeps
+    with `apt autoremove --purge`;
+  - **the running kernel and the newest kernel are protected by
+    construction** — even a machine pinned to an old LTS kernel never loses
+    it; the keep count is `UO_KERNEL_KEEP` (default 2 = running + one
+    spare, floor 2);
+  - `/boot` files dpkg does not own are never deleted — the run reports
+    "probably placed manually" instead; `--dry-run` prints the purge plan.
+- **Swap manager** (`uo --swap` / `--swap-on [MB]` / `--swap-off` /
+  `--swappiness N`, lib/swap.sh):
+  - `--swap` — read-only status: the active swap devices, the total, the
+    current `vm.swappiness` with its meaning and, when no swap exists, a
+    size recommendation computed from RAM (≤ 2 GB → ×2, ≤ 8 GB → equal,
+    beyond → 4 GB flat);
+  - `--swap-on [MB]` — creates `/swapfile` (fallocate with a dd fallback),
+    sets 0600, `mkswap` + `swapon`, and appends a **marked** fstab entry
+    only when one is missing — manual fstab edits are never duplicated; an
+    existing inactive swapfile is enabled, not rebuilt;
+  - `--swap-off` — disables and deletes exactly `/swapfile` (swap partitions
+    and zram are never touched) and removes only the marked fstab lines;
+  - `--swappiness N` — tunes `vm.swappiness` (1–100) through the project's
+    sysctl drop-in, so the standard `--undo` reverts it; every mutation
+    runs through the sudo wrapper (`--dry-run` safe).
+- New **🧰 Maintenance & hardware** main-menu entry 22 (submenu: DNS picker ·
+  preset table · kernel list · kernel cleanup · swap status · swapfile
+  create / remove · swappiness tune); bash + zsh completions learned
+  `--dns` (preset values), `--dns-list`, `--kernel-list`, `--kernel-clean`,
+  `--swap`, `--swap-on` (size values), `--swap-off` and `--swappiness`
+  (value suggestions); `uo --help` documents all eight flags with new
+  examples; README.md / README.fa.md badges, feature rows, CLI rows and
+  the project tree updated; CHANGELOG (this section).
+
+### Fixed
+- none — this release adds only new surface (42 new bats tests, 359 total).
+
 ## [7.15.0]
 
 ### Added

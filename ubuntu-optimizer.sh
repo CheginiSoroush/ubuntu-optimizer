@@ -15,7 +15,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # ── Load modules ───────────────────────────────────────────────────────────────
-for _lib in common cache config network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk htmlreport gitssh undo profile boot autostart health bigfiles ports browserclean selfupdate timer menus; do
+for _lib in common cache config network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk htmlreport gitssh undo profile boot autostart health bigfiles ports browserclean dnsswitch kernels swap selfupdate timer menus; do
     _libfile="$SCRIPT_DIR/lib/${_lib}.sh"
     if [ -f "$_libfile" ]; then
         # shellcheck source=/dev/null
@@ -70,6 +70,9 @@ TIMER_LOG_LINES=50
 DISK_REPORT_FILE=""
 AUTOSTART_TARGET=""   # --autostart-on/--autostart-off target (set + validated in the parser)
 UO_BIGFILES_DIR=""   # --bigfiles optional directory (env of the same name also works)
+DNS_PRESET=""        # --dns preset name (validated in the parser)
+SWAP_SIZE_MB=""     # --swap-on optional size in MB
+SWAP_SWAPPINESS=""   # --swappiness value (validated in the parser)
 
 # ───────────────────────────────────────────────────────────────────────────────
 # run_cli_profile() — dispatch --profile from the queued action list
@@ -177,6 +180,21 @@ Options:
   --browser-clean     clean browser caches only (Chrome family, Firefox,
                       thumbnails) — bookmarks, passwords, cookies and
                       history are never touched; --dry-run shows sizes
+
+  --dns [PRESET]      switch the system DNS with one word: shecan ·
+                      403online · radar · electro (Iranian bypass) ·
+                      cloudflare · google · quad9 · adguard · auto (DHCP);
+                      without a preset an interactive picker runs
+  --dns-list          show every preset with its addresses (read-only)
+  --kernel-list       list the installed kernels — running one marked (read-only)
+  --kernel-clean      remove the old kernels (running + newest are always
+                      protected; keep count UO_KERNEL_KEEP, default 2)
+  --swap              swap status: devices, size, swappiness (read-only)
+  --swap-on [MB]      create + enable /swapfile (default size from RAM;
+                      fstab entry added, survives reboots)
+  --swap-off          disable + delete /swapfile (partitions/zram untouched)
+  --swappiness N      tune vm.swappiness 1-100 (desktop sweet spot: 10;
+                      revert with --undo)
 
   --git-ssh           GitHub SSH key setup wizard
   --git-ssh-status    SSH key / GitHub authentication status
@@ -303,6 +321,11 @@ Examples:
   uo --health             # one read-only snapshot of the machine's health
   uo --bigfiles ~/Videos  # where did the disk space go?
   uo --browser-clean      # free browser cache space without losing any data
+  uo --dns shecan         # switch DNS to the Iranian bypass resolver
+  uo --dns-list           # every preset with its addresses
+  uo --kernel-clean       # free /boot: remove the old kernels
+  uo --swap-on 4096       # create a 4 GB swapfile
+  uo --swappiness 10      # the desktop sweet spot
 EOF
 }
 
@@ -438,6 +461,51 @@ while [ $# -gt 0 ]; do
             ;;
         --ports)          CLI_ACTIONS+=("ports_show|listening ports"); shift ;;
         --browser-clean)  CLI_ACTIONS+=("browser_clean|browser cache cleanup"); shift ;;
+        --dns)
+            # optional preset — without one the interactive picker runs
+            if [ $# -ge 2 ] && [ -n "$2" ] && [[ "$2" != -* ]]; then
+                if ! dnsswitch_preset_valid "$2"; then
+                    echo "Unknown DNS preset: $2" >&2
+                    echo "  ℹ Valid presets: shecan 403online radar electro cloudflare google quad9 adguard auto" >&2
+                    exit 1
+                fi
+                DNS_PRESET="$2"; shift 2
+            else
+                shift
+            fi
+            CLI_ACTIONS+=("dnsswitch_apply|dns switch")
+            ;;
+        --dns-list)       CLI_ACTIONS+=("dnsswitch_show|dns preset list"); shift ;;
+        --kernel-list)    CLI_ACTIONS+=("kernels_show|kernel list"); shift ;;
+        --kernel-clean)   CLI_ACTIONS+=("kernels_clean|kernel cleanup"); shift ;;
+        --swap)           CLI_ACTIONS+=("swap_show|swap status"); shift ;;
+        --swap-on)
+            # optional size in MB — a following flag is never eaten as the size
+            if [ $# -ge 2 ] && [ -n "$2" ] && [[ "$2" != -* ]]; then
+                if ! [[ "$2" =~ ^[1-9][0-9]*$ ]]; then
+                    echo "Invalid swap size: $2 (expected megabytes, e.g. --swap-on 2048)" >&2
+                    exit 1
+                fi
+                SWAP_SIZE_MB="$2"; shift 2
+            else
+                shift
+            fi
+            CLI_ACTIONS+=("swap_on|swap enable")
+            ;;
+        --swap-off)       CLI_ACTIONS+=("swap_off|swap remove"); shift ;;
+        --swappiness)
+            if [ $# -ge 2 ] && [ -n "$2" ] && [[ "$2" != -* ]]; then
+                if ! [[ "$2" =~ ^([1-9][0-9]?|100)$ ]]; then
+                    echo "Invalid swappiness: $2 (expected 1-100)" >&2
+                    exit 1
+                fi
+                SWAP_SWAPPINESS="$2"; shift 2
+            else
+                echo "--swappiness requires a value: --swappiness <1-100>" >&2
+                exit 1
+            fi
+            CLI_ACTIONS+=("swap_swappiness|swappiness tune")
+            ;;
         --git-ssh)        CLI_ACTIONS+=("gitssh_setup|GitHub SSH setup"); shift ;;
         --git-ssh-status) CLI_ACTIONS+=("gitssh_status|GitHub SSH status"); shift ;;
         --github-update)  CLI_ACTIONS+=("github_update_apps|GitHub updates"); shift ;;
@@ -679,7 +747,7 @@ if [ "$DRY_RUN" = "1" ]; then
         exit 1
     fi
     if [ ${#CLI_ACTIONS[@]} -eq 0 ]; then
-        echo "--dry-run requires an action: --optimize, --network, --system, --security, --time, --undo, --profile, --self-update or --browser-clean." >&2
+        echo "--dry-run requires an action: --optimize, --network, --system, --security, --time, --undo, --profile, --self-update, --browser-clean, --dns, --kernel-clean, --swap-on, --swap-off or --swappiness." >&2
         exit 1
     fi
     for cli_action in "${CLI_ACTIONS[@]}"; do
@@ -691,9 +759,10 @@ if [ "$DRY_RUN" = "1" ]; then
             all_network_opts|all_system_opts|all_security_opts|fix_time|undo_all_optimizations|apply_profile|run_cli_profile|self_update_interactive|\
             disable_wifi_powersave|set_dns|enable_bbr|set_mtu|optimize_tcp|\
             optimize_memory|set_noatime|disable_extra_services|install_preload|\
-            install_tlp|limit_journal|extend_sudo_timeout|setup_polkit_rule|browser_clean) ;;
+            install_tlp|limit_journal|extend_sudo_timeout|setup_polkit_rule|browser_clean|\
+            dnsswitch_apply|kernels_clean|swap_on|swap_off|swap_swappiness) ;;
             *)
-                echo "--dry-run is only valid with --optimize, --network, --system, --security, --time, --undo, --profile, --self-update or --browser-clean." >&2
+                echo "--dry-run is only valid with --optimize, --network, --system, --security, --time, --undo, --profile, --self-update, --browser-clean, --dns, --kernel-clean, --swap-on, --swap-off or --swappiness." >&2
                 exit 1
                 ;;
         esac

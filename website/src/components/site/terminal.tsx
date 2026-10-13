@@ -29,6 +29,16 @@ const SCENES: { cmd: string; lines: Line[] }[] = [
     ],
   },
   {
+    cmd: "uo --dns shecan",
+    lines: [
+      { text: "→ shecan — Iranian bypass resolver, free", tone: "info" },
+      { text: "→ new resolvers: 178.22.122.100 · 185.51.200.2", tone: "dim" },
+      { text: "✓ applied on the NetworkManager connection", tone: "ok" },
+      { text: "✓ shecan is active and resolving", tone: "ok" },
+      { text: "back to DHCP anytime: uo --dns auto", tone: "dim" },
+    ],
+  },
+  {
     cmd: "uo --cleanup abdownloadmanager --purge-data -y",
     lines: [
       { text: "→ searching apt · snap · flatpak · tar.gz · manual paths", tone: "info" },

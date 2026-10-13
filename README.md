@@ -8,14 +8,14 @@
 **One command. A faster, cleaner, healthier Ubuntu.**
 
 The all-in-one optimization, app-management and repair toolkit —
-21 friendly menu tools, 49+ CLI options, honest dry-run previews.
+22 friendly menu tools, 57+ CLI options, honest dry-run previews.
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.15-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.16-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-317%20%2F%20317-brightgreen)
+![Tests](https://img.shields.io/badge/bats-359%20%2F%20359-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -47,6 +47,7 @@ The all-in-one optimization, app-management and repair toolkit —
 | ⬆ **Self-update** | **automatic at every `uo` startup** (v7.13): a TTL-cached version check offers the newer release first, applies it and re-execs into the fresh code — one banner, one question, never blocking (`--no-update` / `UO_AUTO_UPDATE=0` opt out) · `uo --self-update` for the manual flow: git pull for clones, verified archive + automatic backup for static copies (v7.6) |
 | 🥾 **Boot &amp; startup** | boot time analysis with verdict — total, the 10 slowest units, the critical chain, failed units (v7.14) · **XDG autostart manager**: list + enable/disable startup applications — never touches a system file, fully reversible through user overrides (v7.14) |
 | 🔍 **Monitor &amp; inspect** | **health snapshot** (`--health`): load, memory verdict, disk, temps, battery, failed units, pending updates (v7.15) · **large-file finder** (`--bigfiles`): the 20 biggest files under any directory (v7.15) · **listening ports** (`--ports`): every listener + owner, all-interface binds flagged ⚠ (v7.15) · **browser cache cleanup** (`--browser-clean`): Chromium/Firefox/thumbnail caches — running browsers skipped, data files untouchable (v7.15) |
+| 🧰 **Maintenance &amp; hardware** | **DNS preset switcher** (`--dns`): shecan · 403online · radar · electro (Iranian bypass) · cloudflare · google · quad9 · adguard · auto — one word, three apply mechanisms (NM / systemd-resolved / resolv.conf), `auto` returns to DHCP (v7.16) · **old-kernel cleanup** (`--kernel-clean`): running + newest always protected, exact deb purge plan (v7.16) · **swap manager** (`--swap-on` / `--swap-off` / `--swappiness`): recommended size, marked fstab entry, partitions/zram untouchable (v7.16) |
 | 🧹 **Full removal** | completely remove any app from **any source** (apt / snap / flatpak / tar.gz / manual) — including user data |
 | 🔄 **Updates** | apt + snap + flatpak + tar.gz + GitHub in one command, fully automatic with `-y` |
 | 🚑 **Recovery** | fix broken packages, reinstall the desktop environment |
@@ -133,7 +134,7 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 
 ---
 
-## 🖥 The menu — 18 tools, zero memorization
+## 🖥 The menu — 22 tools, zero memorization
 
 | # | Tool | What it does |
 |:--:|---|---|
@@ -154,6 +155,11 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 | 15 | 📊 System status report | read-only health &amp; optimization snapshot |
 | 16 | 📊 Disk space analysis | where your gigabytes went |
 | 17 | 🧹 Disk cleanup | reclaim them |
+| 18 | ⏰ Scheduled updates | systemd timer for unattended `uo --update -y` |
+| 19 | 🖥 Disk report (HTML) | shareable charts + sortable tables |
+| 20 | 🥾 Boot &amp; startup | boot-time analysis · autostart on/off |
+| 21 | 🔍 Monitor &amp; inspect | health · big files · ports · browser caches |
+| 22 | 🧰 Maintenance &amp; hardware | DNS presets · old kernels · swap |
 
 ---
 
@@ -195,6 +201,10 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 | `uo --bigfiles [DIR]` | find the 20 biggest files under a directory — size floor `UO_BIGFILES_MIN_MB` (default 100 MB) (v7.15) |
 | `uo --ports` | every TCP/UDP listener + owning process — all-interface binds flagged ⚠, ufw hint (v7.15) |
 | `uo --browser-clean` | empty Chromium/Firefox/thumbnail caches — running browsers are skipped, data files untouchable (v7.15) |
+| `uo --dns [PRESET]` | switch the system DNS with one word — shecan · 403online · radar · electro · cloudflare · google · quad9 · adguard · auto; `--dns-list` shows the read-only table (v7.16) |
+| `uo --kernel-list` · `--kernel-clean` | list the installed kernels · purge the old ones (running + newest always protected, keep `UO_KERNEL_KEEP`, default 2) (v7.16) |
+| `uo --swap` · `--swap-on [MB]` · `--swap-off` | swap status · create + enable the recommended `/swapfile` (marked fstab entry) · remove it — partitions/zram untouchable (v7.16) |
+| `uo --swappiness N` | tune `vm.swappiness` (1–100) through the undo-aware sysctl drop-in (v7.16) |
 | `uo -y` · `--no-color` · `--no-log` | auto-confirm · plain output · don't log |
 
 ### Real-world examples
@@ -215,6 +225,11 @@ uo --health                                      # load · memory · disk · tem
 uo --bigfiles ~                                  # where did my disk space go? top 20
 uo --ports                                       # who is listening — and what is exposed
 uo --browser-clean                               # empty browser caches (data files untouched)
+uo --dns shecan                                  # switch DNS to the Iranian bypass resolver
+uo --dns auto                                    # …and back to DHCP
+uo --kernel-clean                                # free /boot: remove the old kernels
+uo --swap-on 4096                                # create a 4 GB swapfile
+uo --swappiness 10                               # the desktop sweet spot
 ```
 
 ---
@@ -461,13 +476,16 @@ ubuntu-optimizer/
 │   ├── bigfiles.sh            ← `--bigfiles`: the biggest files under a directory
 │   ├── ports.sh               ← `--ports`: listening ports + exposure flags
 │   ├── browserclean.sh        ← `--browser-clean`: browser cache cleanup
+│   ├── dnsswitch.sh           ← `--dns`: preset switcher (shecan … adguard · auto)
+│   ├── kernels.sh             ← `--kernel-list` / `--kernel-clean`: old-kernel cleanup
+│   ├── swap.sh                ← `--swap` family: swapfile manager + swappiness
 │   ├── report.sh              ← system status report
 │   ├── jsonreport.sh          ← the same report as one JSON document
 │   ├── doctor.sh              ← app health check & repair
 │   ├── disk.sh                ← disk space analysis & cleanup
 │   ├── gitssh.sh              ← GitHub SSH setup
 │   └── menus.sh               ← menu engine & all menus
-├── test/                      ← bats unit tests (common, appmgmt, github, undo, profile, jsonreport, selfupdate, reportfile, config, cache, timer, htmlreport, boot, autostart, health, bigfiles, ports, browserclean, syntax)
+├── test/                      ← bats unit tests (common, appmgmt, github, undo, profile, jsonreport, selfupdate, reportfile, config, cache, timer, htmlreport, boot, autostart, health, bigfiles, ports, browserclean, dnsswitch, kernels, swap, syntax)
 ├── completions/               ← uo (bash) · _uo (zsh) — tab completion for every flag
 ├── .github/workflows/
 │   ├── lint.yml               ← CI: shellcheck + syntax + bats on every push
@@ -485,9 +503,9 @@ ubuntu-optimizer/
 
 | Gate | Status |
 |---|---|
-| `bash -n` syntax check | ✅ all 30 shell files |
+| `bash -n` syntax check | ✅ all 35 shell files |
 | ShellCheck (strict) | ✅ zero findings — enforced in CI |
-| bats unit tests | ✅ 317 / 317 passing |
+| bats unit tests | ✅ 359 / 359 passing |
 | `install.sh --check` | ✅ self-health verification built in |
 | GitHub Actions CI | ✅ every push & pull request |
 
