@@ -80,6 +80,9 @@ jobs:
 
       - name: Run tests (non-root — the toolkit refuses a root shell)
         run: |
-          adduser -D -s /bin/bash uo
+          # the bash:X images ship bash at $(command -v bash) — there is
+          # no /bin/bash there — so the shell is resolved dynamically
+          SHELL_BIN="$(command -v bash)"
+          adduser -D -s "$SHELL_BIN" uo
           chmod -R a+rX "$PWD"
           su uo -c "cd '$PWD' && bats test/ --print-output-on-failure"
