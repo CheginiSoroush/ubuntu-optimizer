@@ -76,7 +76,7 @@ teardown() {
 # ---------- selfupdate_verify_tree ----------
 
 @test "selfupdate_verify_tree accepts a healthy tree" {
-    printf '#!/bin/bash\necho hi\n' > "$SCRIPT_DIR/ubuntu-optimizer.sh"
+    printf '#!/usr/bin/env bash\necho hi\n' > "$SCRIPT_DIR/ubuntu-optimizer.sh"
     printf '# shellcheck shell=bash\nfoo() { :; }\n' > "$SCRIPT_DIR/lib/a.sh"
     printf '# shellcheck shell=bash\nbar() { :; }\n' > "$SCRIPT_DIR/lib/b.sh"
     selfupdate_verify_tree "$SCRIPT_DIR"
@@ -88,18 +88,18 @@ teardown() {
 }
 
 @test "selfupdate_verify_tree rejects a main script with a syntax error" {
-    printf '#!/bin/bash\nif then\n' > "$SCRIPT_DIR/ubuntu-optimizer.sh"
+    printf '#!/usr/bin/env bash\nif then\n' > "$SCRIPT_DIR/ubuntu-optimizer.sh"
     ! selfupdate_verify_tree "$SCRIPT_DIR"
 }
 
 @test "selfupdate_verify_tree rejects a broken lib module" {
-    printf '#!/bin/bash\necho hi\n' > "$SCRIPT_DIR/ubuntu-optimizer.sh"
+    printf '#!/usr/bin/env bash\necho hi\n' > "$SCRIPT_DIR/ubuntu-optimizer.sh"
     printf 'fi fi (\n' > "$SCRIPT_DIR/lib/broken.sh"
     ! selfupdate_verify_tree "$SCRIPT_DIR"
 }
 
 @test "selfupdate_verify_tree rejects an empty lib directory" {
-    printf '#!/bin/bash\necho hi\n' > "$SCRIPT_DIR/ubuntu-optimizer.sh"
+    printf '#!/usr/bin/env bash\necho hi\n' > "$SCRIPT_DIR/ubuntu-optimizer.sh"
     ! selfupdate_verify_tree "$SCRIPT_DIR"
 }
 
@@ -109,7 +109,7 @@ teardown() {
     stub="$TEST_HOME/bin"
     mkdir -p "$stub"
     # shellcheck disable=SC2016
-    printf '#!/bin/bash\ncat <<'"'"'EOF'"'"'\nreadonly SCRIPT_VERSION="9.9"\nEOF\n' > "$stub/curl"
+    printf '#!/usr/bin/env bash\ncat <<'"'"'EOF'"'"'\nreadonly SCRIPT_VERSION="9.9"\nEOF\n' > "$stub/curl"
     chmod +x "$stub/curl"
     # direct call with an errexit-safe rc capture — SU_REMOTE_VERSION/
     # SU_REMOTE_BRANCH are globals that real bats' subshell `run` would hide
@@ -124,7 +124,7 @@ teardown() {
     stub="$TEST_HOME/bin"
     mkdir -p "$stub"
     # Fail when the URL contains /main/, succeed otherwise (404 simulation)
-    printf '#!/bin/bash\ncase "$*" in *"/main/"*) exit 22 ;; esac\necho '"'"'readonly SCRIPT_VERSION="8.1"'"'"'\n' > "$stub/curl"
+    printf '#!/usr/bin/env bash\ncase "$*" in *"/main/"*) exit 22 ;; esac\necho '"'"'readonly SCRIPT_VERSION="8.1"'"'"'\n' > "$stub/curl"
     chmod +x "$stub/curl"
     local rc=0
     PATH="$stub:$PATH" selfupdate_fetch_remote_version || rc=$?
@@ -136,7 +136,7 @@ teardown() {
 @test "selfupdate_fetch_remote_version fails when both branches fail" {
     stub="$TEST_HOME/bin"
     mkdir -p "$stub"
-    printf '#!/bin/bash\nexit 7\n' > "$stub/curl"
+    printf '#!/usr/bin/env bash\nexit 7\n' > "$stub/curl"
     chmod +x "$stub/curl"
     local rc=0
     PATH="$stub:$PATH" selfupdate_fetch_remote_version || rc=$?
@@ -147,7 +147,7 @@ teardown() {
 @test "selfupdate_fetch_remote_version fails when no version line is present" {
     stub="$TEST_HOME/bin"
     mkdir -p "$stub"
-    printf '#!/bin/bash\necho "not the file you want"\n' > "$stub/curl"
+    printf '#!/usr/bin/env bash\necho "not the file you want"\n' > "$stub/curl"
     chmod +x "$stub/curl"
     local rc=0
     PATH="$stub:$PATH" selfupdate_fetch_remote_version || rc=$?
@@ -159,7 +159,7 @@ teardown() {
     SU_REMOTE_BRANCH="old"
     stub="$TEST_HOME/bin"
     mkdir -p "$stub"
-    printf '#!/bin/bash\nexit 7\n' > "$stub/curl"
+    printf '#!/usr/bin/env bash\nexit 7\n' > "$stub/curl"
     chmod +x "$stub/curl"
     local rc=0
     PATH="$stub:$PATH" selfupdate_fetch_remote_version || rc=$?
@@ -269,7 +269,7 @@ teardown() {
     selfupdate_cache_write "$(date +%s)" "9.9" "main"
     stub="$TEST_HOME/bin"
     mkdir -p "$stub"
-    printf '#!/bin/bash\necho CALLED > "%s/curl-called"\nexit 1\n' "$TEST_HOME" > "$stub/curl"
+    printf '#!/usr/bin/env bash\necho CALLED > "%s/curl-called"\nexit 1\n' "$TEST_HOME" > "$stub/curl"
     chmod +x "$stub/curl"
     export PATH="$stub:$PATH"
     out="$TEST_HOME/out"
@@ -287,7 +287,7 @@ teardown() {
     selfupdate_cache_write 1000000000 "7.5" "main"
     stub="$TEST_HOME/bin"
     mkdir -p "$stub"
-    printf '#!/bin/bash\necho '"'"'readonly SCRIPT_VERSION="9.9"'"'"'\n' > "$stub/curl"
+    printf '#!/usr/bin/env bash\necho '"'"'readonly SCRIPT_VERSION="9.9"'"'"'\n' > "$stub/curl"
     chmod +x "$stub/curl"
     export PATH="$stub:$PATH"
     out="$TEST_HOME/out"
@@ -306,7 +306,7 @@ teardown() {
     selfupdate_cache_write "$(date +%s)" "9.9" "main"
     stub="$TEST_HOME/bin"
     mkdir -p "$stub"
-    printf '#!/bin/bash\necho '"'"'readonly SCRIPT_VERSION="8.8"'"'"'\n' > "$stub/curl"
+    printf '#!/usr/bin/env bash\necho '"'"'readonly SCRIPT_VERSION="8.8"'"'"'\n' > "$stub/curl"
     chmod +x "$stub/curl"
     export PATH="$stub:$PATH"
     out="$TEST_HOME/out"
@@ -323,7 +323,7 @@ teardown() {
     CLI_ACTIONS=()
     stub="$TEST_HOME/bin"
     mkdir -p "$stub"
-    printf '#!/bin/bash\nexit 7\n' > "$stub/curl"
+    printf '#!/usr/bin/env bash\nexit 7\n' > "$stub/curl"
     chmod +x "$stub/curl"
     export PATH="$stub:$PATH"
     out="$TEST_HOME/out"
@@ -344,7 +344,7 @@ teardown() {
     selfupdate_cache_write "$(date +%s)" "9.9" "main"
     stub="$TEST_HOME/bin"
     mkdir -p "$stub"
-    printf '#!/bin/bash\necho CALLED > "%s/curl-called"\nexit 1\n' "$TEST_HOME" > "$stub/curl"
+    printf '#!/usr/bin/env bash\necho CALLED > "%s/curl-called"\nexit 1\n' "$TEST_HOME" > "$stub/curl"
     chmod +x "$stub/curl"
     export PATH="$stub:$PATH"
     out="$TEST_HOME/out"
@@ -442,7 +442,7 @@ teardown() {
 @test "selfupdate_fetch_remote_version: quiet mode fails silently" {
     stub="$TEST_HOME/bin"
     mkdir -p "$stub"
-    printf '#!/bin/bash\nexit 7\n' > "$stub/curl"
+    printf '#!/usr/bin/env bash\nexit 7\n' > "$stub/curl"
     chmod +x "$stub/curl"
     failure() { echo "FAIL-VISIBLE"; }
     out="$TEST_HOME/out"
@@ -456,7 +456,7 @@ teardown() {
     stub="$TEST_HOME/bin"
     mkdir -p "$stub"
     # No curl anywhere on PATH; a sudo that would loudly record the install
-    printf '#!/bin/bash\necho APT-CALLED > "%s/apt-called"\n' "$TEST_HOME" > "$stub/sudo"
+    printf '#!/usr/bin/env bash\necho APT-CALLED > "%s/apt-called"\n' "$TEST_HOME" > "$stub/sudo"
     chmod +x "$stub/sudo"
     out="$TEST_HOME/out"
     local rc=0

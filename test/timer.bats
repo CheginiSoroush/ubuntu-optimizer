@@ -147,12 +147,15 @@ load_timer() {
 # Hide systemctl from the CLI child so the graceful no-systemd path is
 # exercised hermetically — the sandbox happens to lack systemd, but CI
 # runners have a live systemd (/run/systemd/system exists) and would install
-# a REAL unit. The shim dir mirrors /usr/bin + /bin minus systemctl.
+# a REAL unit. The shim dir mirrors the system bin dirs minus systemctl.
 make_nosystemd_path() {
     local nopath="$TEST_HOME/nopath"
     mkdir -p "$nopath"
     local d f b
-    for d in /usr/bin /bin; do
+    # /usr/local/bin is mirrored too — the bash:X CI images keep bash
+    # there, so a PATH built from /usr/bin + /bin alone would not even
+    # have a bash to run
+    for d in /usr/bin /bin /usr/local/bin; do
         [ -d "$d" ] || continue
         for f in "$d"/*; do
             b="$(basename "$f")"
