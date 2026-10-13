@@ -41,6 +41,7 @@ export const toolIcons: Record<string, LucideIcon> = {
   scroll: ScrollText,
   harddrive: HardDrive,
   sparkles: Sparkles,
+  inspect: Eye,
 };
 
 export const safetyIcons: Record<string, LucideIcon> = {

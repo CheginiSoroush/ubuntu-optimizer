@@ -16,13 +16,17 @@ export function Cli() {
     "uo --github-install junegunn/fzf",
     "uo --cleanup abdownloadmanager --purge-data -y",
     "uo --doctor",
+    "uo --health",
+    "uo --bigfiles ~",
+    "uo --ports",
+    "uo --browser-clean",
   ].join("\n");
 
   return (
     <SectionShell id="cli">
       <SectionHeading kicker={t.cli.kicker} title={t.cli.title} subtitle={t.cli.subtitle} />
 
-      <div className="mt-12 grid items-start gap-8 lg:grid-cols-[1.35fr_1fr]">
+      <div className="mt-12 grid grid-cols-1 items-start gap-8 lg:grid-cols-[1.35fr_1fr]">
         {/* Commands table */}
         <motion.div
           initial={{ opacity: 0, y: 24 }}
@@ -43,7 +47,7 @@ export function Cli() {
                 whileInView={{ opacity: 1, x: 0 }}
                 viewport={{ once: true, margin: "-30px" }}
                 transition={{ duration: 0.35, delay: i * 0.04 }}
-                className="grid gap-1 px-5 py-3.5 transition-colors hover:bg-primary/5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] sm:items-center sm:gap-4"
+                className="grid grid-cols-1 gap-1 px-5 py-3.5 transition-colors hover:bg-primary/5 sm:grid-cols-[minmax(0,1fr)_minmax(0,1.2fr)] sm:items-center sm:gap-4"
               >
                 <code
                   dir="ltr"
