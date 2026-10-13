@@ -7,6 +7,10 @@ const en = {
   dir: "ltr" as const,
   langName: "English",
   otherLang: "فارسی",
+  meta: {
+    title: "Ubuntu Optimizer & Fixer — one command, a better Ubuntu",
+    description: "The all-in-one Ubuntu toolbox: 23 tools, 60+ CLI options, honest dry-run preview. Network tuning, disk cleanup, smart app installs, full removal and recovery — pure Bash, fully reversible.",
+  },
   lang: {
     label: "Language",
     toFa: "Switch to Persian",
@@ -343,6 +347,10 @@ const fa: typeof en = {
   dir: "rtl" as const,
   langName: "فارسی",
   otherLang: "English",
+  meta: {
+    title: "اوبونتو اپتیمایزر و فیکسر — یک دستور، اوبونتویی بهتر",
+    description: "جعبه‌ابزار همه‌کارهٔ اوبونتو: ۲۳ ابزار، ۶۰+ گزینهٔ خط فرمان، پیش‌نمایش امن dry-run. تنظیم شبکه، پاک‌سازی دیسک، نصب هوشمند برنامه‌ها، حذف کامل و ترمیم — بش خالص و کاملاً بازگشت‌پذیر.",
+  },
   lang: {
     label: "زبان",
     toFa: "تغییر به فارسی",
