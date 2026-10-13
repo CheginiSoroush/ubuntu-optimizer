@@ -142,11 +142,15 @@ load_health() {
 
 @test "health_show degrades gracefully without sensors/ps/df/apt/systemd" {
     load_health
+    # Copies, not symlinks — symlinks are not available in every environment.
+    # The bin dir intentionally lacks sensors/ps/df/apt/systemctl, so every
+    # degraded path is genuinely exercised on any machine.
     MIN_BIN="$TEST_HOME/min-bin"
     mkdir -p "$MIN_BIN"
-    local tool
-    for tool in awk head tail grep cat tr sed wc sort uname basename readlink dirname; do
-        ln -sf "$(command -v "$tool")" "$MIN_BIN/$tool"
+    local tool src
+    for tool in awk head tail grep cat tr sed wc sort uname basename readlink dirname sleep date; do
+        src="$(command -v "$tool" 2> /dev/null)" || continue
+        [ -x "$src" ] && cp "$src" "$MIN_BIN/$tool"
     done
     PATH="$MIN_BIN" UO_HEALTH_FAKE_SYSTEMD=0 run health_show
     [ "$status" -eq 0 ]
@@ -200,8 +204,23 @@ EOF
 }
 
 @test "cli: --health skips the systemd section without the fake-systemd hook" {
+    # Deterministic on EVERY machine: GitHub runners DO have
+    # /run/systemd/system (a real systemd bus), so "no systemd" cannot be
+    # assumed — it is forced by removing systemctl from PATH entirely
+    # (copies, not symlinks). The module then takes the degraded branch no
+    # matter what the host provides, with and without the fake hook.
     write_stubs
-    PATH="$STUB_BIN:$PATH" UO_HEALTH_FAKE_SYSTEMD=0 run run_uo --health
+    NOSYS_BIN="$TEST_HOME/nosys-bin"
+    mkdir -p "$NOSYS_BIN"
+    cp "$STUB_BIN/sensors" "$STUB_BIN/apt" "$NOSYS_BIN/"
+    local tool src
+    for tool in bash env du cut find rm ls cat date sed awk grep head tail \
+                wc sort tr mkdir chmod readlink dirname basename uname ps \
+                locale sleep stty tput nproc; do
+        src="$(command -v "$tool" 2> /dev/null)" || continue
+        [ -x "$src" ] && cp "$src" "$NOSYS_BIN/$tool"
+    done
+    PATH="$NOSYS_BIN" UO_HEALTH_FAKE_SYSTEMD=0 run run_uo --health
     [ "$status" -eq 0 ]
     [[ "$output" == *"failed-unit check skipped"* ]]
 }

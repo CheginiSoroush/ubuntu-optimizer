@@ -47,6 +47,9 @@ jobs:
   # Compatibility matrix — the suite must behave identically on every Bash
   # the tool supports. Informational (continue-on-error) so an upstream
   # image hiccup can never block main; the ubuntu job above is the gate.
+  # The container runs the suite as a NON-ROOT user: the toolkit refuses
+  # to run under sudo/root by design (it escalates only when a step needs
+  # it), so a root shell would trip its guard before any test runs.
   bash-matrix:
     name: Bats on Bash ${{ matrix.bash }}
     runs-on: ubuntu-latest
@@ -75,5 +78,8 @@ jobs:
       - name: Bash version
         run: bash --version | head -n1
 
-      - name: Run tests
-        run: bats test/ --print-output-on-failure
+      - name: Run tests (non-root — the toolkit refuses a root shell)
+        run: |
+          adduser -D -s /bin/bash uo
+          chmod -R a+rX "$PWD"
+          su uo -c "cd '$PWD' && bats test/ --print-output-on-failure"
