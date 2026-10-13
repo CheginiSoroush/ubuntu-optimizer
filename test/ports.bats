@@ -30,7 +30,7 @@ teardown() {
 
 write_ss_stub() {
     cat > "$STUB_BIN/ss" << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 # emulate: ss -tulnpH
 printf 'tcp   LISTEN 0      128        0.0.0.0:22       0.0.0.0:*    users:(("sshd",pid=800,fd=3))\n'
 printf 'tcp   LISTEN 0      5          127.0.0.1:631    0.0.0.0:*    users:(("cupsd",pid=900,fd=6))\n'
@@ -108,7 +108,7 @@ load_ports() {
     NETSTUB="$TEST_HOME/stub-netstat"
     mkdir -p "$NETSTUB"
     cat > "$NETSTUB/netstat" << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 # emulate: netstat -tulnp
 printf 'Active Internet connections (only servers)\n'
 printf 'Proto Recv-Q Send-Q Local Address           Foreign Address         State       PID/Program name\n'
@@ -136,7 +136,7 @@ EOF
 
 @test "cli: udp sockets are listed and exposure-checked" {
     cat > "$STUB_BIN/ss" << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 printf 'tcp   LISTEN 0      128        0.0.0.0:22       0.0.0.0:*    users:(("sshd",pid=800,fd=3))\n'
 printf 'udp   UNCONN 0      0          0.0.0.0:68       0.0.0.0:*\n'
 EOF
@@ -150,7 +150,7 @@ EOF
 
 @test "cli: --ports exits 0 with empty tool output" {
     cat > "$STUB_BIN/ss" << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 exit 0
 EOF
     chmod +x "$STUB_BIN/ss"

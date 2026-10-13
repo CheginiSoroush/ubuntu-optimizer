@@ -218,7 +218,7 @@ teardown() {
     stubdir="$TEST_HOME/bin"
     mkdir -p "$stubdir"
     {
-        printf '%s\n' '#!/bin/bash'
+        printf '%s\n' '#!/usr/bin/env bash'
         printf '%s\n' 'while [ $# -gt 0 ]; do case "$1" in -D) h="$2"; shift 2;; -o) b="$2"; shift 2;; *) shift;; esac; done'
         printf '%s\n' 'printf "X-Ok: 1\r\n\r\n" > "$h"'
         printf '%s\n' 'printf "%s" "{\"tag_name\":\"v9\"}" > "$b"'
@@ -239,10 +239,10 @@ teardown() {
     stubdir="$TEST_HOME/bin"
     mkdir -p "$stubdir"
     {
-        printf '%s\n' '#!/bin/bash'
+        printf '%s\n' '#!/usr/bin/env bash'
         printf '%s\n' 'echo 1 >> "$STUB_CALLS"; exit 7'
     } > "$stubdir/curl"
-    printf '%s\n' '#!/bin/bash' 'echo "$@" >> "$STUB_SLEPT"' > "$stubdir/sleep"
+    printf '%s\n' '#!/usr/bin/env bash' 'echo "$@" >> "$STUB_SLEPT"' > "$stubdir/sleep"
     chmod +x "$stubdir/curl" "$stubdir/sleep"
     GH_CURL_AUTH=()
     run env PATH="$stubdir:$PATH" STUB_CALLS="$TEST_HOME/calls" STUB_SLEPT="$TEST_HOME/slept" UO_GH_RETRIES=3 bash -c '
@@ -258,12 +258,12 @@ teardown() {
     stubdir="$TEST_HOME/bin"
     mkdir -p "$stubdir"
     {
-        printf '%s\n' '#!/bin/bash'
+        printf '%s\n' '#!/usr/bin/env bash'
         printf '%s\n' 'while [ $# -gt 0 ]; do case "$1" in -D) h="$2"; shift 2;; -o) b="$2"; shift 2;; *) shift;; esac; done'
         printf '%s\n' 'n=$(cat "$STUB_CALLS" 2>/dev/null || echo 0); n=$((n+1)); echo $n > "$STUB_CALLS"'
         printf '%s\n' 'if [ "$n" = "1" ]; then echo 500; else printf "%s" "{\"ok\":1}" > "$b"; echo 200; fi'
     } > "$stubdir/curl"
-    printf '%s\n' '#!/bin/bash' 'echo "$@" >> "$STUB_SLEPT"' > "$stubdir/sleep"
+    printf '%s\n' '#!/usr/bin/env bash' 'echo "$@" >> "$STUB_SLEPT"' > "$stubdir/sleep"
     chmod +x "$stubdir/curl" "$stubdir/sleep"
     GH_CURL_AUTH=()
     run env PATH="$stubdir:$PATH" STUB_CALLS="$TEST_HOME/calls" STUB_SLEPT="$TEST_HOME/slept" bash -c '
@@ -279,13 +279,13 @@ teardown() {
     stubdir="$TEST_HOME/bin"
     mkdir -p "$stubdir"
     {
-        printf '%s\n' '#!/bin/bash'
+        printf '%s\n' '#!/usr/bin/env bash'
         printf '%s\n' 'while [ $# -gt 0 ]; do case "$1" in -D) h="$2"; shift 2;; -o) b="$2"; shift 2;; *) shift;; esac; done'
         printf '%s\n' 'printf "HTTP/1.1 404 Not Found\r\n\r\n" > "$h"'
         printf '%s\n' 'printf "%s" "{\"message\":\"Not Found\"}" > "$b"'
         printf '%s\n' 'echo 404'
     } > "$stubdir/curl"
-    printf '%s\n' '#!/bin/bash' 'echo "$@" >> "$STUB_SLEPT"' > "$stubdir/sleep"
+    printf '%s\n' '#!/usr/bin/env bash' 'echo "$@" >> "$STUB_SLEPT"' > "$stubdir/sleep"
     chmod +x "$stubdir/curl" "$stubdir/sleep"
     GH_CURL_AUTH=()
     run env PATH="$stubdir:$PATH" STUB_SLEPT="$TEST_HOME/slept" UO_GH_RETRIES=5 bash -c '
@@ -304,7 +304,7 @@ teardown() {
     mkdir -p "$stubdir"
     reset=$(( $(date +%s) + 3 ))
     {
-        printf '%s\n' '#!/bin/bash'
+        printf '%s\n' '#!/usr/bin/env bash'
         printf '%s\n' 'while [ $# -gt 0 ]; do case "$1" in -D) h="$2"; shift 2;; -o) b="$2"; shift 2;; *) shift;; esac; done'
         printf '%s\n' 'n=$(cat "$STUB_CALLS" 2>/dev/null || echo 0); n=$((n+1)); echo $n > "$STUB_CALLS"'
         printf '%s\n' 'if [ "$n" = "1" ]; then'
@@ -314,7 +314,7 @@ teardown() {
         printf '%s\n' '  printf "HTTP/1.1 200 OK\r\n\r\n" > "$h"; printf "%s" "{\"tag_name\":\"v9\"}" > "$b"; echo 200'
         printf '%s\n' 'fi'
     } > "$stubdir/curl"
-    printf '%s\n' '#!/bin/bash' 'echo "$@" >> "$STUB_SLEPT"' > "$stubdir/sleep"
+    printf '%s\n' '#!/usr/bin/env bash' 'echo "$@" >> "$STUB_SLEPT"' > "$stubdir/sleep"
     chmod +x "$stubdir/curl" "$stubdir/sleep"
     GH_CURL_AUTH=()
     run env PATH="$stubdir:$PATH" STUB_CALLS="$TEST_HOME/calls" STUB_SLEPT="$TEST_HOME/slept" STUB_RESET="$reset" bash -c '
@@ -335,12 +335,12 @@ teardown() {
     mkdir -p "$stubdir"
     reset=$(( $(date +%s) + 3600 ))
     {
-        printf '%s\n' '#!/bin/bash'
+        printf '%s\n' '#!/usr/bin/env bash'
         printf '%s\n' 'while [ $# -gt 0 ]; do case "$1" in -D) h="$2"; shift 2;; -o) b="$2"; shift 2;; *) shift;; esac; done'
         printf '%s\n' 'printf "HTTP/1.1 403 Forbidden\r\nX-RateLimit-Reset: %s\r\n\r\n" "$STUB_RESET" > "$h"'
         printf '%s\n' 'printf "%s" "{\"message\":\"API rate limit exceeded\"}" > "$b"; echo 403'
     } > "$stubdir/curl"
-    printf '%s\n' '#!/bin/bash' 'echo "$@" >> "$STUB_SLEPT"' > "$stubdir/sleep"
+    printf '%s\n' '#!/usr/bin/env bash' 'echo "$@" >> "$STUB_SLEPT"' > "$stubdir/sleep"
     chmod +x "$stubdir/curl" "$stubdir/sleep"
     GH_CURL_AUTH=()
     run env PATH="$stubdir:$PATH" STUB_SLEPT="$TEST_HOME/slept" STUB_RESET="$reset" UO_GH_RETRIES=3 bash -c '
@@ -358,7 +358,7 @@ teardown() {
     stubdir="$TEST_HOME/bin"
     mkdir -p "$stubdir"
     {
-        printf '%s\n' '#!/bin/bash'
+        printf '%s\n' '#!/usr/bin/env bash'
         printf '%s\n' 'while [ $# -gt 0 ]; do case "$1" in -D) h="$2"; shift 2;; -o) b="$2"; shift 2;; *) shift;; esac; done'
         printf '%s\n' 'n=$(cat "$STUB_CALLS" 2>/dev/null || echo 0); n=$((n+1)); echo $n > "$STUB_CALLS"'
         printf '%s\n' 'if [ "$n" = "1" ]; then'
@@ -368,7 +368,7 @@ teardown() {
         printf '%s\n' '  printf "HTTP/1.1 200 OK\r\n\r\n" > "$h"; printf "%s" "{\"ok\":1}" > "$b"; echo 200'
         printf '%s\n' 'fi'
     } > "$stubdir/curl"
-    printf '%s\n' '#!/bin/bash' 'echo "$@" >> "$STUB_SLEPT"' > "$stubdir/sleep"
+    printf '%s\n' '#!/usr/bin/env bash' 'echo "$@" >> "$STUB_SLEPT"' > "$stubdir/sleep"
     chmod +x "$stubdir/curl" "$stubdir/sleep"
     GH_CURL_AUTH=()
     run env PATH="$stubdir:$PATH" STUB_CALLS="$TEST_HOME/calls" STUB_SLEPT="$TEST_HOME/slept" bash -c '
@@ -384,10 +384,10 @@ teardown() {
     stubdir="$TEST_HOME/bin"
     mkdir -p "$stubdir"
     {
-        printf '%s\n' '#!/bin/bash'
+        printf '%s\n' '#!/usr/bin/env bash'
         printf '%s\n' 'echo 1 >> "$STUB_CALLS"; exit 7'
     } > "$stubdir/curl"
-    printf '%s\n' '#!/bin/bash' 'echo "$@" >> "$STUB_SLEPT"' > "$stubdir/sleep"
+    printf '%s\n' '#!/usr/bin/env bash' 'echo "$@" >> "$STUB_SLEPT"' > "$stubdir/sleep"
     chmod +x "$stubdir/curl" "$stubdir/sleep"
     GH_CURL_AUTH=()
     run env PATH="$stubdir:$PATH" STUB_CALLS="$TEST_HOME/calls" STUB_SLEPT="$TEST_HOME/slept" UO_GH_RETRIES=99 bash -c '

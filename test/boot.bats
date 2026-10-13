@@ -27,7 +27,7 @@ setup() {
     STUB_BIN="$TEST_HOME/stub-bin"
     mkdir -p "$STUB_BIN"
     cat > "$STUB_BIN/systemd-analyze" << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 case "${1:-}" in
     blame)
         printf '5.204s udev.service\n'
@@ -49,7 +49,7 @@ case "${1:-}" in
 esac
 EOF
     cat > "$STUB_BIN/systemctl" << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 # only the --failed view is stubbed; everything else answers empty
 for arg in "$@"; do
     if [ "$arg" = "--failed" ]; then
@@ -204,7 +204,7 @@ load_boot() {
     load_boot
     # quiet stub: systemctl never claims --failed
     cat > "$STUB_BIN/systemctl" << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 exit 0
 EOF
     chmod +x "$STUB_BIN/systemctl"

@@ -35,7 +35,7 @@ teardown() {
 
 write_pgrep_stub_off() {
     cat > "$STUB_BIN/pgrep" << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 # default stub: no browser process is running
 exit 1
 EOF
@@ -128,7 +128,7 @@ load_browserclean() {
 @test "cli: a running chrome is skipped while firefox still gets cleaned" {
     build_cache_tree
     cat > "$STUB_BIN/pgrep" << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 # chrome is "running", everything else is not
 for a in "$@"; do
     [ "$a" = "chrome" ] && exit 0

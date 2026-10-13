@@ -263,7 +263,7 @@ make_nosystemd_path() {
 # Installs a fake systemctl that records every invocation into $STUB_LOG
 make_systemctl_stub() {
     cat > "$STUB_BIN/systemctl" << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 echo "systemctl $*" >> "$STUB_LOG"
 exit 0
 EOF

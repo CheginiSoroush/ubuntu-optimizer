@@ -39,13 +39,13 @@ run_uo() {
 
 write_stubs() {
     cat > "$STUB_BIN/sensors" << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 printf 'coretemp-isa-0000\n'
 printf 'Package id 0:  +45.0°C  (high = +84.0°C)\n'
 printf 'Core 0:        +42.0°C\n'
 EOF
     cat > "$STUB_BIN/systemctl" << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 # only the --failed view is stubbed; everything else answers empty
 for arg in "$@"; do
     if [ "$arg" = "--failed" ]; then
@@ -56,7 +56,7 @@ done
 exit 0
 EOF
     cat > "$STUB_BIN/apt" << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 if [ "${1:-}" = "list" ] && [ "${2:-}" = "--upgradable" ]; then
     printf 'Listing... Done\n'
     printf 'curl/jammy-updates,now 7.81.0 amd64 [upgradable from: 7.81.0-1]\n'
@@ -193,7 +193,7 @@ load_health() {
 @test "cli: --health reports no pending updates when apt lists none" {
     mkdir -p "$STUB_BIN"
     cat > "$STUB_BIN/apt" << 'EOF'
-#!/bin/bash
+#!/usr/bin/env bash
 printf 'Listing... Done\n'
 exit 0
 EOF

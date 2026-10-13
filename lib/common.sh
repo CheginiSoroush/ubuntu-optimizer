@@ -461,9 +461,16 @@ sudo_precheck() {   # $1 optional: prompt timeout in seconds (default 600)
 #            1 — not installed (or dpkg-query failed)
 # ───────────────────────────────────────────────────────────────────────────────
 pkg_installed() {
-    local st
-    st=$(dpkg-query -W -f='${Status}' "$1" 2>/dev/null)
-    [[ $st == *"install ok installed"* ]]
+    if command -v dpkg-query > /dev/null 2>&1; then
+        local st
+        st=$(dpkg-query -W -f='${Status}' "$1" 2> /dev/null)
+        [[ $st == *"install ok installed"* ]]
+    else
+        # non-dpkg systems (Alpine, containers): "installed" degrades to
+        # "a runnable executable with this name exists" — the check stays
+        # usable everywhere and never errors on missing tooling
+        command -v "$1" > /dev/null 2>&1
+    fi
 }
 
 # ───────────────────────────────────────────────────────────────────────────────
