@@ -87,6 +87,11 @@ _uo() {
             mapfile -t COMPREPLY < <(compgen -W "${anames[*]}" -- "$cur")
             return 0
             ;;
+        --bigfiles)
+            # optional directory argument — complete directories only
+            mapfile -t COMPREPLY < <(compgen -d -- "$cur")
+            return 0
+            ;;
     esac
 
     # Option completion — while typing a flag, or right after the command
@@ -98,6 +103,7 @@ _uo() {
         --timer-preview --timer-system --timer-notify-only --timer-tick
         --report --json --output --append --git-ssh --git-ssh-status --doctor
         --boot --autostart --autostart-on --autostart-off
+        --health --bigfiles --ports --browser-clean
         --disk --disk-clean --disk-report
         --github-install --github-update --github-list --github-remove
         --install-targz

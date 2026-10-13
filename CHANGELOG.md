@@ -4,6 +4,56 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.15.0]
+
+### Added
+- **System health snapshot** (`uo --health`, lib/health.sh) — the one-command
+  answer to "how is my machine doing?", read-only:
+  - CPU load averages + core count + the **top 5 CPU consumers**;
+  - memory used/total with a plain-language verdict (ok < 70 % ·
+    watch < 85 % · high ≥ 85 %) and swap usage;
+  - root filesystem usage with a 90 % full-warning that points at
+    `uo --disk-clean`;
+  - temperatures via lm-sensors (graceful when absent), battery from sysfs,
+    failed systemd units, pending apt updates and a human uptime
+    ("3 days, 4 hours").
+  Every section degrades independently — WSL, containers and headless
+  servers still get exit 0.
+- **Large-file finder** (`uo --bigfiles [DIR]`, lib/bigfiles.sh) — the
+  popular "where did my disk space go?" answer: lists the 20 biggest files
+  under a directory (default `$HOME`, floor configurable with
+  `UO_BIGFILES_MIN_MB`, default 100 MB) in compact human units
+  (`1.5 GB` / `923 MB` / `812 KB`). Strictly read-only — the output ends
+  with a pointer to `uo --disk-clean` for the actual freeing.
+- **Listening ports viewer** (`uo --ports`, lib/ports.sh) — who is listening
+  on this machine: every TCP/UDP listener with its owning process, from
+  `ss` with a `netstat` fallback (install hint when neither exists).
+  Sockets bound to **all interfaces** (0.0.0.0 / :: / *) are flagged ⚠ and
+  the run closes with a count summary plus a `uo --security` / ufw hint.
+  Read-only.
+- **Browser cache cleanup** (`uo --browser-clean`, lib/browserclean.sh) —
+  the monitor family's only writing feature, built BleachBit-style:
+  - targets the pure cache directories of the Chromium family (Chrome,
+    Chromium, Edge, Brave, Opera, Vivaldi — flatpak variants under
+    `~/.var/app` included), every Firefox `*.default*` profile cache
+    (cache2, startupCache, shader-cache) and the XDG thumbnails;
+  - **a running browser is skipped with a warning — even with `-y`** — and
+    when pgrep itself is missing every owned cache is skipped ("cannot
+    verify = do not touch"; ownerless thumbnails still get cleaned);
+  - only cache CONTENTS are deleted (the directories themselves stay), so
+    bookmarks, passwords, cookies and history are untouchable by design;
+  - honors the global `--dry-run` (sizes only) and the usual confirmation
+    flow; reports freed MB per browser and in total.
+- New **🔍 Monitor & inspect** main-menu entry 21 (submenu: health snapshot ·
+  large-file finder with directory prompt · listening ports · browser cache
+  cleanup); bash + zsh completions learned `--health`, `--bigfiles`,
+  `--ports` and `--browser-clean`; `uo --help` documents all four flags with
+  new examples; README.md / README.fa.md badges, feature rows, CLI rows and
+  the project tree updated; CHANGELOG (this section).
+
+### Fixed
+- none — this release adds only new surface (41 new bats tests, 317 total).
+
 ## [7.14.0]
 
 ### Added

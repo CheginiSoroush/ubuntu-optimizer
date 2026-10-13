@@ -295,6 +295,24 @@ menu_boot() {
 }
 
 # ───────────────────────────────────────────────────────────────────────────────
+# menu_monitor() — submenu 21: Monitor & Inspect
+#
+# Thin wrapper: the three read-only inspectors dispatch to lib/health.sh,
+# lib/bigfiles.sh and lib/ports.sh; the browser cache cleanup to
+# lib/browserclean.sh (the only writing entry in this submenu).
+#
+# Arguments: none
+# Returns:   0 — on Back/EOF
+# ───────────────────────────────────────────────────────────────────────────────
+menu_monitor() {
+    menu_loop "🔍 Monitor & Inspect" \
+        "System health snapshot|health_show" \
+        "Find large files|bigfiles_menu" \
+        "Listening ports|ports_show" \
+        "Browser cache cleanup|browser_clean"
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
 # menu_recovery() — submenu 12: System Recovery & Rescue
 #
 # Thin wrapper: renders the submenu via menu_loop; every entry dispatches
@@ -334,10 +352,11 @@ menu_dangerous() {
 #
 # Interactive entry point used when no CLI flags are given. Draws the banner
 # box — the border width (54) matches the printf %-54s lines, so the
-# alignment can never drift — lists the 18 numbered entries plus Exit, and
+# alignment can never drift — lists the 21 numbered entries plus Exit, and
 # loops until Exit or EOF. Entries 1–12 open the submenus above; 13–17 call
 # show_log, system_report, disk_analyze, disk_cleanup and the profile menu;
-# 18 opens the systemd timer menu.
+# 18 opens the systemd timer menu; 19–21 open the disk report, the boot
+# submenu and the monitor & inspect submenu.
 #
 # Globals:   SCRIPT_VERSION (read), colour codes from lib/common.sh
 # Arguments: none
@@ -385,6 +404,7 @@ main_menu() {
         echo "  18) ⏰ Scheduled updates (systemd timer)"
         echo "  19) 🖥 Disk report (HTML, shareable)"
         echo "  20) 🥾 Boot & startup"
+        echo "  21) 🔍 Monitor & inspect"
         echo ""
         echo "   0) Exit"
         echo ""
@@ -413,6 +433,7 @@ main_menu() {
             18) menu_timer ;;
             19) menu_disk_report ;;
             20) menu_boot ;;
+            21) menu_monitor ;;
             0) clear; echo -e "${GREEN}Goodbye! 👋${NC}"; exit 0 ;;
             # Invalid user input is not a system error — logged as WARN, not ERROR
             *) warn "Invalid choice"; sleep 1 ;;

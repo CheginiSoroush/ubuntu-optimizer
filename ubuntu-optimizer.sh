@@ -15,7 +15,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # ── Load modules ───────────────────────────────────────────────────────────────
-for _lib in common cache config network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk htmlreport gitssh undo profile boot autostart selfupdate timer menus; do
+for _lib in common cache config network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk htmlreport gitssh undo profile boot autostart health bigfiles ports browserclean selfupdate timer menus; do
     _libfile="$SCRIPT_DIR/lib/${_lib}.sh"
     if [ -f "$_libfile" ]; then
         # shellcheck source=/dev/null
@@ -69,6 +69,7 @@ TIMER_NOTIFY=0
 TIMER_LOG_LINES=50
 DISK_REPORT_FILE=""
 AUTOSTART_TARGET=""   # --autostart-on/--autostart-off target (set + validated in the parser)
+UO_BIGFILES_DIR=""   # --bigfiles optional directory (env of the same name also works)
 
 # ───────────────────────────────────────────────────────────────────────────────
 # run_cli_profile() — dispatch --profile from the queued action list
@@ -164,6 +165,18 @@ Options:
   --autostart-off NAME
                       disable the startup application NAME (a system entry
                       gets a user override — system files stay untouched)
+
+  --health            one-shot system health snapshot: load, memory, disk,
+                      temperature, battery, failed units, pending updates,
+                      uptime (read-only)
+  --bigfiles [DIR]    list the 20 largest files under DIR (default $HOME;
+                      size floor UO_BIGFILES_MIN_MB MB, default 100 —
+                      read-only, deletes nothing)
+  --ports             listening sockets + which ones bind all interfaces
+                      (read-only; process names need root)
+  --browser-clean     clean browser caches only (Chrome family, Firefox,
+                      thumbnails) — bookmarks, passwords, cookies and
+                      history are never touched; --dry-run shows sizes
 
   --git-ssh           GitHub SSH key setup wizard
   --git-ssh-status    SSH key / GitHub authentication status
@@ -287,6 +300,9 @@ Examples:
   uo --boot               # how long the boot takes — and what slows it down
   uo --autostart          # what starts with the desktop session
   uo --autostart-off update-notifier   # disable one startup app
+  uo --health             # one read-only snapshot of the machine's health
+  uo --bigfiles ~/Videos  # where did the disk space go?
+  uo --browser-clean      # free browser cache space without losing any data
 EOF
 }
 
@@ -410,6 +426,18 @@ while [ $# -gt 0 ]; do
                 exit 1
             fi
             ;;
+        --health)         CLI_ACTIONS+=("health_show|health snapshot"); shift ;;
+        --bigfiles)
+            # optional directory — a following flag is never eaten as the dir
+            if [ $# -ge 2 ] && [ -n "$2" ] && [[ "$2" != -* ]]; then
+                UO_BIGFILES_DIR="$2"; shift 2
+            else
+                shift
+            fi
+            CLI_ACTIONS+=("bigfiles_show|large file finder")
+            ;;
+        --ports)          CLI_ACTIONS+=("ports_show|listening ports"); shift ;;
+        --browser-clean)  CLI_ACTIONS+=("browser_clean|browser cache cleanup"); shift ;;
         --git-ssh)        CLI_ACTIONS+=("gitssh_setup|GitHub SSH setup"); shift ;;
         --git-ssh-status) CLI_ACTIONS+=("gitssh_status|GitHub SSH status"); shift ;;
         --github-update)  CLI_ACTIONS+=("github_update_apps|GitHub updates"); shift ;;
@@ -651,7 +679,7 @@ if [ "$DRY_RUN" = "1" ]; then
         exit 1
     fi
     if [ ${#CLI_ACTIONS[@]} -eq 0 ]; then
-        echo "--dry-run requires an action: --optimize, --network, --system, --security, --time, --undo, --profile or --self-update." >&2
+        echo "--dry-run requires an action: --optimize, --network, --system, --security, --time, --undo, --profile, --self-update or --browser-clean." >&2
         exit 1
     fi
     for cli_action in "${CLI_ACTIONS[@]}"; do
@@ -663,9 +691,9 @@ if [ "$DRY_RUN" = "1" ]; then
             all_network_opts|all_system_opts|all_security_opts|fix_time|undo_all_optimizations|apply_profile|run_cli_profile|self_update_interactive|\
             disable_wifi_powersave|set_dns|enable_bbr|set_mtu|optimize_tcp|\
             optimize_memory|set_noatime|disable_extra_services|install_preload|\
-            install_tlp|limit_journal|extend_sudo_timeout|setup_polkit_rule) ;;
+            install_tlp|limit_journal|extend_sudo_timeout|setup_polkit_rule|browser_clean) ;;
             *)
-                echo "--dry-run is only valid with --optimize, --network, --system, --security, --time, --undo, --profile or --self-update." >&2
+                echo "--dry-run is only valid with --optimize, --network, --system, --security, --time, --undo, --profile, --self-update or --browser-clean." >&2
                 exit 1
                 ;;
         esac

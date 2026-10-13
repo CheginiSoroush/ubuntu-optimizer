@@ -8,14 +8,14 @@
 **یک دستور؛ اوبونتویی سریع‌تر، تمیزتر و سالم‌تر.**
 
 جعبه‌ابزار همه‌کارهٔ بهینه‌سازی، مدیریت برنامه‌ها و تعمیر اوبونتو —
-۲۰ ابزار در منویی ساده، بیش از ۴۵ گزینهٔ خط فرمان و پیش‌نمایش صادقانهٔ dry-run.
+۲۱ ابزار در منویی ساده، بیش از ۴۹ گزینهٔ خط فرمان و پیش‌نمایش صادقانهٔ dry-run.
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.14-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.15-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-276%20%2F%20276-brightgreen)
+![Tests](https://img.shields.io/badge/bats-317%20%2F%20317-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -46,6 +46,7 @@
 | 🐙 **GitHub Releases** | نصب / به‌روزرسانی / حذف برنامه‌ها — انتخاب خودکار فایل سازگار با معماری سیستم · **بررسی checksum شی‌آر-۲۵۶** وقتی ریلیز فایل checksum دارد (v7.4) |
 | ⬆ **به‌روزرسانی خود ابزار** | **خودکار در هر اجرای `uo`** (v7.13): بررسی نسخه با کش TTL، پیشنهاد نسخه تازه‌تر، اعمال و راه‌اندازی دوباره با کد جدید — یک بنر، یک سؤال، هرگز جلوی کار را نمی‌گیرد (خاموشی با `--no-update` / `UO_AUTO_UPDATE=0`) · `uo --self-update` برای حالت دستی: بررسی نسخه از مخزن رسمی، git pull برای کلون‌ها، آرشیو تأییدشده + پشتیبان خودکار برای کپی‌های ثابت (v7.6) |
 | 🥾 **بوت و استارتاپ** | تحلیل زمان بوت با حکم نهایی — کل زمان، ۱۰ یونیت کندترین، زنجیرهٔ بحرانی، یونیت‌های شکست‌خورده (v7.14) · **مدیر استارتاپ XDG**: فهرست و فعال/غیرفعال‌کردن برنامه‌های استارتاپ — هرگز فایل سیستمی لمس نمی‌شود، کاملاً بازگشت‌پذیر با override کاربر (v7.14) |
+| 🔍 **پایش و بازرسی** | **عکس سلامت** (`--health`): بار، حکم حافظه، دیسک، دما، باتری، یونیت‌های خراب، آپدیت‌های در انتظار (v7.15) · **یافته‌ندهٔ فایل‌های حجیم** (`--bigfiles`): ۲۰ فایل بزرگ هر مسیر (v7.15) · **پورت‌های گوش‌دهنده** (`--ports`): هر شنونده + صاحبش، اتصال به همهٔ اینترفیس‌ها با ⚠ (v7.15) · **پاک‌سازی کش مرورگر** (`--browser-clean`): کش‌های Chromium/فایرفاکس/بندانگشتی — مرورگر باز رد می‌شود، فایل داده لمس نمی‌شود (v7.15) |
 | 🧹 **حذف کامل** | حذف کامل هر برنامه از **هر منبعی** (apt / snap / flatpak / tar.gz / دستی) — به‌همراه داده‌های کاربر |
 | 🔄 **به‌روزرسانی** | apt + snap + flatpak + tar.gz + GitHub در یک دستور، با `-y` کاملاً خودکار |
 | 🚑 **بازیابی** | تعمیر بسته‌های خراب، نصب مجدد محیط دسکتاپ |
@@ -182,6 +183,10 @@ uo --profile server -y             # اعمال بدون سؤال
 | `uo --disk-report [FILE]` | نوشتن تحلیل دیسک به‌صورت گزارش HTML خودکفا — نمودار + جدول‌های قابلمرتب‌سازی، پیش‌فرض «uo-disk-report.html» (v7.12) |
 | `uo --boot` | تحلیل زمان بوت — کل زمان + حکم، ۱۰ یونیت کندترین، زنجیرهٔ بحرانی، یونیت‌های شکست‌خورده (v7.14) |
 | `uo --autostart` · `--autostart-on/off NAME` | فهرست برنامه‌های استارتاپ · فعال/غیرفعال‌کردن یکی — override بازگشت‌پذیر کاربر، بدون لمس فایل‌های سیستمی (v7.14) |
+| `uo --health` | عکس سلامت سیستم فقط-خواندنی — بار، حکم حافظه، دیسک، دما، باتری، یونیت‌های خراب، آپدیت‌های در انتظار، آپ‌تایم (v7.15) |
+| `uo --bigfiles [DIR]` | ۲۰ فایل حجیم یک مسیر — آستانهٔ اندازه با `UO_BIGFILES_MIN_MB` (پیش‌فرض ۱۰۰ مگابایت) (v7.15) |
+| `uo --ports` | هر پورت گوش‌دهندهٔ TCP/UDP + پروسهٔ صاحب — اتصال به همهٔ اینترفیس‌ها با ⚠ علامت می‌خورد + راهنمای ufw (v7.15) |
+| `uo --browser-clean` | خالی‌کردن کش‌های Chromium/فایرفاکس/تصاویر بندانگشتی — مرورگر در حال اجرا رد می‌شود، فایل‌های داده لمس نمی‌شوند (v7.15) |
 | `uo --doctor` | بررسی سلامت و تعمیر همهٔ برنامه‌های نصب‌شده/ردیابی‌شده |
 | `uo --github-install OWNER/REPO [NAME]` | نصب برنامه از آخرین ریلیز GitHub |
 | `uo --github-update` · `--github-list` · `--github-remove` | به‌روزرسانی · فهرست · حذف برنامه‌های GitHub |
@@ -204,6 +209,10 @@ uo --install-targz ~/Downloads/app.tar.gz myapp  # نصب از آرشیو
 uo --github-install junegunn/fzf                 # نصب از ریلیز GitHub
 uo --cleanup abdownloadmanager --purge-data -y   # حذف یک برنامه بدون هیچ ردی
 uo --doctor                                      # بررسی سلامت و تعمیر برنامه‌ها
+uo --health                                      # بار · حافظه · دیسک · دما · باتری · یونیت‌های خراب
+uo --bigfiles ~                                  # فایلم کجا رفته؟ ۲۰ فایل حجیم
+uo --ports                                       # چه کسی گوش می‌دهد — و چه چیزی باز است
+uo --browser-clean                               # خالی‌کردن کش مرورگرها (داده‌ها دست‌نخورده)
 ```
 
 ---
@@ -446,7 +455,7 @@ ubuntu-optimizer/
 │   ├── disk.sh                ← تحلیل فضای دیسک و پاک‌سازی
 │   ├── gitssh.sh              ← راه‌اندازی SSH گیت‌هاب
 │   └── menus.sh               ← موتور منو و همهٔ منوها
-├── test/                      ← تست‌های واحد bats (common، appmgmt، github، undo، profile، jsonreport، selfupdate، reportfile، config، cache، timer، htmlreport، syntax)
+├── test/                      ← تست‌های واحد bats (common، appmgmt، github، undo، profile، jsonreport، selfupdate، reportfile، config، cache، timer، htmlreport، boot، autostart، health، bigfiles، ports، browserclean، syntax)
 ├── completions/               ← uo (bash) · ‪_uo‬ (zsh) — تکمیل تب برای همهٔ فلگ‌ها
 ├── .github/workflows/
 │   ├── lint.yml               ← CI: shellcheck + syntax + bats در هر push
@@ -464,9 +473,9 @@ ubuntu-optimizer/
 
 | گیت کیفیت | وضعیت |
 |---|---|
-| بررسی سینتکس `bash -n` | ✅ هر ۲۶ فایل شل |
+| بررسی سینتکس `bash -n` | ✅ هر ۳۰ فایل شل |
 | ShellCheck (سخت‌گیرانه) | ✅ صفر ایراد — در CI اجباری است |
-| تست‌های واحد bats | ✅ ۲۷۶ از ۲۷۶ پاس |
+| تست‌های واحد bats | ✅ ۳۱۷ از ۳۱۷ پاس |
 | `install.sh --check` | ✅ خودارزیابی سلامت داخلی |
 | GitHub Actions CI | ✅ روی هر push و pull request |
 
