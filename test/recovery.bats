@@ -132,9 +132,18 @@ done
 exit 0
 EOF
     chmod +x "$STUB_BIN/git"
-    # real `make` stays reachable (STUB_BIN is only prepended) and really
-    # runs the fixture Makefile → $HOME/veet/veet exists after `make build`
-    PATH="$STUB_BIN:$PATH" ASSUME_YES=1 run install_veet
+    # Host-independent: GitHub runners ship a Go toolchain, so a plain
+    # PATH-prefix would let `command -v go` succeed and skip the golang
+    # install branch. Copy the tools the flow needs into a go-less dir
+    # (copy-based, per the suite convention) and use it as the ONLY PATH.
+    GOLESS_BIN="$TEST_HOME/goless-bin"
+    mkdir -p "$GOLESS_BIN"
+    for tool in make bash sh env mkdir touch chmod cp rm mv cat grep sed awk                 uname dirname basename readlink sleep printf ls date; do
+        src="$(command -v "$tool" 2> /dev/null)" || continue
+        [ -x "$src" ] && cp "$src" "$GOLESS_BIN/$tool"
+    done
+    # git comes from STUB_BIN (first), make is real, go is ABSENT everywhere
+    PATH="$STUB_BIN:$GOLESS_BIN" ASSUME_YES=1 run install_veet
     [ "$status" -eq 1 ]
     grep -q "sudo apt install -y golang" "$SUDO_LOG"
     [ -x "$TEST_HOME/veet/veet" ]
