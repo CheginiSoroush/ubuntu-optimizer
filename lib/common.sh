@@ -12,8 +12,17 @@
 #  License : MIT
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# i18n (lib/i18n.sh) provides the t() helper this module's press_enter renders
+# through. The entry script loads it as a module in the normal startup order;
+# when common.sh is sourced standalone (the test suite does), pull it in —
+# the load-once guard inside i18n.sh keeps this a no-op either way.
+if ! declare -F t > /dev/null 2>&1; then
+    # shellcheck source=lib/i18n.sh
+    source "${BASH_SOURCE[0]%/*}/i18n.sh"
+fi
+
 # ── Version (single source of truth for the whole project) ─────────────
-readonly SCRIPT_VERSION="7.16"
+readonly SCRIPT_VERSION="7.17"
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 readonly SYSCTL_CONF="/etc/sysctl.d/99-ubuntu-optimizer.conf"
@@ -293,7 +302,7 @@ header() {
 press_enter() {
     if [ "$CLI_MODE" = "1" ]; then echo; return 0; fi
     echo ""
-    read -r -p "   Press Enter to continue..." _ || true
+    read -r -p "$(t msg.press_enter)" _ || true
     return 0
 }
 

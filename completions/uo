@@ -43,6 +43,10 @@ _uo() {
             mapfile -t COMPREPLY < <(compgen -W "10 20 50 100 200" -- "$cur")
             return 0
             ;;
+        --lang)
+            mapfile -t COMPREPLY < <(compgen -W "fa en" -- "$cur")
+            return 0
+            ;;
         --output)
             mapfile -t COMPREPLY < <(compgen -f -- "$cur")
             return 0
@@ -110,14 +114,15 @@ _uo() {
     local opts="
         -h --help -V --version -y --yes --no-color --no-log --dry-run
         --config --no-config --config-show --config-example
+        --lang --lang-show
         --no-cache --cache-clear --cache-stats
         --timer-install --timer-remove --timer-status --timer-log
         --timer-preview --timer-system --timer-notify-only --timer-tick
         --report --json --output --append --git-ssh --git-ssh-status --doctor
         --boot --autostart --autostart-on --autostart-off
-        --health --bigfiles --ports --browser-clean
         --dns --dns-list --kernel-list --kernel-clean
         --swap --swap-on --swap-off --swappiness
+        --health --bigfiles --ports --browser-clean --fzf
         --disk --disk-clean --disk-report
         --github-install --github-update --github-list --github-remove
         --install-targz

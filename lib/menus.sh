@@ -11,6 +11,15 @@
 #  License : MIT
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# i18n (lib/i18n.sh) provides the t() helper the main menu renders through.
+# The entry script loads it as a module in the normal startup order; when
+# this file is sourced standalone (the test suite does), pull it in — the
+# load-once guard inside i18n.sh keeps this a no-op either way.
+if ! declare -F t > /dev/null 2>&1; then
+    # shellcheck source=lib/i18n.sh
+    source "${BASH_SOURCE[0]%/*}/i18n.sh"
+fi
+
 # ───────────────────────────────────────────────────────────────────────────────
 # menu_loop() — render and drive an interactive selection menu
 #
@@ -62,7 +71,7 @@ menu_loop() {
             break
         else
             # Invalid user input is not a system error — logged as WARN, not ERROR
-            warn "Invalid choice"
+            warn "$(t msg.invalid_choice)"
             sleep 1
         fi
     done
@@ -380,7 +389,13 @@ menu_dangerous() {
 # show_log, system_report, disk_analyze, disk_cleanup and the profile menu;
 # 18 opens the systemd timer menu; 19–22 open the disk report, the boot
 # submenu, the monitor & inspect submenu and the maintenance & hardware
-# submenu.
+# submenu; 23 opens the fzf launcher (lib/fzf.sh — with a friendly hint and
+# a return to this menu when fzf is not installed).
+#
+# Every user-facing label (banner lines, section headers, the numbered
+# entries, Exit, the Select prompt, Goodbye and the invalid-choice warning)
+# renders through the i18n catalogs via t(); the EN_* entries hold the exact
+# pre-i18n strings, so the English rendering is byte-identical to before.
 #
 # Globals:   SCRIPT_VERSION (read), colour codes from lib/common.sh
 # Arguments: none
@@ -394,49 +409,50 @@ main_menu() {
         echo -e "${MAGENTA}"
         printf '    ╔%s╗\n' "$border"
         printf '    ║%-54s║\n' ""
-        printf '    ║%-54s║\n' "       Ubuntu Optimizer & Fixer - v${SCRIPT_VERSION}"
-        printf '    ║%-54s║\n' "       All-in-one Ubuntu optimization & repair toolkit"
+        printf '    ║%-54s║\n' "$(t banner.title "$SCRIPT_VERSION")"
+        printf '    ║%-54s║\n' "$(t banner.tagline)"
         printf '    ║%-54s║\n' ""
         printf '    ║%-54s║\n' "       Author & Designer: CheginiSoroush"
         printf '    ║%-54s║\n' "       github.com/CheginiSoroush/ubuntu-optimizer"
         printf '    ╚%s╝\n' "$border"
         echo -e "${NC}"
-        echo -e "${BOLD}   ── Optimization & Health ──${NC}"
-        echo "   1) 🌐 Network optimization"
-        echo "   2) 💾 System & memory optimization"
-        echo "   3) 🔐 Security & passwords"
-        echo "   4) 🕐 Time & NTP"
-        echo "   5) ⚡ Optimization profiles (laptop/server/gaming/minimal)"
+        echo -e "${BOLD}   $(t menu.sec_optimization)${NC}"
+        echo "   1) $(t menu.01)"
+        echo "   2) $(t menu.02)"
+        echo "   3) $(t menu.03)"
+        echo "   4) $(t menu.04)"
+        echo "   5) $(t menu.05)"
         echo ""
-        echo -e "${BOLD}   ── Emergency & Diagnostics ──${NC}"
-        echo "   6) 🛠 Create & run fixnet"
-        echo "   7) 📊 Network & speed tests"
+        echo -e "${BOLD}   $(t menu.sec_emergency)${NC}"
+        echo "   6) $(t menu.06)"
+        echo "   7) $(t menu.07)"
         echo ""
-        echo -e "${BOLD}   ── Applications ──${NC}"
-        echo "   8) 📦 Install packages & apps"
-        echo "   9) 🧹 Manage & fully remove apps"
-        echo "  10) 🔄 Update apps"
-        echo "  11) 🧩 snap & flatpak management"
+        echo -e "${BOLD}   $(t menu.sec_apps)${NC}"
+        echo "   8) $(t menu.08)"
+        echo "   9) $(t menu.09)"
+        echo "  10) $(t menu.10)"
+        echo "  11) $(t menu.11)"
         echo ""
-        echo -e "${BOLD}   ── System & Info ──${NC}"
-        echo "  12) 🚑 System recovery & rescue"
-        echo "  13) ☠ Advanced tools (dangerous)"
-        echo "  14) 📜 Activity log"
-        echo "  15) 📊 System status report"
-        echo "  16) 📊 Disk space analysis"
-        echo "  17) 🧹 Disk cleanup"
-        echo "  18) ⏰ Scheduled updates (systemd timer)"
-        echo "  19) 🖥 Disk report (HTML, shareable)"
-        echo "  20) 🥾 Boot & startup"
-        echo "  21) 🔍 Monitor & inspect"
-        echo "  22) 🧰 Maintenance & hardware (DNS · kernels · swap)"
+        echo -e "${BOLD}   $(t menu.sec_system)${NC}"
+        echo "  12) $(t menu.12)"
+        echo "  13) $(t menu.13)"
+        echo "  14) $(t menu.14)"
+        echo "  15) $(t menu.15)"
+        echo "  16) $(t menu.16)"
+        echo "  17) $(t menu.17)"
+        echo "  18) $(t menu.18)"
+        echo "  19) $(t menu.19)"
+        echo "  20) $(t menu.20)"
+        echo "  21) $(t menu.21)"
+        echo "  22) $(t menu.22)"
+        echo "  23) $(t menu.23)"
         echo ""
-        echo "   0) Exit"
+        echo "   0) $(t menu.exit)"
         echo ""
         echo -e "${BOLD}   Quick CLI reference:${NC} uo --help  (after installing with install.sh)"
         echo ""
         # EOF (Ctrl+D) → clean exit; without this the loop would spin forever
-        read -r -p "   Select: " choice || exit 0
+        read -r -p "$(t menu.select)" choice || exit 0
         case $choice in
             1) menu_network ;;
             2) menu_system ;;
@@ -460,9 +476,10 @@ main_menu() {
             20) menu_boot ;;
             21) menu_monitor ;;
             22) menu_maintenance ;;
-            0) clear; echo -e "${GREEN}Goodbye! 👋${NC}"; exit 0 ;;
+            23) run_cli_fzf; press_enter ;;
+            0) clear; echo -e "${GREEN}$(t msg.goodbye)${NC}"; exit 0 ;;
             # Invalid user input is not a system error — logged as WARN, not ERROR
-            *) warn "Invalid choice"; sleep 1 ;;
+            *) warn "$(t msg.invalid_choice)"; sleep 1 ;;
         esac
     done
 }

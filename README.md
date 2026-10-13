@@ -8,14 +8,14 @@
 **One command. A faster, cleaner, healthier Ubuntu.**
 
 The all-in-one optimization, app-management and repair toolkit —
-22 friendly menu tools, 57+ CLI options, honest dry-run previews.
+23 friendly menu tools, 60+ CLI options, honest dry-run previews.
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.16-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.17-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-362%20%2F%20362-brightgreen)
+![Tests](https://img.shields.io/badge/bats-510%20%2F%20510-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
@@ -48,6 +48,7 @@ The all-in-one optimization, app-management and repair toolkit —
 | 🥾 **Boot &amp; startup** | boot time analysis with verdict — total, the 10 slowest units, the critical chain, failed units (v7.14) · **XDG autostart manager**: list + enable/disable startup applications — never touches a system file, fully reversible through user overrides (v7.14) |
 | 🔍 **Monitor &amp; inspect** | **health snapshot** (`--health`): load, memory verdict, disk, temps, battery, failed units, pending updates (v7.15) · **large-file finder** (`--bigfiles`): the 20 biggest files under any directory (v7.15) · **listening ports** (`--ports`): every listener + owner, all-interface binds flagged ⚠ (v7.15) · **browser cache cleanup** (`--browser-clean`): Chromium/Firefox/thumbnail caches — running browsers skipped, data files untouchable (v7.15) |
 | 🧰 **Maintenance &amp; hardware** | **DNS preset switcher** (`--dns`): shecan · 403online · radar · electro (Iranian bypass) · cloudflare · google · quad9 · adguard · auto — one word, three apply mechanisms (NM / systemd-resolved / resolv.conf), `auto` returns to DHCP (v7.16) · **old-kernel cleanup** (`--kernel-clean`): running + newest always protected, exact deb purge plan (v7.16) · **swap manager** (`--swap-on` / `--swap-off` / `--swappiness`): recommended size, marked fstab entry, partitions/zram untouchable (v7.16) |
+| 🚀 **fzf launcher + bilingual CLI** | **interactive fzf menu** (`--fzf`): fuzzy-search every action and run the picked one — graceful hint when fzf is absent (v7.17) · **fa/en UI** (`--lang fa|en`, `--lang-show`, `UO_LANG`): Persian menu/banner/messages with English fallback (v7.17) |
 | 🧹 **Full removal** | completely remove any app from **any source** (apt / snap / flatpak / tar.gz / manual) — including user data |
 | 🔄 **Updates** | apt + snap + flatpak + tar.gz + GitHub in one command, fully automatic with `-y` |
 | 🚑 **Recovery** | fix broken packages, reinstall the desktop environment |
@@ -205,6 +206,8 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 | `uo --kernel-list` · `--kernel-clean` | list the installed kernels · purge the old ones (running + newest always protected, keep `UO_KERNEL_KEEP`, default 2) (v7.16) |
 | `uo --swap` · `--swap-on [MB]` · `--swap-off` | swap status · create + enable the recommended `/swapfile` (marked fstab entry) · remove it — partitions/zram untouchable (v7.16) |
 | `uo --swappiness N` | tune `vm.swappiness` (1–100) through the undo-aware sysctl drop-in (v7.16) |
+| `uo --fzf` | interactive fzf launcher over every toolkit action — Enter=run, Esc=cancel; `UO_FZF_BIN` override (v7.17) |
+| `uo --lang fa\|en` | persist the UI language; `--lang-show` prints the effective language + its source (v7.17) |
 | `uo -y` · `--no-color` · `--no-log` | auto-confirm · plain output · don't log |
 
 ### Real-world examples
@@ -470,6 +473,8 @@ ubuntu-optimizer/
 │   ├── undo.sh                ← one-command reversal of all optimizations
 │   ├── profile.sh             ← curated presets: laptop / server / gaming / minimal
 │   ├── selfupdate.sh          ← `--self-update`: version check + git/archive update
+│   ├── fzf.sh                 ← `--fzf`: interactive fzf launcher over all actions
+│   ├── i18n.sh                ← fa/en catalogs + `t()` + `--lang`/`--lang-show`
 │   ├── boot.sh                ← `--boot`: boot time + slowest units + failed units
 │   ├── autostart.sh           ← `--autostart`: manage XDG startup applications
 │   ├── health.sh              ← `--health`: read-only system health snapshot

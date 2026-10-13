@@ -15,7 +15,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # ── Load modules ───────────────────────────────────────────────────────────────
-for _lib in common cache config network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk htmlreport gitssh undo profile boot autostart health bigfiles ports browserclean dnsswitch kernels swap selfupdate timer menus; do
+for _lib in common cache config i18n network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk htmlreport gitssh undo profile boot autostart health bigfiles ports browserclean dnsswitch kernels swap selfupdate timer menus fzf; do
     _libfile="$SCRIPT_DIR/lib/${_lib}.sh"
     if [ -f "$_libfile" ]; then
         # shellcheck source=/dev/null
@@ -63,6 +63,8 @@ CLI_NO_CACHE=0
 CONFIG_PATH_OVERRIDE=""
 NO_CONFIG=0
 CONFIG_SHOW=0
+LANG_SHOW=0        # --lang-show: print the effective language + source, exit
+LANG_SET_VALUE=""  # --lang fa|en: persist the language choice, exit
 TIMER_PERIOD=""
 TIMER_SCOPE="user"
 TIMER_NOTIFY=0
@@ -140,6 +142,11 @@ Options:
   --no-config         ignore every config file for this run
   --config-show       print the effective configuration and exit
   --config-example    print an annotated template config and exit
+
+  --lang fa|en        set the interface language (fa = Persian) and save it
+                      in the config file (key: language)
+  --lang-show         print the effective interface language and its source
+                      (env / config / detected / default)
 
   --no-cache          bypass the TTL cache for this run (lookups miss,
                       new results are not stored)
@@ -260,6 +267,10 @@ Options:
   --log               show the last log lines
   --log-clear         delete the log file
 
+  --fzf               interactive fzf launcher: pick any toolkit action from
+                      a fuzzy-searchable menu and run it (Enter=run,
+                      Esc=cancel); needs fzf (sudo apt install fzf)
+
 Environment:
   UO_DNS_SERVERS      custom DNS servers for --network/--optimize
                       (space-separated IPv4; default: "8.8.8.8 1.1.1.1")
@@ -270,6 +281,9 @@ Environment:
                       (the --no-update flag overrides this for one run)
   UO_UPDATE_CHECK_TTL seconds between startup update checks (default 300;
                       0 checks on every run)
+  UO_FZF_BIN          fzf binary used by --fzf (default: first fzf on PATH)
+  UO_LANG             force the interface language for this run: fa | en
+                      (overrides the config file key `language`)
   GH_TOKEN            GitHub token — raises the API rate limit to 5000/hour
 
 Config file:
@@ -311,6 +325,8 @@ Examples:
   #  → one JSON line per run: a time-series log for dashboards (cron-friendly)
   uo --config-show      # inspect the effective configuration
   uo --config-example > ~/.config/uo/config.conf   # start a config file
+  uo --lang fa        # Persian interface — saved for every future run
+  uo --lang-show      # which language is in effect, and where it came from
   uo --cache-clear --update-apt    # force a fresh apt list refresh
   uo --cache-stats    # what is cached right now, and for how long
   uo --timer-install weekly          # weekly unattended 'uo --update -y'
@@ -328,6 +344,7 @@ Examples:
   uo --kernel-clean       # free /boot: remove the old kernels
   uo --swap-on 4096       # create a 4 GB swapfile
   uo --swappiness 10      # the desktop sweet spot
+  uo --fzf                # fuzzy-search every action and run the picked one
 EOF
 }
 
@@ -351,8 +368,8 @@ if [ "$EUID" -eq 0 ]; then
 fi
 
 # Exit codes follow signal convention: SIGINT=130, SIGTERM=143
-trap 'echo ""; warn "Exiting..."; exit 130' INT
-trap 'echo ""; warn "Exiting..."; exit 143' TERM
+trap 'echo ""; warn "$(t msg.exiting)"; exit 130' INT
+trap 'echo ""; warn "$(t msg.exiting)"; exit 143' TERM
 
 # ── Parse arguments ─────────────────────────────────────────────────────────────
 while [ $# -gt 0 ]; do
@@ -388,6 +405,23 @@ while [ $# -gt 0 ]; do
         --no-config)      NO_CONFIG=1; shift ;;
         --config-show)    CONFIG_SHOW=1; shift ;;
         --config-example) uo_config_example; exit 0 ;;
+        --lang)
+            if [ $# -ge 2 ] && [ -n "$2" ] && [[ "$2" != -* ]]; then
+                case "${2,,}" in
+                    fa|en) LANG_SET_VALUE="${2,,}" ;;
+                    *)
+                        echo "Invalid language: $2" >&2
+                        echo "  ℹ Valid languages: fa · en" >&2
+                        exit 1
+                        ;;
+                esac
+                shift 2
+            else
+                echo "--lang requires a value: --lang fa|en" >&2
+                exit 1
+            fi
+            ;;
+        --lang-show)      LANG_SHOW=1; shift ;;
         --no-cache)       NO_CACHE=1; CLI_NO_CACHE=1; shift ;;
         --cache-clear)    CLI_ACTIONS+=("cache_maintenance_clear|cache clear"); shift ;;
         --cache-stats)    CLI_ACTIONS+=("cache_maintenance_stats|cache stats"); shift ;;
@@ -576,7 +610,7 @@ while [ $# -gt 0 ]; do
                 echo "── Last 60 log lines ──"
                 tail -n 60 "$LOG_FILE"
             else
-                echo "No log file exists yet."
+                echo "$(t msg.no_log_yet)"
                 echo "Log path: $LOG_FILE"
             fi
             exit 0
@@ -584,9 +618,9 @@ while [ $# -gt 0 ]; do
         --log-clear)
             if [ -f "$LOG_FILE" ]; then
                 rm -f "$LOG_FILE" "$LOG_FILE.old"
-                echo "Log deleted."
+                echo "$(t msg.log_deleted)"
             else
-                echo "No log file to delete."
+                echo "$(t msg.no_log_to_delete)"
             fi
             exit 0
             ;;
@@ -626,6 +660,7 @@ while [ $# -gt 0 ]; do
         --update-targz)   CLI_ACTIONS+=("update_targz_apps|tar.gz updates"); shift ;;
         --list-apps)      CLI_ACTIONS+=("list_all_apps|app list"); shift ;;
         --snap-clean)     CLI_ACTIONS+=("clean_snap_flatpak_junk|snap/flatpak cleanup"); shift ;;
+        --fzf)            CLI_ACTIONS+=("run_cli_fzf|fzf menu"); shift ;;
         --purge-data)     PURGE_DATA=1; shift ;;
         --cleanup)
             if [ $# -ge 2 ]; then
@@ -653,6 +688,23 @@ if [ "$CONFIG_SHOW" = "1" ]; then
     exit 0
 fi
 uo_config_load
+
+# ── Interface language (i18n) ────────────────────────────────────────────────────
+# Resolved once, right after the config load and before anything renders:
+# UO_LANG env < config `language` key < locale auto-detect < default en.
+i18n_init
+
+# --lang: persist the choice through the config system, then exit
+if [ -n "$LANG_SET_VALUE" ]; then
+    i18n_set_language "$LANG_SET_VALUE"
+    exit 0
+fi
+
+# --lang-show: introspection only — the effective language and its source
+if [ "$LANG_SHOW" = "1" ]; then
+    i18n_show
+    exit 0
+fi
 
 # Cross-option validation
 if [ "$PURGE_DATA" = "1" ] && [ -z "$CLEANUP_TARGET" ]; then
@@ -790,7 +842,7 @@ if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TA
         echo -e "${BOLD}Ubuntu Optimizer & Fixer v${SCRIPT_VERSION} — CLI mode${NC}"
     fi
     if [ "$DRY_RUN" = "1" ]; then
-        warn "── DRY RUN: commands are printed, nothing is executed ──"
+        warn "$(t msg.dry_run_notice)"
     fi
     # Each queued action is "function|label" — dispatch to the function part.
     # JSON mode swaps the plain-text report for its machine-readable twin.
@@ -814,9 +866,9 @@ if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TA
     unset cli_dispatch_fn
     if [ -n "$OUTPUT_FILE" ]; then
         if [ "$JSON_MODE" = "1" ]; then
-            echo "Report saved to: $OUTPUT_FILE" >&2
+            printf '%s\n' "$(t msg.report_saved "$OUTPUT_FILE")" >&2
         else
-            echo "ℹ Report saved to: $OUTPUT_FILE"
+            echo "ℹ $(t msg.report_saved "$OUTPUT_FILE")"
         fi
     fi
     if [ -n "$INSTALL_TARGZ_FILE" ]; then
@@ -836,10 +888,10 @@ if [ ${#CLI_ACTIONS[@]} -gt 0 ] || [ -n "$CLEANUP_TARGET" ] || [ -n "$INSTALL_TA
         echo ""
         # Exit code 1 when any step failed — so scripts/cron can detect it
         if [ "$LOG_FAIL_COUNT" -gt 0 ]; then
-            warn "Finished — some steps had errors; see the log for details."
+            warn "$(t msg.finished_errors)"
             exit 1
         fi
-        success "Finished — all requested tasks completed."
+        success "$(t msg.finished_ok)"
     elif [ "$LOG_FAIL_COUNT" -gt 0 ]; then
         exit 1
     fi

@@ -89,6 +89,10 @@ uo_config_value_is_valid() {
             [[ "$value" == "0" || "$value" == "1" ]] ;;
         DNS_SERVERS)
             [ -n "$value" ] && [[ "$value" =~ ^[0-9.[:space:]]+$ ]] ;;
+        language)
+            # fa | en, case-insensitive (normalized to lowercase when applied);
+            # consumed by lib/i18n.sh after the config load
+            [[ "${value,,}" == "fa" || "${value,,}" == "en" ]] ;;
         *) return 1 ;;
     esac
 }
@@ -153,6 +157,11 @@ uo_config_apply_key() {
             else
                 NO_CACHE="$value"; CONFIG_SOURCES[$key]="config"
             fi
+            ;;
+        language)
+            # Stored lowercase for lib/i18n.sh (the UO_LANG env var wins over
+            # this key by i18n's documented resolution order — handled there)
+            UO_LANGUAGE="${value,,}"; CONFIG_SOURCES[$key]="config"
             ;;
     esac
 }

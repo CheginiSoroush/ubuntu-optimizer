@@ -17,7 +17,11 @@ setup() {
     # CI runners export XDG_* — force HOME-based paths for hermeticity
     unset XDG_CONFIG_HOME XDG_DATA_HOME XDG_STATE_HOME
     # Fresh copy of the whole toolkit — the main script requires lib/ beside it
-    cp -r "$BATS_TEST_DIRNAME/.." "$TEST_HOME/uo-tree"
+    # Targeted copy: ubuntu-optimizer.sh + lib/*.sh only — a full-tree cp
+    # would drag website/node_modules (~700 MB when present) and stall tests
+    mkdir -p "$TEST_HOME/uo-tree/lib"
+    cp "$BATS_TEST_DIRNAME/../ubuntu-optimizer.sh" "$TEST_HOME/uo-tree/"
+    cp "$BATS_TEST_DIRNAME"/../lib/*.sh "$TEST_HOME/uo-tree/lib/"
     chmod +x "$TEST_HOME/uo-tree/ubuntu-optimizer.sh"
     cd "$TEST_HOME/uo-tree" || fail "cannot cd into the copied tree"
 }

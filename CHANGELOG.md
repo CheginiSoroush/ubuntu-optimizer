@@ -4,6 +4,24 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.17.0] — fzf launcher + bilingual CLI (Phase 3 + Phase 4 + Phase 1 complete)
+
+### Added
+- **lib/fzf.sh** — `uo --fzf` interactive launcher: `_fzf_actions` emits the full "label|action_key" list (80 actions reusing the exact menu dispatch names — VEET and desktop-reinstall stay behind their warning screens); `run_cli_fzf` pipes it through fzf (`--header "Enter=run · Esc=cancel"`), maps the pick to the same function the menus call, treats Esc/Ctrl+C/empty as clean cancel (exit 0, silent) and prints exactly one `sudo apt install fzf` hint + exit 0 when fzf is absent. `UO_FZF_BIN` overrides the binary. New main-menu entry 22.
+- **lib/i18n.sh** — fa/en framework: `t KEY [args…]` with per-group catalogs (`EN_/FA_` × banner/menu/msg; 56 keys per language), silent English fallback for missing keys, printf-style args honored, literal printing without args; `i18n_init` resolution order `UO_LANG` → config `language` → locale detect (`LC_ALL`/`LC_MESSAGES`/`LANG`, fa*/pe*) → en; `--lang fa|en` persists through the real config pipeline; `--lang-show` prints the effective language + source (env/config/detected/default). Default en output byte-identical to pre-i18n.
+- lib/config.sh: `language` key validation (fa/en, case-insensitive, normalized lowercase).
+- Dedicated bats suites for the final 12 legacy modules (Phase 1): disk (9), doctor (11), fixnet (6), gitssh (10), network (13), packages (7), recovery (8), report (7), snapflatpak (11), system (10), targz (10), menus (11) — 113 new tests, real stub fixtures, hermetic HOME/XDG, copy-based PATHs.
+- test/fzf.bats (15) + test/i18n.bats (20): pure-helper, function-level (stub fzf replaying a fixed selection via `UO_FZF_STUB_CHOICE`/`UO_FZF_STUB_RC` + copy-based fzf-less PATH) and CLI/menu-level coverage.
+- Wiring: module list, `--fzf`/`--lang VALUE`/`--lang-show` parser flags, usage + examples, menu entry 22, install.sh REQUIRED_MODULES, bash+zsh completions (value completion for --lang).
+
+### Fixed
+- Test-infra: 11 old suites' setup() `cp -r`-ed the whole repo (≈700 MB with website build artifacts present) per test — now a targeted copy of `ubuntu-optimizer.sh` + `lib/*.sh`; applies to all 27 suites.
+- Scope: i18n catalogs declared with `declare -gA` — bats sources tests inside setup()'s scope, so plain top-level `declare -A` was function-local and vanished (arithmetic-subscript errors on dotted keys).
+- shellcheck: quoted `CONFIG_SOURCES["language"]` subscript.
+
+### QA
+- `bats` **510/510** (317 → 510: +113 Phase 1 legacy suites, +15 fzf, +20 i18n, +45 v7.16 maintenance family) · ShellCheck clean · `bash -n` clean · en output byte-identical (pre-existing tests untouched).
+
 ## [7.16.0]
 
 ### Added
