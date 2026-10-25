@@ -15,7 +15,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # ── Load modules ───────────────────────────────────────────────────────────────
-for _lib in common cache config i18n network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk htmlreport gitssh undo profile boot autostart health bigfiles ports browserclean dnsswitch kernels swap selfupdate timer menus fzf; do
+for _lib in common cache config i18n network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk htmlreport gitssh undo profile boot autostart health bigfiles ports browserclean dnsswitch kernels swap splash selfupdate timer menus fzf; do
     _libfile="$SCRIPT_DIR/lib/${_lib}.sh"
     if [ -f "$_libfile" ]; then
         # shellcheck source=/dev/null
@@ -202,6 +202,14 @@ Options:
   --swap-off          disable + delete /swapfile (partitions/zram untouched)
   --swappiness N      tune vm.swappiness 1-100 (desktop sweet spot: 10;
                       revert with --undo)
+  --splash            boot splash status: kernel cmdline, GRUB config,
+                      plymouth presence + a plain verdict (read-only)
+  --fix-splash        restore the graphical boot splash when boots flood the
+                      screen with green [ OK ] lines: restores a missing
+                      /etc/default/grub (package reinstall with
+                      --force-confmiss, hand-written fallback) or re-adds
+                      quiet splash (timestamped backup), then update-grub;
+                      kdump/vendor drop-ins are never touched
 
   --git-ssh           GitHub SSH key setup wizard
   --git-ssh-status    SSH key / GitHub authentication status
@@ -342,6 +350,8 @@ Examples:
   uo --dns shecan         # switch DNS to the Iranian bypass resolver
   uo --dns-list           # every preset with its addresses
   uo --kernel-clean       # free /boot: remove the old kernels
+  uo --splash             # why does booting print that [ OK ] flood?
+  uo --fix-splash         # restore the graphical splash (quiet splash)
   uo --swap-on 4096       # create a 4 GB swapfile
   uo --swappiness 10      # the desktop sweet spot
   uo --fzf                # fuzzy-search every action and run the picked one
@@ -542,6 +552,8 @@ while [ $# -gt 0 ]; do
             fi
             CLI_ACTIONS+=("swap_swappiness|swappiness tune")
             ;;
+        --splash)         CLI_ACTIONS+=("splash_show|boot splash status"); shift ;;
+        --fix-splash)     CLI_ACTIONS+=("splash_fix|boot splash repair"); shift ;;
         --git-ssh)        CLI_ACTIONS+=("gitssh_setup|GitHub SSH setup"); shift ;;
         --git-ssh-status) CLI_ACTIONS+=("gitssh_status|GitHub SSH status"); shift ;;
         --github-update)  CLI_ACTIONS+=("github_update_apps|GitHub updates"); shift ;;
@@ -801,7 +813,7 @@ if [ "$DRY_RUN" = "1" ]; then
         exit 1
     fi
     if [ ${#CLI_ACTIONS[@]} -eq 0 ]; then
-        echo "--dry-run requires an action: --optimize, --network, --system, --security, --time, --undo, --profile, --self-update, --browser-clean, --dns, --kernel-clean, --swap-on, --swap-off or --swappiness." >&2
+        echo "--dry-run requires an action: --optimize, --network, --system, --security, --time, --undo, --profile, --self-update, --browser-clean, --dns, --kernel-clean, --swap-on, --swap-off, --swappiness or --fix-splash." >&2
         exit 1
     fi
     for cli_action in "${CLI_ACTIONS[@]}"; do
@@ -814,9 +826,9 @@ if [ "$DRY_RUN" = "1" ]; then
             disable_wifi_powersave|set_dns|enable_bbr|set_mtu|optimize_tcp|\
             optimize_memory|set_noatime|disable_extra_services|install_preload|\
             install_tlp|limit_journal|extend_sudo_timeout|setup_polkit_rule|browser_clean|\
-            dnsswitch_apply|kernels_clean|swap_on|swap_off|swap_swappiness) ;;
+            dnsswitch_apply|kernels_clean|swap_on|swap_off|swap_swappiness|splash_fix) ;;
             *)
-                echo "--dry-run is only valid with --optimize, --network, --system, --security, --time, --undo, --profile, --self-update, --browser-clean, --dns, --kernel-clean, --swap-on, --swap-off or --swappiness." >&2
+                echo "--dry-run is only valid with --optimize, --network, --system, --security, --time, --undo, --profile, --self-update, --browser-clean, --dns, --kernel-clean, --swap-on, --swap-off, --swappiness or --fix-splash." >&2
                 exit 1
                 ;;
         esac

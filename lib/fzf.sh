@@ -120,6 +120,8 @@ _fzf_actions() {
         'Fix broken packages (apt --fix-broken)|fix_broken' \
         'Configure pending packages with dpkg|fix_dpkg_configure' \
         'Undo all optimizations (restore defaults)|undo_all_optimizations' \
+        'Boot splash status (verbose [ OK ] boot?)|splash_show' \
+        'Restore the graphical boot splash|splash_fix' \
         'Scheduled timer status|timer_cli_status' \
         'Scheduled timer run log|timer_cli_log'
 }

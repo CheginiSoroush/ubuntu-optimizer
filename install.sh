@@ -64,7 +64,7 @@ ZSH_COMPLETION_SRC="$SCRIPT_DIR/completions/_uo"
 ZFUNC_DIR="$HOME/.zfunc"
 ZSH_COMPLETION_DST="$ZFUNC_DIR/_uo"
 
-REQUIRED_MODULES=(common cache config i18n network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk htmlreport gitssh undo profile boot autostart health bigfiles ports browserclean dnsswitch kernels swap selfupdate timer menus fzf)
+REQUIRED_MODULES=(common cache config i18n network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk htmlreport gitssh undo profile boot autostart health bigfiles ports browserclean dnsswitch kernels swap splash selfupdate timer menus fzf)
 
 # ───────────────────────────────────────────────────────────────────────────────
 # version() — print the project version (vX.Y) from lib/common.sh

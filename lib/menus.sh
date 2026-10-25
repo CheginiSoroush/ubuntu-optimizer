@@ -341,7 +341,9 @@ menu_maintenance() {
         "Swap status|swap_show" \
         "Create / enable a swapfile|swap_menu_on" \
         "Remove the swapfile|swap_off" \
-        "Tune vm.swappiness|swap_menu_swappiness"
+        "Tune vm.swappiness|swap_menu_swappiness" \
+        "Boot splash status (verbose [ OK ] boot?)|splash_show" \
+        "Restore the graphical boot splash|splash_fix"
 }
 
 # ───────────────────────────────────────────────────────────────────────────────

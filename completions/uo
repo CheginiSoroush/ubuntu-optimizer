@@ -122,6 +122,7 @@ _uo() {
         --boot --autostart --autostart-on --autostart-off
         --dns --dns-list --kernel-list --kernel-clean
         --swap --swap-on --swap-off --swappiness
+        --splash --fix-splash
         --health --bigfiles --ports --browser-clean --fzf
         --disk --disk-clean --disk-report
         --github-install --github-update --github-list --github-remove

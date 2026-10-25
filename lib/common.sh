@@ -22,7 +22,7 @@ if ! declare -F t > /dev/null 2>&1; then
 fi
 
 # ── Version (single source of truth for the whole project) ─────────────
-readonly SCRIPT_VERSION="7.17"
+readonly SCRIPT_VERSION="7.18"
 
 # ── Constants ─────────────────────────────────────────────────────────────────
 readonly SYSCTL_CONF="/etc/sysctl.d/99-ubuntu-optimizer.conf"

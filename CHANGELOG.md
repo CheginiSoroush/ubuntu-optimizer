@@ -4,6 +4,19 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.18.0] — boot splash repair (tool #24)
+
+### Added
+- **lib/splash.sh** — boot splash diagnosis & repair: the graphical splash (Plymouth) is controlled by the `quiet splash` kernel parameters; when `/etc/default/grub` disappears or loses its `GRUB_CMDLINE_LINUX_DEFAULT` line, every boot/shutdown turns into a flood of green `[ OK ]` systemd status lines. `uo --splash` reports the state read-only (live kernel cmdline, GRUB config state, plymouth package presence, plain-language verdict); `uo --fix-splash` repairs it — restores a missing config file via `apt-get install --reinstall -o Dpkg::Options::=--force-confmiss` of the owning package (`grub-common`/`grub2-common` auto-detected via dpkg, hand-written stock-config fallback) or re-adds the parameters (replaced/appended) after a timestamped `cp -a` backup, then regenerates `grub.cfg` via `update-grub`. Only `GRUB_CMDLINE_LINUX_DEFAULT` is ever written — `GRUB_CMDLINE_LINUX` and `/etc/default/grub.d/*.cfg` (kdump's crashkernel, vendor drop-ins) are untouched. Idempotent, bilingual-safe labels, `--dry-run` prints the exact plan, graceful degradation outside grub systems (containers/WSL) and without apt. Test hooks: `UO_SPLASH_GRUB_FILE`, `UO_SPLASH_CMDLINE_FILE`, `UO_SPLASH_FAKE_GRUB=1`.
+- test/splash.bats (22): function-level parser/state tests (commented lines ignored, last-assignment-wins, live cmdline reader), real root-less repair runs (package route with a confmiss-simulating apt stub, hand-written fallback, timestamped backup + GRUB_CMDLINE_LINUX preservation, append-when-absent, idempotence, cancellation) and CLI-level `--splash`/`--fix-splash --dry-run` coverage.
+- Wiring: module list, `--splash`/`--fix-splash` parser flags, usage + examples, two entries in the Maintenance & hardware submenu (22), fzf launcher actions, install.sh REQUIRED_MODULES, bash+zsh completions.
+
+### Fixed
+- `--dry-run` whitelist accepts `splash_fix` (the flag previously rejected the new repair with "only valid with …").
+
+### QA
+- `bats` **532/532** (510 → 532: +22 splash) · ShellCheck clean (project rc, -S warning) · `bash -n` clean.
+
 ## [7.17.0] — fzf launcher + bilingual CLI (Phase 3 + Phase 4 + Phase 1 complete)
 
 ### Added

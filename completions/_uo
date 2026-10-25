@@ -77,6 +77,8 @@ _uo() {
         '--swap-on[create and enable a swapfile]:size in MB:(1024 2048 4096 8192)'
         '--swap-off[disable and delete the swapfile]'
         '--swappiness[tune vm.swappiness 1-100]:value:(1 10 20 30 60 100)'
+        '--splash[boot splash status: cmdline, GRUB config, plymouth (read-only)]'
+        '--fix-splash[restore the graphical boot splash (quiet splash + update-grub)]'
         '--fzf[interactive fzf menu of the toolkit actions (needs fzf)]'
         '--github-install[install an app from the latest GitHub release]:repo (OWNER/REPO):app name (optional)'
         '--github-update[check and install updates for GitHub apps]'
