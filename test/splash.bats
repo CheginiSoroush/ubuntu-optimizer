@@ -151,7 +151,9 @@ load_splash() {
 
 @test "splash_show degrades gracefully outside a grub system" {
     load_splash
-    run splash_show
+    # UO_SPLASH_NO_GRUB forces the "no grub" verdict — deterministic even on
+    # hosts that do ship /boot/grub (GitHub runners do)
+    UO_SPLASH_NO_GRUB=1 run splash_show
     [ "$status" -eq 0 ]
     [[ "$output" == *"splash check skipped"* ]]
 }
@@ -304,8 +306,9 @@ load_splash() {
 }
 
 @test "cli: --splash degrades outside a grub system (container/WSL)" {
-    # no UO_SPLASH_FAKE_GRUB and no /boot/grub in the test sandbox
-    run run_uo --splash
+    # UO_SPLASH_NO_GRUB forces the "no grub" verdict — deterministic even on
+    # hosts that do ship /boot/grub (GitHub runners do)
+    UO_SPLASH_NO_GRUB=1 run run_uo --splash
     [ "$status" -eq 0 ]
     [[ "$output" == *"splash check skipped"* ]]
 }

@@ -22,6 +22,9 @@
 #      UO_SPLASH_FAKE_GRUB=1    — force the "grub machine" verdict so the
 #                                 repair paths are exercisable on machines
 #                                 without /boot/grub (containers, WSL)
+#      UO_SPLASH_NO_GRUB=1      — force the "no grub" verdict so the
+#                                 degradation paths stay deterministic on
+#                                 machines that do ship /boot/grub (CI runners)
 #
 #  Project : ubuntu-optimizer — github.com/CheginiSoroush/ubuntu-optimizer
 #  Author  : Soroush Chegini (CheginiSoroush)
@@ -46,6 +49,7 @@ SPLASH_CMDLINE_FILE="${UO_SPLASH_CMDLINE_FILE:-/proc/cmdline}"
 # Returns:   0 — grub environment present · 1 — not present
 # ───────────────────────────────────────────────────────────────────────────────
 _splash_is_grub_system() {
+    [ "${UO_SPLASH_NO_GRUB:-0}" = "1" ] && return 1
     if [ -d /boot/grub ] || [ -d /boot/grub2 ]; then
         return 0
     fi
