@@ -12,7 +12,7 @@
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.17-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.18-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
 ![Tests](https://img.shields.io/badge/bats-510%20%2F%20510-brightgreen)
@@ -162,7 +162,7 @@ uo --profile server -y             # اعمال بدون سؤال
 | 19 | 🖥 گزارش دیسک (HTML) | نمودارها و جدول‌های قابل اشتراک |
 | 20 | 🥾 بوت و استارتاپ | تحلیل بوت · روشن/خاموش‌کردن استارتاپ |
 | 21 | 🔍 پایش و بازرسی | سلامت · فایل‌های حجیم · پورت‌ها · کش مرورگر |
-| 22 | 🧰 نگهداشت و سخت‌افزار | DNS · کرنل‌های قدیمی · swap |
+| 22 | 🧰 نگهداشت و سخت‌افزار | DNS · کرنل‌های قدیمی · swap · وضعیت و تعمیر اسپلش بوت |
 
 ---
 
@@ -198,6 +198,7 @@ uo --profile server -y             # اعمال بدون سؤال
 | `uo --kernel-list` · `--kernel-clean` | فهرست کرنل‌های نصب‌شده · حذف قدیمی‌ها (در حال اجرا و تازه‌ترین همیشه محفوظ، تنظیم نگه‌داشت `UO_KERNEL_KEEP`، پیش‌فرض ۲) (v7.16) |
 | `uo --swap` · `--swap-on [MB]` · `--swap-off` | وضعیت swap · ساخت و فعال‌سازی `/swapfile` پیشنهادی (ورودی fstab علامت‌دار) · حذف آن — پارتیشن/zram دست‌نخورده (v7.16) |
 | `uo --swappiness N` | تنظیم `vm.swappiness` (۱ تا ۱۰۰) از مسیر sysctl قابل-undo (v7.16) |
+| `uo --splash` · `--fix-splash` | وضعیت اسپلش بوت (خط فرمان کرنل، پیکربندی GRUB، پلیموث) · بازگرداندن اسپلش گرافیکی: نصب دوبارهٔ `/etc/default/grub` گم‌شده (`--force-confmiss`، فال‌بک دست‌نویس) یا افزودن دوبارهٔ `quiet splash` با بکاپ زمان‌دار و بعد `update-grub` — دراپ‌این‌های kdump/فروشنده لمس نمی‌شوند (v7.18) |
 | `uo --fzf` | راه‌انداز تعاملی fzf روی همهٔ اقدام‌ها — Enter=اجرا، Esc=انصراف؛ `UO_FZF_BIN` برای مسیر دلخواه (v7.17) |
 | `uo --lang fa\|en` | ذخیرهٔ زبان رابط؛ `--lang-show` زبان فعلی + منبعش را چاپ می‌کند (v7.17) |
 | `uo --doctor` | بررسی سلامت و تعمیر همهٔ برنامه‌های نصب‌شده/ردیابی‌شده |

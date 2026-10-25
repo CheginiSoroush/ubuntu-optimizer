@@ -1,7 +1,7 @@
 export type Lang = "fa" | "en";
 
 export const REPO_URL = "https://github.com/CheginiSoroush/ubuntu-optimizer";
-export const VERSION = "v7.17";
+export const VERSION = "v7.18";
 
 const en = {
   dir: "ltr" as const,
@@ -9,7 +9,7 @@ const en = {
   otherLang: "فارسی",
   meta: {
     title: "Ubuntu Optimizer & Fixer — one command, a better Ubuntu",
-    description: "The all-in-one Ubuntu toolbox: 23 tools, 60+ CLI options, honest dry-run preview. Network tuning, disk cleanup, smart app installs, full removal and recovery — pure Bash, fully reversible.",
+    description: "The all-in-one Ubuntu toolbox: 24 tools, 60+ CLI options, honest dry-run preview. Network tuning, disk cleanup, smart app installs, full removal and recovery — pure Bash, fully reversible.",
   },
   lang: {
     label: "Language",
@@ -30,25 +30,25 @@ const en = {
     github: "GitHub",
   },
   hero: {
-    badge: `${VERSION} — 23 tools · 510/510 tests · MIT`,
+    badge: `${VERSION} — 24 tools · 532/532 tests · MIT`,
     titleA: "One command.",
     titleB: "A faster, cleaner, healthier Ubuntu.",
     subtitle:
-      "The all-in-one toolbox for optimizing, app management and repairing Ubuntu — 23 tools in a simple menu, 60+ CLI options, and an honest dry-run preview. Pure Bash, fully reversible.",
+      "The all-in-one toolbox for optimizing, app management and repairing Ubuntu — 24 tools in a simple menu, 60+ CLI options, and an honest dry-run preview. Pure Bash, fully reversible.",
     ctaGithub: "Star on GitHub",
     ctaInstall: "Get started",
     scroll: "Scroll to explore",
     termTitle: "soroush@ubuntu: ~",
   },
   stats: [
-    { value: 23, suffix: "", label: "menu tools" },
+    { value: 24, suffix: "", label: "menu tools" },
     { value: 49, suffix: "+", label: "CLI options" },
-    { value: 510, suffix: "/510", label: "tests passing" },
+    { value: 532, suffix: "/532", label: "tests passing" },
     { value: 0, suffix: "", label: "ShellCheck issues" },
   ],
   tools: {
     kicker: "What's inside",
-    title: "23 tools, zero guesswork",
+    title: "24 tools, zero guesswork",
     subtitle:
       "Everything a fresh Ubuntu install needs — from network tuning to full app removal — behind one command and a friendly menu.",
     items: [
@@ -299,7 +299,7 @@ sudo rm /etc/polkit-1/rules.d/10-disable-password-timeout.rules`,
       },
       {
         q: "What's new in v7.15?",
-        a: "v7.16 added the Maintenance & hardware family (uo --dns preset switcher with Iranian bypass resolvers, uo --kernel-list/--kernel-clean old-kernel cleanup, uo --swap-on/--swap-off/--swappiness swap manager). v7.17 adds uo --fzf (fuzzy-search every action and run it) and a bilingual fa/en CLI (uo --lang fa, --lang-show, UO_LANG). 510/510 tests pass, ShellCheck is clean.",
+        a: "v7.16 added the Maintenance & hardware family (uo --dns preset switcher with Iranian bypass resolvers, uo --kernel-list/--kernel-clean old-kernel cleanup, uo --swap-on/--swap-off/--swappiness swap manager). v7.17 adds uo --fzf (fuzzy-search every action and run it) and a bilingual fa/en CLI (uo --lang fa, --lang-show, UO_LANG). v7.18 adds uo --splash / --fix-splash (boot splash status + repair: restores a missing /etc/default/grub or the quiet splash parameters, backup + update-grub included). 532/532 tests pass, ShellCheck is clean.",
       },
     ],
   },
@@ -370,7 +370,7 @@ const fa: typeof en = {
     github: "گیت‌هاب",
   },
   hero: {
-    badge: `${VERSION} — ۲۳ ابزار · ۵۱۰/۵۱۰ تست · MIT`,
+    badge: `${VERSION} — ۲۴ ابزار · ۵۳۲/۵۳۲ تست · MIT`,
     titleA: "یک دستور؛",
     titleB: "اوبونتویی سریع‌تر، تمیزتر و سالم‌تر.",
     subtitle:
@@ -381,9 +381,9 @@ const fa: typeof en = {
     termTitle: "soroush@ubuntu: ~",
   },
   stats: [
-    { value: 23, suffix: "", label: "ابزار در منو" },
+    { value: 24, suffix: "", label: "ابزار در منو" },
     { value: 49, suffix: "+", label: "گزینهٔ خط فرمان" },
-    { value: 510, suffix: "/۵۱۰", label: "تست پاس‌شده" },
+    { value: 532, suffix: "/۵۳۲", label: "تست پاس‌شده" },
     { value: 0, suffix: "", label: "خطای ShellCheck" },
   ],
   tools: {
@@ -639,7 +639,7 @@ sudo rm /etc/polkit-1/rules.d/10-disable-password-timeout.rules`,
       },
       {
         q: "تازگی‌های نسخهٔ ۷٫۱۵ چیست؟",
-        a: "نسخهٔ 7.16 خانوادهٔ «نگهداری و سخت‌افزار» را آورد (uo --dns با پریست‌های عبور از تحریم، uo --kernel-list/--kernel-clean برای پاک‌سازی هسته‌های قدیمی، و مدیریت سواپ با uo --swap-on/--swap-off/--swappiness). نسخهٔ 7.17 هم uo --fzf (جست‌وجوی فازی و اجرای هر اقدام) و رابط دوزبانهٔ fa/en را اضافه کرد (uo --lang fa، --lang-show، UO_LANG). ۵۱۰/۵۱۰ تست پاس و ShellCheck تمیز است.",
+        a: "نسخهٔ 7.16 خانوادهٔ «نگهداری و سخت‌افزار» را آورد (uo --dns با پریست‌های عبور از تحریم، uo --kernel-list/--kernel-clean برای پاک‌سازی هسته‌های قدیمی، و مدیریت سواپ با uo --swap-on/--swap-off/--swappiness). نسخهٔ 7.17 هم uo --fzf (جست‌وجوی فازی و اجرای هر اقدام) و رابط دوزبانهٔ fa/en را اضافه کرد (uo --lang fa، --lang-show، UO_LANG). نسخهٔ 7.18 وضعیت و تعمیر اسپلش بوت را آورد (uo --splash / --fix-splash: بازگرداندن /etc/default/grub گم‌شده یا پارامترهای quiet splash، با بکاپ و update-grub). ۵۳۲/۵۳۲ تست پاس و ShellCheck تمیز است.",
       },
     ],
   },

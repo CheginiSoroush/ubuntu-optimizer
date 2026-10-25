@@ -8,11 +8,11 @@
 **One command. A faster, cleaner, healthier Ubuntu.**
 
 The all-in-one optimization, app-management and repair toolkit —
-23 friendly menu tools, 60+ CLI options, honest dry-run previews.
+24 friendly menu tools, 60+ CLI options, honest dry-run previews.
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.17-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.18-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
 ![Tests](https://img.shields.io/badge/bats-510%20%2F%20510-brightgreen)
@@ -160,7 +160,7 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 | 19 | 🖥 Disk report (HTML) | shareable charts + sortable tables |
 | 20 | 🥾 Boot &amp; startup | boot-time analysis · autostart on/off |
 | 21 | 🔍 Monitor &amp; inspect | health · big files · ports · browser caches |
-| 22 | 🧰 Maintenance &amp; hardware | DNS presets · old kernels · swap |
+| 22 | 🧰 Maintenance &amp; hardware | DNS presets · old kernels · swap · boot splash status + repair |
 
 ---
 
@@ -206,6 +206,7 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 | `uo --kernel-list` · `--kernel-clean` | list the installed kernels · purge the old ones (running + newest always protected, keep `UO_KERNEL_KEEP`, default 2) (v7.16) |
 | `uo --swap` · `--swap-on [MB]` · `--swap-off` | swap status · create + enable the recommended `/swapfile` (marked fstab entry) · remove it — partitions/zram untouchable (v7.16) |
 | `uo --swappiness N` | tune `vm.swappiness` (1–100) through the undo-aware sysctl drop-in (v7.16) |
+| `uo --splash` · `--fix-splash` | boot splash status (kernel cmdline, GRUB config, plymouth) · restore the graphical splash: reinstalls a missing `/etc/default/grub` (`--force-confmiss`, hand-written fallback) or re-adds `quiet splash` with a timestamped backup, then `update-grub` — kdump/vendor drop-ins untouched (v7.18) |
 | `uo --fzf` | interactive fzf launcher over every toolkit action — Enter=run, Esc=cancel; `UO_FZF_BIN` override (v7.17) |
 | `uo --lang fa\|en` | persist the UI language; `--lang-show` prints the effective language + its source (v7.17) |
 | `uo -y` · `--no-color` · `--no-log` | auto-confirm · plain output · don't log |
@@ -231,6 +232,7 @@ uo --browser-clean                               # empty browser caches (data fi
 uo --dns shecan                                  # switch DNS to the Iranian bypass resolver
 uo --dns auto                                    # …and back to DHCP
 uo --kernel-clean                                # free /boot: remove the old kernels
+uo --fix-splash                                  # boots print a [ OK ] flood? get the splash back
 uo --swap-on 4096                                # create a 4 GB swapfile
 uo --swappiness 10                               # the desktop sweet spot
 ```
