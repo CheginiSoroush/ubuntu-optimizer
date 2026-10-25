@@ -132,17 +132,41 @@ done
 exit 0
 EOF
     chmod +x "$STUB_BIN/git"
+    # make stub: emulates the fake Makefile above (build → touch + chmod,
+    # install → no-op). The version-matrix containers ship no real make,
+    # so a behavioral stub keeps the test deterministic on every host.
+    cat > "$STUB_BIN/make" << 'EOF'
+#!/usr/bin/env bash
+# make stub: honors -C <dir>, runs the fake "build" recipe, ignores the rest
+dir=""
+targets=""
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        -C) shift; dir="$1" ;;
+        -*) ;;
+        *) targets="$targets $1" ;;
+    esac
+    shift
+done
+[ -n "$dir" ] && cd "$dir" 2> /dev/null
+case " $targets " in
+    *" build "*) touch veet && chmod +x veet ;;
+esac
+exit 0
+EOF
+    chmod +x "$STUB_BIN/make"
     # Host-independent: GitHub runners ship a Go toolchain, so a plain
     # PATH-prefix would let `command -v go` succeed and skip the golang
     # install branch. Copy the tools the flow needs into a go-less dir
     # (copy-based, per the suite convention) and use it as the ONLY PATH.
     GOLESS_BIN="$TEST_HOME/goless-bin"
     mkdir -p "$GOLESS_BIN"
-    for tool in make bash sh env mkdir touch chmod cp rm mv cat grep sed awk                 uname dirname basename readlink sleep printf ls date; do
+    for tool in bash sh env mkdir touch chmod cp rm mv cat grep sed awk                 uname dirname basename readlink sleep printf ls date; do
         src="$(command -v "$tool" 2> /dev/null)" || continue
         [ -x "$src" ] && cp "$src" "$GOLESS_BIN/$tool"
     done
-    # git comes from STUB_BIN (first), make is real, go is ABSENT everywhere
+    # git and make come from STUB_BIN (behavioral stubs, first on PATH),
+    # go is ABSENT everywhere — the golang install branch is exercised
     PATH="$STUB_BIN:$GOLESS_BIN" ASSUME_YES=1 run install_veet
     [ "$status" -eq 1 ]
     grep -q "sudo apt install -y golang" "$SUDO_LOG"
