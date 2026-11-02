@@ -42,7 +42,7 @@ const en = {
   },
   stats: [
     { value: 24, suffix: "", label: "menu tools" },
-    { value: 49, suffix: "+", label: "CLI options" },
+    { value: 60, suffix: "+", label: "CLI options" },
     { value: 532, suffix: "/532", label: "tests passing" },
     { value: 0, suffix: "", label: "ShellCheck issues" },
   ],
@@ -352,7 +352,7 @@ sudo rm /etc/polkit-1/rules.d/10-disable-password-timeout.rules`,
   },
 };
 
-const fa: typeof en = {
+const fa: Dict = {
   dir: "rtl" as const,
   langName: "فارسی",
   otherLang: "English",
@@ -391,7 +391,7 @@ const fa: typeof en = {
   },
   stats: [
     { value: 24, suffix: "", label: "ابزار در منو" },
-    { value: 49, suffix: "+", label: "گزینهٔ خط فرمان" },
+    { value: 60, suffix: "+", label: "گزینهٔ خط فرمان" },
     { value: 532, suffix: "/۵۳۲", label: "تست پاس‌شده" },
     { value: 0, suffix: "", label: "خطای ShellCheck" },
   ],
@@ -701,8 +701,8 @@ sudo rm /etc/polkit-1/rules.d/10-disable-password-timeout.rules`,
   },
 };
 
-export const dictionaries: Record<Lang, typeof en> = { en, fa };
-export type Dict = typeof en;
+export const dictionaries: Record<Lang, Dict> = { en, fa };
+export type Dict = Omit<typeof en, "dir"> & { dir: "ltr" | "rtl" };
 
 export function formatNumber(n: number, lang: Lang): string {
   return n.toLocaleString(lang === "fa" ? "fa-IR" : "en-US");
