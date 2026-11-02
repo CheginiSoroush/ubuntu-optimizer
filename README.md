@@ -15,7 +15,7 @@ The all-in-one optimization, app-management and repair toolkit —
 [![Version](https://img.shields.io/badge/version-v7.18-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-510%20%2F%20510-brightgreen)
+![Tests](https://img.shields.io/badge/bats-532%20%2F%20532-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 
 [English](README.md) · [فارسی](README.fa.md)
