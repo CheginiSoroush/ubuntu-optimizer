@@ -17,6 +17,7 @@
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
 ![Tests](https://img.shields.io/badge/bats-532%20%2F%20532-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
+[![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/CheginiSoroush/badge.svg)](https://hub.xerj.org/contributors/CheginiSoroush)
 
 [English](README.md) · [فارسی](README.fa.md)
 
