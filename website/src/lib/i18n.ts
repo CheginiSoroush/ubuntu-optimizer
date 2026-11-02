@@ -327,6 +327,15 @@ sudo rm /etc/polkit-1/rules.d/10-disable-password-timeout.rules`,
     published: "Published",
     toastRefreshed: "Update Center refreshed",
   },
+  recognition: {
+    ariaLabel: "XERJ Corpus Hub — view the contributor page for ubuntu-optimizer",
+    badgeAlt: "XERJ Corpus Hub contributor badge",
+    kicker: "Recognition",
+    title: "Selected for the XERJ Corpus Hub",
+    subtitle:
+      "ubuntu-optimizer is indexed as a reference solution for AI coding agents — a public, curated corpus that ships with full attribution to its authors.",
+    cta: "View contributor page",
+  },
   footer: {
     tagline: "One command; a faster, cleaner, healthier Ubuntu.",
     madeWith: "Made with ❤️ and pure Bash",
@@ -666,6 +675,15 @@ sudo rm /etc/polkit-1/rules.d/10-disable-password-timeout.rules`,
     retry: "تلاش دوباره",
     published: "انتشار",
     toastRefreshed: "مرکز به‌روزرسانی به‌روز شد",
+  },
+  recognition: {
+    ariaLabel: "ایکس‌ایرج کورپس هاب — مشاهدهٔ صفحهٔ مشارکت‌کنندهٔ ubuntu-optimizer",
+    badgeAlt: "بج مشارکت‌کنندهٔ XERJ Corpus Hub",
+    kicker: "افتخارات",
+    title: "منتخب XERJ Corpus Hub",
+    subtitle:
+      "ابزار ubuntu-optimizer به‌عنوان راه‌حل مرجع برای ایجنت‌های کدنویسی AI در ایندکس عمومی و دست‌چین‌شدهٔ XERJ، با ذکر کامل نام نویسنده ثبت شده است.",
+    cta: "مشاهدهٔ صفحهٔ مشارکت‌کننده",
   },
   footer: {
     tagline: "یک دستور؛ اوبونتویی سریع‌تر، تمیزتر و سالم‌تر.",

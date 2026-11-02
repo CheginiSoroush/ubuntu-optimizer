@@ -5,6 +5,7 @@ import { useLanguage } from "@/lib/language-context";
 import { Navbar } from "@/components/site/navbar";
 import { Hero } from "@/components/site/hero";
 import { Stats } from "@/components/site/stats";
+import { Recognition } from "@/components/site/recognition";
 import { Tools } from "@/components/site/tools";
 import { Install } from "@/components/site/install";
 import { Cli } from "@/components/site/cli";
@@ -39,6 +40,7 @@ export default function Home() {
       <main className="flex-1">
         <Hero />
         <Stats />
+        <Recognition />
         <Tools />
         <TerminalShowcase />
         <Install />
