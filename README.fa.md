@@ -8,7 +8,7 @@
 **یک دستور؛ اوبونتویی سریع‌تر، تمیزتر و سالم‌تر.**
 
 جعبه‌ابزار همه‌کارهٔ بهینه‌سازی، مدیریت برنامه‌ها و تعمیر اوبونتو —
-۲۲ ابزار در منویی ساده، بیش از ۵۷ گزینهٔ خط فرمان و پیش‌نمایش صادقانهٔ dry-run.
+۲۴ ابزار در منویی ساده، بیش از ۶۰ گزینهٔ خط فرمان و پیش‌نمایش صادقانهٔ dry-run.
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
