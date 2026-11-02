@@ -37,11 +37,12 @@ function subscribe(onStoreChange: () => void) {
 }
 
 function getSnapshot(): Lang {
-  return window.localStorage.getItem(STORAGE_KEY) === "en" ? "en" : "fa";
+  // Default is English; Persian only after the user explicitly toggles it.
+  return window.localStorage.getItem(STORAGE_KEY) === "fa" ? "fa" : "en";
 }
 
 function getServerSnapshot(): Lang {
-  return "fa";
+  return "en";
 }
 
 function setStored(lang: Lang) {

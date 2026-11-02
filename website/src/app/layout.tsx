@@ -22,9 +22,9 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ubuntu Optimizer & Fixer — یک دستور، اوبونتویی بهتر",
+  title: "Ubuntu Optimizer & Fixer — one command, a better Ubuntu",
   description:
-    "The all-in-one Ubuntu toolbox: 16 tools, 35+ CLI options, honest dry-run preview. Network tuning, disk cleanup, smart app installs, full removal and recovery — pure Bash, fully reversible. جعبه‌ابزار همه‌کارهٔ بهینه‌سازی اوبونتو.",
+    "The all-in-one Ubuntu toolbox: 24 tools, 60+ CLI options, honest dry-run preview. Network tuning, disk cleanup, smart app installs, full removal and recovery — pure Bash, fully reversible.",
   keywords: [
     "ubuntu",
     "optimizer",
@@ -58,8 +58,9 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-// Applies the saved language before hydration (no dir/lang flash)
-const langBootstrap = `(function(){try{var l=localStorage.getItem("uo-site-lang");if(l!=="en"&&l!=="fa")l="fa";var d=document.documentElement;d.lang=l;d.dir=l==="fa"?"rtl":"ltr";}catch(e){}})();`;
+// Applies the saved language before hydration (no dir/lang flash).
+// Default is English; Persian only when the user explicitly chose it.
+const langBootstrap = `(function(){try{var l=localStorage.getItem("uo-site-lang");if(l!=="en"&&l!=="fa")l="en";var d=document.documentElement;d.lang=l;d.dir=l==="fa"?"rtl":"ltr";}catch(e){}})();`;
 
 export default function RootLayout({
   children,
@@ -67,7 +68,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fa" dir="rtl" suppressHydrationWarning>
+    <html lang="en" dir="ltr" suppressHydrationWarning>
       <head>
         <script dangerouslySetInnerHTML={{ __html: langBootstrap }} />
       </head>
