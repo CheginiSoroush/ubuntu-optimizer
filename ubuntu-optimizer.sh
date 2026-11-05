@@ -210,6 +210,12 @@ Options:
                       --force-confmiss, hand-written fallback) or re-adds
                       quiet splash (timestamped backup), then update-grub;
                       kdump/vendor drop-ins are never touched
+  --fix-appimage-sandbox FILE
+                      permanent fix for Electron AppImages that abort with the
+                      “SUID sandbox helper … chrome-sandbox … mode 4755”
+                      error on Ubuntu 23.10+: installs a per-app AppArmor
+                      profile granting user-namespace sandboxing to that
+                      binary (sandboxing stays ON — unlike --no-sandbox)
 
   --git-ssh           GitHub SSH key setup wizard
   --git-ssh-status    SSH key / GitHub authentication status
@@ -352,6 +358,8 @@ Examples:
   uo --kernel-clean       # free /boot: remove the old kernels
   uo --splash             # why does booting print that [ OK ] flood?
   uo --fix-splash         # restore the graphical splash (quiet splash)
+  uo --fix-appimage-sandbox ~/Apps/ZCode.AppImage
+                          # Electron AppImage aborts with the SUID/chrome-sandbox error
   uo --swap-on 4096       # create a 4 GB swapfile
   uo --swappiness 10      # the desktop sweet spot
   uo --fzf                # fuzzy-search every action and run the picked one
@@ -554,6 +562,14 @@ while [ $# -gt 0 ]; do
             ;;
         --splash)         CLI_ACTIONS+=("splash_show|boot splash status"); shift ;;
         --fix-splash)     CLI_ACTIONS+=("splash_fix|boot splash repair"); shift ;;
+        --fix-appimage-sandbox)
+            if [ $# -ge 2 ] && [ -n "$2" ] && [[ "$2" != -* ]]; then
+                CLI_ACTIONS+=("appimage_fix_sandbox|$2"); shift 2
+            else
+                echo "--fix-appimage-sandbox requires a path: --fix-appimage-sandbox <app.AppImage>" >&2
+                exit 1
+            fi
+            ;;
         --git-ssh)        CLI_ACTIONS+=("gitssh_setup|GitHub SSH setup"); shift ;;
         --git-ssh-status) CLI_ACTIONS+=("gitssh_status|GitHub SSH status"); shift ;;
         --github-update)  CLI_ACTIONS+=("github_update_apps|GitHub updates"); shift ;;
@@ -813,7 +829,7 @@ if [ "$DRY_RUN" = "1" ]; then
         exit 1
     fi
     if [ ${#CLI_ACTIONS[@]} -eq 0 ]; then
-        echo "--dry-run requires an action: --optimize, --network, --system, --security, --time, --undo, --profile, --self-update, --browser-clean, --dns, --kernel-clean, --swap-on, --swap-off, --swappiness or --fix-splash." >&2
+        echo "--dry-run requires an action: --optimize, --network, --system, --security, --time, --undo, --profile, --self-update, --browser-clean, --dns, --kernel-clean, --swap-on, --swap-off, --swappiness, --fix-splash or --fix-appimage-sandbox." >&2
         exit 1
     fi
     for cli_action in "${CLI_ACTIONS[@]}"; do
@@ -826,9 +842,9 @@ if [ "$DRY_RUN" = "1" ]; then
             disable_wifi_powersave|set_dns|enable_bbr|set_mtu|optimize_tcp|\
             optimize_memory|set_noatime|disable_extra_services|install_preload|\
             install_tlp|limit_journal|extend_sudo_timeout|setup_polkit_rule|browser_clean|\
-            dnsswitch_apply|kernels_clean|swap_on|swap_off|swap_swappiness|splash_fix) ;;
+            dnsswitch_apply|kernels_clean|swap_on|swap_off|swap_swappiness|splash_fix|appimage_fix_sandbox) ;;
             *)
-                echo "--dry-run is only valid with --optimize, --network, --system, --security, --time, --undo, --profile, --self-update, --browser-clean, --dns, --kernel-clean, --swap-on, --swap-off, --swappiness or --fix-splash." >&2
+                echo "--dry-run is only valid with --optimize, --network, --system, --security, --time, --undo, --profile, --self-update, --browser-clean, --dns, --kernel-clean, --swap-on, --swap-off, --swappiness, --fix-splash or --fix-appimage-sandbox." >&2
                 exit 1
                 ;;
         esac

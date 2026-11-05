@@ -1,7 +1,7 @@
 export type Lang = "fa" | "en";
 
 export const REPO_URL = "https://github.com/CheginiSoroush/ubuntu-optimizer";
-export const VERSION = "v7.18.1";
+export const VERSION = "v7.18.2";
 
 const en = {
   dir: "ltr" as const,
@@ -30,7 +30,7 @@ const en = {
     github: "GitHub",
   },
   hero: {
-    badge: `${VERSION} — 24 tools · 541/541 tests · MIT`,
+    badge: `${VERSION} — 24 tools · 548/548 tests · MIT`,
     titleA: "One command.",
     titleB: "A faster, cleaner, healthier Ubuntu.",
     subtitle:
@@ -43,7 +43,7 @@ const en = {
   stats: [
     { value: 24, suffix: "", label: "menu tools" },
     { value: 60, suffix: "+", label: "CLI options" },
-    { value: 541, suffix: "/541", label: "tests passing" },
+    { value: 548, suffix: "/548", label: "tests passing" },
     { value: 0, suffix: "", label: "ShellCheck issues" },
   ],
   tools: {
@@ -299,7 +299,7 @@ sudo rm /etc/polkit-1/rules.d/10-disable-password-timeout.rules`,
       },
       {
         q: "What's new in v7.15?",
-        a: "v7.16 added the Maintenance & hardware family (uo --dns preset switcher with Iranian bypass resolvers, uo --kernel-list/--kernel-clean old-kernel cleanup, uo --swap-on/--swap-off/--swappiness swap manager). v7.17 adds uo --fzf (fuzzy-search every action and run it) and a bilingual fa/en CLI (uo --lang fa, --lang-show, UO_LANG). v7.18 adds uo --splash / --fix-splash (boot splash status + repair: restores a missing /etc/default/grub or the quiet splash parameters, backup + update-grub included). 541/541 tests pass, ShellCheck is clean.",
+        a: "v7.16 added the Maintenance & hardware family (uo --dns preset switcher with Iranian bypass resolvers, uo --kernel-list/--kernel-clean old-kernel cleanup, uo --swap-on/--swap-off/--swappiness swap manager). v7.17 adds uo --fzf (fuzzy-search every action and run it) and a bilingual fa/en CLI (uo --lang fa, --lang-show, UO_LANG). v7.18 adds uo --splash / --fix-splash (boot splash status + repair: restores a missing /etc/default/grub or the quiet splash parameters, backup + update-grub included). v7.18.2 adds uo --fix-appimage-sandbox — the permanent per-app AppArmor userns fix for Electron AppImages that abort with the chrome-sandbox/SUID error on Ubuntu 23.10+. 548/548 tests pass, ShellCheck is clean.",
       },
     ],
   },
@@ -379,7 +379,7 @@ const fa: Dict = {
     github: "گیت‌هاب",
   },
   hero: {
-    badge: `${VERSION} — ۲۴ ابزار · ۵۳۲/۵۳۲ تست · MIT`,
+    badge: `${VERSION} — ۲۴ ابزار · ۵۴۸/۵۴۸ تست · MIT`,
     titleA: "یک دستور؛",
     titleB: "اوبونتویی سریع‌تر، تمیزتر و سالم‌تر.",
     subtitle:
@@ -392,7 +392,7 @@ const fa: Dict = {
   stats: [
     { value: 24, suffix: "", label: "ابزار در منو" },
     { value: 60, suffix: "+", label: "گزینهٔ خط فرمان" },
-    { value: 541, suffix: "/۵۴۱", label: "تست پاس‌شده" },
+    { value: 548, suffix: "/۵۴۸", label: "تست پاس‌شده" },
     { value: 0, suffix: "", label: "خطای ShellCheck" },
   ],
   tools: {
@@ -648,7 +648,7 @@ sudo rm /etc/polkit-1/rules.d/10-disable-password-timeout.rules`,
       },
       {
         q: "تازگی‌های نسخهٔ ۷٫۱۵ چیست؟",
-        a: "نسخهٔ 7.16 خانوادهٔ «نگهداری و سخت‌افزار» را آورد (uo --dns با پریست‌های عبور از تحریم، uo --kernel-list/--kernel-clean برای پاک‌سازی هسته‌های قدیمی، و مدیریت سواپ با uo --swap-on/--swap-off/--swappiness). نسخهٔ 7.17 هم uo --fzf (جست‌وجوی فازی و اجرای هر اقدام) و رابط دوزبانهٔ fa/en را اضافه کرد (uo --lang fa، --lang-show، UO_LANG). نسخهٔ 7.18 وضعیت و تعمیر اسپلش بوت را آورد (uo --splash / --fix-splash: بازگرداندن /etc/default/grub گم‌شده یا پارامترهای quiet splash، با بکاپ و update-grub). ۵۴۱/۵۴۱ تست پاس و ShellCheck تمیز است.",
+        a: "نسخهٔ 7.16 خانوادهٔ «نگهداری و سخت‌افزار» را آورد (uo --dns با پریست‌های عبور از تحریم، uo --kernel-list/--kernel-clean برای پاک‌سازی هسته‌های قدیمی، و مدیریت سواپ با uo --swap-on/--swap-off/--swappiness). نسخهٔ 7.17 هم uo --fzf (جست‌وجوی فازی و اجرای هر اقدام) و رابط دوزبانهٔ fa/en را اضافه کرد (uo --lang fa، --lang-show، UO_LANG). نسخهٔ 7.18 وضعیت و تعمیر اسپلش بوت را آورد (uo --splash / --fix-splash: بازگرداندن /etc/default/grub گم‌شده یا پارامترهای quiet splash، با بکاپ و update-grub). نسخهٔ 7.18.2 هم uo --fix-appimage-sandbox را اضافه کرد — فیکس دائمی AppArmor برای اپ‌های Electron با AppImage که با خطای chrome-sandbox/SUID روی اوبونتو ۲۳.۱۰+ اجرا نمی‌شوند. ۵۴۸/۵۴۸ تست پاس و ShellCheck تمیز است.",
       },
     ],
   },

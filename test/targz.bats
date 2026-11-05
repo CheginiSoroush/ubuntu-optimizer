@@ -294,6 +294,100 @@ make_fixture() {   # $1=parent dir  $2=top-level folder name
     run appimage_print_launch_hint "myapp"
     [ "$status" -eq 0 ]
     grep -q "run it once in a terminal — 'myapp'" "$INFO_LOG"
+    # the hint must point at the permanent fix, not just --no-sandbox
+    grep -q "uo --fix-appimage-sandbox" "$INFO_LOG"
+}
+
+# ---------- AppImage sandbox doctor (v7.18.2) ----------
+
+@test "appimage_userns_profile_body: emits the documented Ubuntu 23.10+ profile" {
+    run appimage_userns_profile_body "uo-appimage-zcode" "/opt/zcode/ZCode.AppImage"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"abi 4.0,"* ]]
+    [[ "$output" == *"include <tunables/global>"* ]]
+    [[ "$output" == *"profile uo-appimage-zcode /opt/zcode/ZCode.AppImage flags=(unconfined)"* ]]
+    [[ "$output" == *"  userns,"* ]]
+    [[ "$output" == *"include if exists <local/uo-appimage-zcode>"* ]]
+}
+
+@test "appimage_write_userns_profile: produces the exact profile file" {
+    local dest="$TEST_HOME/uo-appimage-test"
+    run appimage_write_userns_profile "$dest" "uo-appimage-test" "/x/Test.AppImage"
+    [ "$status" -eq 0 ]
+    grep -q "profile uo-appimage-test /x/Test.AppImage flags=(unconfined)" "$dest"
+    grep -q "  userns," "$dest"
+}
+
+@test "appimage_fix_sandbox: rejects missing files and non-AppImage paths" {
+    MSG_LOG="$TEST_HOME/msg.log"
+    failure() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    run appimage_fix_sandbox ""
+    [ "$status" -eq 1 ]
+    grep -q "Usage: uo --fix-appimage-sandbox" "$MSG_LOG"
+
+    : > "$MSG_LOG"
+    run appimage_fix_sandbox "$TEST_HOME/missing.AppImage"
+    [ "$status" -eq 1 ]
+    grep -q "File not found" "$MSG_LOG"
+
+    : > "$TEST_HOME/notapp.txt"
+    : > "$MSG_LOG"
+    run appimage_fix_sandbox "$TEST_HOME/notapp.txt"
+    [ "$status" -eq 1 ]
+    grep -q "Not an AppImage" "$MSG_LOG"
+}
+
+@test "appimage_fix_sandbox: installs the profile via sudo (install + parser logged)" {
+    sanitize_app_name() { printf '%s' "${1//[^a-zA-Z0-9._-]/-}"; }
+    header() { :; }
+    info() { :; }
+    success() { :; }
+    confirm_action() { return 0; }
+    local app="$TEST_HOME/ZCode.AppImage"
+    : > "$app"
+    run appimage_fix_sandbox "$app"
+    [ "$status" -eq 0 ]
+    grep -q "sudo install -m 0644" "$SUDO_LOG"
+    grep -q "sudo apparmor_parser -r -T /etc/apparmor.d/uo-appimage-ZCode" "$SUDO_LOG"
+}
+
+@test "appimage_fix_sandbox: dry-run shows the profile but never touches sudo" {
+    sanitize_app_name() { printf '%s' "${1//[^a-zA-Z0-9._-]/-}"; }
+    header() { :; }
+    MSG_LOG="$TEST_HOME/msg.log"
+    info() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    warn() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    success() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    local app="$TEST_HOME/Other.AppImage"
+    : > "$app"
+    DRY_RUN=1 run appimage_fix_sandbox "$app"
+    [ "$status" -eq 0 ]
+    # the profile body is printed raw to stdout — captured by bats `run`
+    [[ "$output" == *"profile uo-appimage-Other $TEST_HOME/Other.AppImage flags=(unconfined)"* ]]
+    grep -q "dry-run.*apparmor_parser -r -T /etc/apparmor.d/uo-appimage-Other" "$MSG_LOG"
+    [ ! -s "$SUDO_LOG" ]
+}
+
+@test "appimage_fix_sandbox: parser failure falls back to honest guidance" {
+    sanitize_app_name() { printf '%s' "${1//[^a-zA-Z0-9._-]/-}"; }
+    header() { :; }
+    info() { :; }
+    success() { :; }
+    MSG_LOG="$TEST_HOME/msg.log"
+    failure() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    confirm_action() { return 0; }
+    sudo() { return 1; }   # both install and parser fail
+    local app="$TEST_HOME/Fail.AppImage"
+    : > "$app"
+    run appimage_fix_sandbox "$app"
+    [ "$status" -eq 1 ]
+    grep -q "Could not install the AppArmor profile" "$MSG_LOG"
+}
+
+@test "cli: --fix-appimage-sandbox requires a path argument" {
+    run run_uo --fix-appimage-sandbox
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"requires a path"* ]]
 }
 
 @test "appimage_install_from_file: warns about an ARM-only AppImage on an x86 machine" {

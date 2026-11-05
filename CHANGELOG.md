@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.18.2] — AppImage sandbox doctor (`uo --fix-appimage-sandbox`)
+
+### Added
+- **`uo --fix-appimage-sandbox FILE`** — the permanent fix for Electron AppImages (code editors, Discord, Obsidian, …) that abort with the classic `The SUID sandbox helper binary was found, but is not configured correctly … chrome-sandbox … mode 4755` error on Ubuntu 23.10+/24.04+. Root cause: an AppImage's FUSE mount is `nosuid`, so the SUID helper can never work inside it, and the kernel additionally denies the unprivileged-user-namespace fallback via AppArmor (`kernel.apparmor_restrict_unprivileged_userns=1`) — so Electron aborts rather than running unsandboxed. The command installs the distribution-documented remedy: a per-app AppArmor profile (`/etc/apparmor.d/uo-appimage-<app>`, `flags=(unconfined)` + `userns,` bound to the exact AppImage realpath) reloaded with `apparmor_parser`. Real sandboxing stays ON — unlike `--no-sandbox`. Honors `--dry-run` (prints the exact profile + the commands it would run), asks before writing, and always prints the undo line (`sudo rm … && sudo apparmor_parser -R …`). The profile is path-bound — moving the file means re-running the command.
+- The post-install launch hint now ALWAYS explains the Electron-sandbox failure mode and both ways out (`uo --fix-appimage-sandbox` for the permanent fix, `--no-sandbox` for a one-run check) — previously the note appeared only when the userns sysctl was readable, yet the SUID-variant error reached users anyway.
+- bash + zsh completions, usage + examples for the new flag.
+
+### QA
+- `bats` **548/548** (541 → 548: +7 sandbox doctor) · ShellCheck clean (project rc, -S warning) · `bash -n` clean.
+
 ## [7.18.1] — reliability fixes: self-update self-heal + AppImage launch failures
 
 ### Fixed

@@ -725,18 +725,121 @@ appimage_ensure_fuse() {
 #
 # Desktop entries launch with Terminal=false, so a crashing AppImage shows
 # NOTHING — the single most confusing failure mode there is. The hint points
-# at the one command that always reveals the cause, and adds the Ubuntu
-# 24.04+ AppArmor note when this kernel restricts unprivileged user
-# namespaces (Electron-based AppImages are the usual victims).
+# at the one command that always reveals the cause, then explains the Electron
+# sandbox failure (“SUID sandbox helper … chrome-sandbox … mode 4755” on
+# Ubuntu 23.10+) and both ways out: the one-run --no-sandbox check and the
+# permanent per-app profile via `uo --fix-appimage-sandbox`.
 #
 # Arguments: $1 — app name (the terminal command)
 # ───────────────────────────────────────────────────────────────────────────────
 appimage_print_launch_hint() {
     info "If it won't open from the desktop, run it once in a terminal — '$1' — and read the error line (GUI launches hide it)."
+    local _sbx="A crash like 'SUID sandbox helper … chrome-sandbox … mode 4755' is the Electron sandbox vs Ubuntu 23.10+ — permanent fix: uo --fix-appimage-sandbox <AppImage file> — quick check: $1 --no-sandbox"
     if [ -r "/proc/sys/kernel/apparmor_restrict_unprivileged_userns" ] \
         && [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2> /dev/null)" = "1" ]; then
-        info "On Ubuntu 24.04+ Electron-based AppImages may be blocked by AppArmor — run once with: $1 --no-sandbox"
+        _sbx+=" (this kernel restricts unprivileged user namespaces — the usual cause)"
     fi
+    info "$_sbx"
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# appimage_userns_profile_body() — the Ubuntu 23.10+ per-app AppArmor profile
+#
+# Why this exists: an AppImage mounts read-only via FUSE (nosuid), so an
+# Electron app's SUID chrome-sandbox helper can NEVER work inside it, and
+# Ubuntu 23.10+ additionally denies the unprivileged-user-namespace fallback
+# through AppArmor. Result: the app aborts with exactly the user-visible
+# “Rather than run without sandboxing I'm aborting now … mode 4755” error.
+# The distribution-documented answer is a per-app profile granting `userns`
+# to that one binary — real sandboxing stays ON, unlike --no-sandbox.
+#
+# Arguments: $1 — profile name (uo-appimage-<app>)
+#            $2 — the AppImage realpath
+# Prints:    the profile body (stdout)
+# ───────────────────────────────────────────────────────────────────────────────
+appimage_userns_profile_body() {
+    cat <<EOF
+abi 4.0,
+include <tunables/global>
+
+profile $1 $2 flags=(unconfined) {
+  userns,
+
+  # Site-specific additions and overrides for this AppImage
+  include if exists <local/$1>
+}
+EOF
+}
+
+# appimage_write_userns_profile() — write the profile body to a file
+# Arguments: $1 — destination file   $2 — profile name   $3 — AppImage path
+appimage_write_userns_profile() {
+    appimage_userns_profile_body "$2" "$3" > "$1"
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# appimage_fix_sandbox() — the permanent fix for Electron AppImage aborts
+#
+# Writes /etc/apparmor.d/uo-appimage-<app> (a per-app userns profile for the
+# exact AppImage path) and reloads it with apparmor_parser. Honors DRY_RUN
+# (prints the profile + the commands it would run, changes nothing) and
+# asks before touching anything. The profile is path-bound: moving the file
+# means re-running this command; the undo line is always printed.
+#
+# Arguments: $1 — path to the .AppImage
+# Returns:   0 — profile installed (or shown in dry-run)
+#            1 — invalid input, cancellation, or the install failed
+# ───────────────────────────────────────────────────────────────────────────────
+appimage_fix_sandbox() {
+    local APPIMAGE_PATH=${1:-}
+    APPIMAGE_PATH=${APPIMAGE_PATH/#\~/$HOME}
+    if [ -z "$APPIMAGE_PATH" ]; then
+        failure "Usage: uo --fix-appimage-sandbox <path/to/app.AppImage>"
+        return 1
+    fi
+    APPIMAGE_PATH=$(realpath -e "$APPIMAGE_PATH" 2> /dev/null) || {
+        failure "File not found: ${1:-}"
+        return 1
+    }
+    [[ "$APPIMAGE_PATH" =~ \.AppImage$ ]] || { failure "Not an AppImage: $APPIMAGE_PATH"; return 1; }
+    [ -f "$APPIMAGE_PATH" ] || { failure "File not found: $APPIMAGE_PATH"; return 1; }
+
+    local APP_NAME PROFILE_NAME DEST TMP
+    APP_NAME=$(basename "$APPIMAGE_PATH")
+    APP_NAME=${APP_NAME%.AppImage}
+    PROFILE_NAME="uo-appimage-$(sanitize_app_name "$APP_NAME")"
+    DEST="/etc/apparmor.d/$PROFILE_NAME"
+
+    header "AppImage Sandbox Fix (per-app userns profile)"
+    info "App:      $APPIMAGE_PATH"
+    info "Profile:  $DEST — grants user-namespace sandboxing to this app only (sandboxing stays ON)"
+
+    if [ "$DRY_RUN" = "1" ]; then
+        warn "DRY RUN — the profile would be written as:"
+        appimage_userns_profile_body "$PROFILE_NAME" "$APPIMAGE_PATH" | sed 's/^/   /'
+        info "[dry-run] sudo install -m 0644 <profile> $DEST"
+        info "[dry-run] sudo apparmor_parser -r -T $DEST"
+        success "[dry-run] AppImage sandbox fix would be applied."
+        return 0
+    fi
+
+    confirm_action "Write the AppArmor profile and reload it?" || { warn "Cancelled — nothing was changed."; return 1; }
+
+    TMP=$(mktemp)
+    appimage_write_userns_profile "$TMP" "$PROFILE_NAME" "$APPIMAGE_PATH"
+    if sudo install -m 0644 "$TMP" "$DEST" \
+        && sudo apparmor_parser -r -T "$DEST" 2> /dev/null; then
+        rm -f "$TMP"
+        success "Sandbox profile installed for '$APP_NAME' — launch the app normally (no --no-sandbox needed)."
+        info "The profile is bound to this exact path — if the AppImage moves, re-run this command."
+        info "Undo:  sudo rm $DEST && sudo apparmor_parser -R $DEST"
+        return 0
+    fi
+    rm -f "$TMP"
+    failure "Could not install the AppArmor profile."
+    info "Quick fallback (per run):  $APPIMAGE_PATH --no-sandbox"
+    info "Manual: write $DEST by hand (see the docs), then: sudo apparmor_parser -r -T $DEST"
+    return 1
 }
 
 # ───────────────────────────────────────────────────────────────────────────────
