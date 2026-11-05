@@ -4,6 +4,16 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.18.1] — reliability fixes: self-update self-heal + AppImage launch failures
+
+### Fixed
+- **`uo --self-update` could never succeed again after an upstream force-push**: a clone that already contained one of the abandoned commits diverged from the rewritten history, and `git pull --ff-only` failed forever with only manual hints (which did not actually repair the divergence). `lib/selfupdate.sh` now self-heals: the divergence is measured (`rev-list --left-right --count`), a behind-only situation finishes the fast-forward, and a true divergence is repaired with an explicit confirmation — the current state is kept on a `backup/selfupdate-<date>` branch, uncommitted edits are stashed first, and the checkout is reset to match `origin/<branch>`. The silent startup path never resets destructively — it points at `uo --self-update` instead. A declined repair changes nothing.
+- **A static-copy update with a root-owned install directory now explains itself**: the tarball path reports the unwritable directory and prints the exact `chown` fix instead of a bare "backup failed".
+- **AppImage installs that "succeed but never open" get caught earlier**: (1) a local-file install verifies the ELF header and warns when the AppImage is built for a different CPU architecture (the classic silent-failure); (2) the libfuse2 check is re-verified AFTER the apt attempts, so a silent package failure can no longer produce a half-installed app (wrapper functions `appimage_has_fuse`/`appimage_ensure_fuse`); (3) every AppImage install ends with the honest launch hint — desktop entries hide crash output, so run the app once in a terminal — plus the Ubuntu 24.04+ AppArmor note when unprivileged user namespaces are restricted (Electron-based AppImages).
+
+### QA
+- `bats` **541/541** (532 → 541: +5 self-heal with real offline git repos, +4 AppImage hardening) · `bash -n` clean.
+
 ## [7.18.0] — boot splash repair (tool #24)
 
 ### Added
