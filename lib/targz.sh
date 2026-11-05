@@ -597,16 +597,24 @@ appimage_install_from_file() {   # $1=AppImage path  $2=app name
         return 1
     fi
 
-    # libfuse2 check — Ubuntu 24.04+ ships fuse3 only
-    if ! ldconfig -p 2>/dev/null | grep -q "libfuse\.so\.2"; then
-        info "Installing libfuse2 (required for AppImage)..."
-        if ! sudo apt install -y libfuse2t64 > /dev/null 2>&1; then
-            sudo apt install -y libfuse2 > /dev/null 2>&1 || {
-                failure "Failed to install libfuse2 — required for AppImage."
-                return 1
-            }
-        fi
+    # Architecture guard — a mismatched AppImage installs cleanly and then
+    # silently refuses to launch, the worst failure mode. The ELF header
+    # tells the truth even when the file name says nothing.
+    if command -v file > /dev/null 2>&1 && file -b "$appimage_path" 2> /dev/null | grep -qiE "ELF.*(aarch64|arm)"; then
+        case "$(uname -m)" in
+            aarch64|armv7*|armv8*) : ;;
+            *)
+                warn "This AppImage is built for ARM, but this machine is $(uname -m)."
+                if ! confirm_action "Install it anyway? (it will not run on this machine)"; then
+                    info "Cancelled — nothing was installed."
+                    return 0
+                fi
+                ;;
+        esac
     fi
+
+    # libfuse2 check — Ubuntu 24.04+ ships fuse3 only
+    appimage_ensure_fuse || return 1
 
     # Install directory
     local install_dir="/opt/$name"
@@ -679,7 +687,56 @@ appimage_install_from_file() {   # $1=AppImage path  $2=app name
 
     success "🎉 $name AppImage installed."
     info "Run: $name"
+    appimage_print_launch_hint "$name"
     return 0
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# appimage_ensure_fuse() — libfuse2 present, installed and VERIFIED
+#
+# Ubuntu 24.04+ ships fuse3 only, so AppImages need libfuse2. A silent apt
+# failure must never produce a half-installed app that cannot open, so the
+# check is re-run after the install attempts — a wrapper function keeps the
+# suite able to override it.
+#
+# Returns:   0 — libfuse.so.2 is available
+#            1 — still missing after the install attempts
+# ───────────────────────────────────────────────────────────────────────────────
+appimage_has_fuse() {
+    ldconfig -p 2> /dev/null | grep -q "libfuse\.so\.2"
+}
+
+appimage_ensure_fuse() {
+    appimage_has_fuse && return 0
+    info "Installing libfuse2 (required for AppImage)..."
+    sudo apt install -y libfuse2t64 > /dev/null 2>&1 || sudo apt install -y libfuse2 > /dev/null 2>&1 || true
+    # Verify — an apt failure must not become a silently broken install
+    if ! appimage_has_fuse; then
+        failure "libfuse2 is still missing — AppImages cannot run without it."
+        info "Try manually:  sudo apt install -y libfuse2t64  (or:  sudo apt install -y libfuse2)"
+        info "Then retry the install — nothing was changed."
+        return 1
+    fi
+    return 0
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# appimage_print_launch_hint() — the honest “if it won't open” guidance
+#
+# Desktop entries launch with Terminal=false, so a crashing AppImage shows
+# NOTHING — the single most confusing failure mode there is. The hint points
+# at the one command that always reveals the cause, and adds the Ubuntu
+# 24.04+ AppArmor note when this kernel restricts unprivileged user
+# namespaces (Electron-based AppImages are the usual victims).
+#
+# Arguments: $1 — app name (the terminal command)
+# ───────────────────────────────────────────────────────────────────────────────
+appimage_print_launch_hint() {
+    info "If it won't open from the desktop, run it once in a terminal — '$1' — and read the error line (GUI launches hide it)."
+    if [ -r "/proc/sys/kernel/apparmor_restrict_unprivileged_userns" ] \
+        && [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2> /dev/null)" = "1" ]; then
+        info "On Ubuntu 24.04+ Electron-based AppImages may be blocked by AppArmor — run once with: $1 --no-sandbox"
+    fi
 }
 
 # ───────────────────────────────────────────────────────────────────────────────

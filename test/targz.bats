@@ -268,3 +268,47 @@ make_fixture() {   # $1=parent dir  $2=top-level folder name
     [ "$status" -eq 1 ]
     [[ "$output" == *"The file extension must be .tar.gz or .tgz."* ]]
 }
+
+# ---------- AppImage launch-failure hardening (v7.18.1) ----------
+
+@test "appimage_ensure_fuse: passes through when libfuse2 is already present" {
+    appimage_has_fuse() { return 0; }
+    run appimage_ensure_fuse
+    [ "$status" -eq 0 ]
+    ! grep -q "sudo apt install" "$SUDO_LOG"
+}
+
+@test "appimage_ensure_fuse: refuses honestly when libfuse2 cannot be installed" {
+    appimage_has_fuse() { return 1; }   # the apt stub never really installs
+    sudo() { printf 'sudo %s\n' "$*" >> "$SUDO_LOG"; return 1; }   # apt fails both times
+    run appimage_ensure_fuse
+    [ "$status" -eq 1 ]
+    [[ "$output" == *"libfuse2 is still missing"* ]]
+    grep -q "sudo apt install -y libfuse2t64" "$SUDO_LOG"
+    grep -q "sudo apt install -y libfuse2$" "$SUDO_LOG"
+}
+
+@test "appimage_print_launch_hint: always tells the user how to see the hidden error" {
+    INFO_LOG="$TEST_HOME/info.log"
+    info() { printf '%s\n' "$*" >> "$INFO_LOG"; }
+    run appimage_print_launch_hint "myapp"
+    [ "$status" -eq 0 ]
+    grep -q "run it once in a terminal — 'myapp'" "$INFO_LOG"
+}
+
+@test "appimage_install_from_file: warns about an ARM-only AppImage on an x86 machine" {
+    # minimal aarch64 ELF header (e_machine = 0xB7) — file(1) classifies it
+    ARM_ELF="$TEST_HOME/arm-app.AppImage"
+    printf '\x7fELF\x02\x01\x01\x00\x00\x00\x00\x00\x00\x00\x00\x00\x02\x00\xb7\x00ARM' > "$ARM_ELF"
+    file -b "$ARM_ELF" | grep -qi aarch64 || skip "file(1) did not classify the fixture"
+    [ "$(uname -m)" = "x86_64" ] || skip "this runner is not x86_64"
+    INFO_LOG="$TEST_HOME/info.log"
+    : > "$INFO_LOG"
+    info() { printf '%s\n' "$*" >> "$INFO_LOG"; }
+    warn() { printf '%s\n' "$*" >> "$INFO_LOG"; }
+    confirm_action() { return 1; }   # decline the "install anyway" question
+    run appimage_install_from_file "$ARM_ELF" "armapp"
+    [ "$status" -eq 0 ]
+    grep -q "built for ARM" "$INFO_LOG"
+    grep -q "Cancelled — nothing was installed" "$INFO_LOG"
+}
