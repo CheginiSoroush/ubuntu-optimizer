@@ -407,7 +407,8 @@ selfupdate_heal_divergence() {
         fi
     fi
 
-    local backup_branch="backup/selfupdate-$(date +%Y%m%d-%H%M%S)"
+    local backup_branch
+    backup_branch="backup/selfupdate-$(date +%Y%m%d-%H%M%S)"
     if ! git -C "$SCRIPT_DIR" branch "$backup_branch" HEAD > /dev/null 2>&1; then
         failure "Could not create the backup branch — nothing was changed."
         return 1
