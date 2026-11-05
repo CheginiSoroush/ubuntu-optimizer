@@ -10,7 +10,9 @@
 #
 #    1. git checkout   — .git exists beside the script → version check against
 #                        the remote default branch, then `git pull --ff-only`
-#                        (a dirty tree is warned about and confirmed first).
+#                        (a dirty tree is warned about and confirmed first;
+#                        a clone stranded by a rewritten upstream history is
+#                        healed with a confirmed, backup-branch reset).
 #    2. static copy    — no .git → the branch archive tarball is downloaded,
 #                        verified with `bash -n` BEFORE anything is touched,
 #                        the current files are backed up and the new tree is
@@ -346,6 +348,80 @@ selfupdate_refresh_completions() {
 }
 
 # ───────────────────────────────────────────────────────────────────────────────
+# selfupdate_heal_divergence() — repair a clone stranded by rewritten history
+#
+# `git pull --ff-only` fails forever when the upstream branch was force-pushed
+# and the clone already contains one of the abandoned commits. This helper
+# refreshes the remote refs and inspects the divergence:
+#   • behind-only  — the local refs were merely stale; a plain ff merge of
+#                    origin/<branch> finishes the update (no data touched).
+#   • diverged     — the clone holds commits upstream no longer has. After an
+#                    explicit confirmation (never in the silent startup path)
+#                    the current state is kept on a backup branch, uncommitted
+#                    edits are stashed, and the checkout is reset to match
+#                    origin/<branch>.
+# Any other failure (offline, detached HEAD, missing upstream) returns 1 and
+# the caller prints its manual instructions unchanged.
+#
+# Globals:   SCRIPT_DIR, SU_AUTO, ASSUME_YES (read)
+# Arguments: none
+# Returns:   0 — the checkout now matches origin/<branch> (update may continue)
+#            1 — not repairable here, or the user declined
+# ───────────────────────────────────────────────────────────────────────────────
+selfupdate_heal_divergence() {
+    # Offline hosts must keep the plain error — no fetch, no repair
+    git -C "$SCRIPT_DIR" fetch origin > /dev/null 2>&1 || return 1
+    local branch ahead behind
+    branch=$(git -C "$SCRIPT_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null) || return 1
+    [ -n "$branch" ] && [ "$branch" != "HEAD" ] || return 1
+    if ! read -r ahead behind < <(git -C "$SCRIPT_DIR" rev-list --left-right --count "HEAD...origin/$branch" 2>/dev/null); then
+        return 1
+    fi
+
+    # Behind-only: the pull failed on stale refs — finish the fast-forward
+    if [ "$ahead" -eq 0 ] && [ "$behind" -gt 0 ]; then
+        info "Local refs were stale — finishing the fast-forward..."
+        git -C "$SCRIPT_DIR" merge --ff-only "origin/$branch" > /dev/null 2>&1 || return 1
+        return 0
+    fi
+
+    # Diverged: the clone has commits the rewritten upstream no longer has
+    [ "$ahead" -gt 0 ] || return 1
+    if [ "${SU_AUTO:-0}" = "1" ] && [ "${ASSUME_YES:-0}" != "1" ]; then
+        warn "The upstream history was rewritten (force-push) — repair interactively with: uo --self-update"
+        return 1
+    fi
+    warn "Your checkout has $ahead commit(s) that the rewritten upstream no longer contains."
+    if ! confirm_action "Reset this checkout to match origin/$branch? (a backup branch keeps the current state)"; then
+        info "Declined — nothing was changed."
+        return 1
+    fi
+
+    local stash_msg=""
+    if [ -n "$(git -C "$SCRIPT_DIR" status --porcelain 2>/dev/null)" ]; then
+        if git -C "$SCRIPT_DIR" stash push -u -m "selfupdate repair $(date +%F-%T)" > /dev/null 2>&1; then
+            stash_msg="Local edits were stashed — restore with: git -C \"$SCRIPT_DIR\" stash pop"
+        else
+            failure "Uncommitted changes could not be stashed — nothing was changed."
+            return 1
+        fi
+    fi
+
+    local backup_branch="backup/selfupdate-$(date +%Y%m%d-%H%M%S)"
+    if ! git -C "$SCRIPT_DIR" branch "$backup_branch" HEAD > /dev/null 2>&1; then
+        failure "Could not create the backup branch — nothing was changed."
+        return 1
+    fi
+    if ! git -C "$SCRIPT_DIR" reset --hard "origin/$branch" > /dev/null 2>&1; then
+        failure "The reset failed — the previous state is preserved on: $backup_branch"
+        return 1
+    fi
+    success "Checkout repaired — matched to origin/$branch (backup: $backup_branch)."
+    [ -n "$stash_msg" ] && info "$stash_msg"
+    return 0
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
 # selfupdate_update_git() — update a git checkout with pull --ff-only
 #
 # Warns about (and confirms) a dirty working tree first — local edits survive
@@ -386,9 +462,16 @@ selfupdate_update_git() {
     info "Fetching and applying updates..."
     if ! git -C "$SCRIPT_DIR" pull --ff-only > /dev/null 2>&1; then
         failure "git pull --ff-only failed — the checkout may have diverged from upstream."
-        info "Manual fix:  git -C \"$SCRIPT_DIR\" stash && git -C \"$SCRIPT_DIR\" pull --ff-only"
-        info "Discard local commits instead:  git -C \"$SCRIPT_DIR\" reset --hard origin/${SU_REMOTE_BRANCH}"
-        return 1
+        # A rewritten upstream history (force-push) leaves every existing
+        # clone permanently un-updatable with plain --ff-only — try the
+        # repair path before giving up with manual instructions
+        if selfupdate_heal_divergence; then
+            : # the checkout now matches upstream — fall through to verify
+        else
+            info "Manual fix:  git -C \"$SCRIPT_DIR\" stash && git -C \"$SCRIPT_DIR\" pull --ff-only"
+            info "Discard local commits instead:  git -C \"$SCRIPT_DIR\" reset --hard origin/${SU_REMOTE_BRANCH}"
+            return 1
+        fi
     fi
 
     if ! selfupdate_verify_tree "$SCRIPT_DIR"; then
@@ -481,7 +564,15 @@ selfupdate_update_tarball() {
 
     local backup
     backup="$SELFUPDATE_BACKUP_ROOT/v${SCRIPT_VERSION}-$(date +%Y%m%d-%H%M%S)"
-    mkdir -p "$backup" || { failure "Could not create the backup directory."; rm -rf "$tmp"; return 1; }
+    mkdir -p "$backup" 2> /dev/null || {
+        failure "Could not create the backup directory."
+        if [ ! -w "$SCRIPT_DIR" ]; then
+            failure "The install directory is not writable by your user: $SCRIPT_DIR"
+            info "Fix the ownership once, then retry:  sudo chown -R \"$(id -un)\" \"$SCRIPT_DIR\""
+        fi
+        rm -rf "$tmp"
+        return 1
+    }
 
     info "Backing up the current installation to: $backup"
     # Move (rename) the live entries into the backup — instant and atomic; the

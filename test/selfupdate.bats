@@ -465,3 +465,79 @@ teardown() {
     [ ! -f "$TEST_HOME/apt-called" ]
     [ ! -s "$out" ]
 }
+
+# ---------- selfupdate_heal_divergence (real git repos, fully offline) ----------
+
+# Build an origin repo + a clone, then rewrite the origin history the way a
+# force-push does: the amended commit replaces the one the clone still holds.
+# Every test gets its own pair inside TEST_HOME — no network involved.
+setup_git_pair() {
+    git config --global user.email "test@example.com"
+    git config --global user.name "Test"
+    ORIGIN="$TEST_HOME/origin"
+    CLONE="$TEST_HOME/clone"
+    mkdir -p "$ORIGIN/lib"
+    git -C "$ORIGIN" init -q -b main
+    printf '#!/usr/bin/env bash\necho v1\n' > "$ORIGIN/ubuntu-optimizer.sh"
+    printf 'foo() { :; }\n' > "$ORIGIN/lib/x.sh"
+    git -C "$ORIGIN" add -A
+    git -C "$ORIGIN" commit -qm "A"
+    git -C "$ORIGIN" clone -q "$ORIGIN" "$CLONE"
+    # rewrite upstream: amend the root commit so the clone's commit is orphaned
+    git -C "$ORIGIN" checkout -q --detach
+    printf '#!/usr/bin/env bash\necho v2\n' > "$ORIGIN/ubuntu-optimizer.sh"
+    git -C "$ORIGIN" commit -q --amend -am "B"
+    git -C "$ORIGIN" branch -qf main HEAD
+    git -C "$ORIGIN" checkout -q main
+    SCRIPT_DIR="$CLONE"
+    SCRIPT_VERSION="1.0"
+    SU_REMOTE_VERSION="2.0"
+    SU_REMOTE_BRANCH="main"
+}
+
+@test "selfupdate_heal_divergence: behind-only refs finish with a fast-forward" {
+    setup_git_pair
+    # advance origin NORMALLY (no rewrite): C builds on A
+    printf 'bar() { :; }\n' > "$ORIGIN/lib/y.sh"
+    git -C "$ORIGIN" add -A && git -C "$ORIGIN" commit -qm "C"
+    # the clone never pulled — its refs are merely stale
+    run selfupdate_heal_divergence
+    [ "$status" -eq 0 ]
+    [ "$(git -C "$CLONE" rev-parse HEAD)" = "$(git -C "$ORIGIN" rev-parse main)" ]
+}
+
+@test "selfupdate_heal_divergence: rewritten history is repaired with a backup branch" {
+    setup_git_pair
+    run selfupdate_heal_divergence
+    [ "$status" -eq 0 ]
+    [ "$(git -C "$CLONE" rev-parse HEAD)" = "$(git -C "$ORIGIN" rev-parse main)" ]
+    git -C "$CLONE" for-each-ref --format='%(refname:short)' refs/heads | grep -q '^backup/selfupdate-'
+}
+
+@test "selfupdate_heal_divergence: silent auto mode never resets destructively" {
+    setup_git_pair
+    SU_AUTO=1
+    run selfupdate_heal_divergence
+    [ "$status" -eq 1 ]
+    [ "$(git -C "$CLONE" rev-parse HEAD)" != "$(git -C "$ORIGIN" rev-parse main)" ]
+    ! git -C "$CLONE" for-each-ref --format='%(refname:short)' refs/heads | grep -q '^backup/selfupdate-'
+}
+
+@test "selfupdate_heal_divergence: a declined repair changes nothing" {
+    setup_git_pair
+    confirm_action() { return 1; }
+    local before
+    before=$(git -C "$CLONE" rev-parse HEAD)
+    run selfupdate_heal_divergence
+    [ "$status" -eq 1 ]
+    [ "$(git -C "$CLONE" rev-parse HEAD)" = "$before" ]
+}
+
+@test "selfupdate_update_git: end-to-end — a force-pushed upstream updates successfully" {
+    setup_git_pair
+    run selfupdate_update_git
+    [ "$status" -eq 0 ]
+    [ "$(git -C "$CLONE" rev-parse HEAD)" = "$(git -C "$ORIGIN" rev-parse main)" ]
+    [ "$(cat "$CLONE/ubuntu-optimizer.sh")" = $'#!/usr/bin/env bash\necho v2' ]
+    git -C "$CLONE" for-each-ref --format='%(refname:short)' refs/heads | grep -q '^backup/selfupdate-'
+}
