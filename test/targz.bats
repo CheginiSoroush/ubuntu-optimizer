@@ -406,11 +406,12 @@ make_fixture() {   # $1=parent dir  $2=top-level folder name
     info() { printf '%s\n' "$*" >> "$MSG_LOG"; }
     local app="$TEST_HOME/NoAA.AppImage"
     : > "$app"
-    mv "$STUB_BIN/apparmor_parser" "$STUB_BIN/apparmor_parser.off"
-    PATH="$STUB_BIN:$PATH" run appimage_fix_sandbox "$app"
-    local rc=$status
-    mv "$STUB_BIN/apparmor_parser.off" "$STUB_BIN/apparmor_parser"
-    [ "$rc" -eq 1 ]
+    command() {   # no apparmor_parser anywhere — even if the runner has one
+        if [ "$1" = "-v" ] && [ "$2" = "apparmor_parser" ]; then return 1; fi
+        builtin command "$@"
+    }
+    run appimage_fix_sandbox "$app"
+    [ "$status" -eq 1 ]
     grep -q "AppArmor userspace tools are not installed" "$MSG_LOG"
     grep -q "sudo apt install apparmor" "$MSG_LOG"
     [ ! -s "$SUDO_LOG" ]   # nothing privileged was attempted
