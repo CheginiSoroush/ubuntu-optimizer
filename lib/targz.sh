@@ -949,7 +949,10 @@ _appimage_report_entries() {   # $1=name or path → info/warn lines
 # appimage_fix_sandbox() — the permanent fix for Electron AppImage aborts
 #
 # Writes /etc/apparmor.d/uo-appimage-<app> (a per-app userns profile for the
-# exact AppImage path) and reloads it with apparmor_parser. Honors DRY_RUN
+# exact AppImage path) and loads it with `apparmor_parser -r` (kernel load —
+# the documented command; the profile must be ACTIVE, not merely parsed).
+# Pre-flights AppArmor availability (userspace tools + kernel interface) and
+# HONESTLY reports captured stderr on any failure. Honors DRY_RUN
 # (prints the profile + the commands it would run, changes nothing) and
 # asks before touching anything. The profile is path-bound: moving the file
 # means re-running this command; the undo line is always printed.
@@ -980,7 +983,7 @@ appimage_fix_sandbox() {
         if [ "${#_cands[@]}" -gt 0 ]; then
             APPIMAGE_PATH=${_cands[0]}
             if [ "${#_cands[@]}" -gt 1 ]; then
-                warn "Several AppImages match '$APPIMAGE_PATH' — using the newest:"
+                warn "Several AppImages match '$_input' — using the newest:"
                 local _c
                 for _c in "${_cands[@]}"; do info "  · $_c"; done
                 info "To target another one, pass its exact path."
@@ -1024,27 +1027,59 @@ appimage_fix_sandbox() {
         warn "DRY RUN — the profile would be written as:"
         appimage_userns_profile_body "$PROFILE_NAME" "$APPIMAGE_PATH" | sed 's/^/   /'
         info "[dry-run] sudo install -m 0644 <profile> $DEST"
-        info "[dry-run] sudo apparmor_parser -r -T $DEST"
+        info "[dry-run] sudo apparmor_parser -r $DEST"
         success "[dry-run] AppImage sandbox fix would be applied."
         return 0
     fi
 
+    # Pre-flight: AppArmor must exist in BOTH userspace and kernel, or this
+    # fix can never work — say so honestly BEFORE asking for confirmation
+    # (WSL2, containers and some VMs ship without the kernel interface).
+    local _sysfs=${APPARMOR_SYSFS:-/sys/kernel/security/apparmor}
+    if ! command -v apparmor_parser > /dev/null 2>&1; then
+        failure "AppArmor userspace tools are not installed — the userns profile cannot be written or loaded."
+        info "Install them:  sudo apt install apparmor"
+        info "Fallback for this run:  $APPIMAGE_PATH --no-sandbox"
+        return 1
+    fi
+    if [ ! -d "$_sysfs" ]; then
+        failure "AppArmor is not enabled in this kernel ($_sysfs is missing)."
+        info "Common in WSL2, containers and some VMs — the userns profile cannot be enforced here."
+        info "Fallback for this run:  $APPIMAGE_PATH --no-sandbox"
+        return 1
+    fi
+
     confirm_action "Write the AppArmor profile and reload it?" || { warn "Cancelled — nothing was changed."; return 1; }
 
+    # Every privileged step's stderr is captured and SHOWN on failure — a
+    # silent `2>/dev/null` once turned a parser error into a dead end.
+    # `apparmor_parser -r` (replace + load into the kernel) is the documented
+    # command: the profile must be ACTIVE, not merely parsed and cached.
     TMP=$(mktemp)
     appimage_write_userns_profile "$TMP" "$PROFILE_NAME" "$APPIMAGE_PATH"
-    if sudo install -m 0644 "$TMP" "$DEST" \
-        && sudo apparmor_parser -r -T "$DEST" 2> /dev/null; then
+    local _out="" _installed=0 _rc=1 _l
+    _out=$(sudo install -m 0644 "$TMP" "$DEST" 2>&1); _rc=$?
+    if [ "$_rc" -eq 0 ]; then
+        _installed=1
+        _out=$(sudo apparmor_parser -r "$DEST" 2>&1); _rc=$?
+    fi
+    if [ "$_rc" -eq 0 ]; then
         rm -f "$TMP"
         success "Sandbox profile installed for '$APP_NAME' — launch the app normally (no --no-sandbox needed)."
         info "The profile is bound to this exact path — if the AppImage moves, re-run this command."
-        info "Undo:  sudo rm $DEST && sudo apparmor_parser -R $DEST"
+        info "Undo:  sudo apparmor_parser -R $DEST; sudo rm $DEST"
         return 0
     fi
     rm -f "$TMP"
     failure "Could not install the AppArmor profile."
+    if [ -n "$_out" ]; then
+        while IFS= read -r _l; do info "  └ $_l"; done <<< "$_out"
+    fi
+    if [ "$_installed" = 1 ]; then
+        warn "The profile file WAS written to $DEST but could not be loaded — remove it if you don't need it:  sudo rm $DEST"
+    fi
     info "Quick fallback (per run):  $APPIMAGE_PATH --no-sandbox"
-    info "Manual: write $DEST by hand (see the docs), then: sudo apparmor_parser -r -T $DEST"
+    info "Manual: write $DEST by hand (see the docs), then: sudo apparmor_parser -r $DEST"
     return 1
 }
 

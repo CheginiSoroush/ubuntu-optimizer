@@ -46,6 +46,18 @@ EOF
     SUDO_LOG="$TEST_HOME/sudo-calls.log"
     : > "$SUDO_LOG"
 
+    # apparmor_parser stub (a real file) — the v7.18.5 pre-flight runs
+    # `command -v apparmor_parser`; tests that reach the install step prefix
+    # PATH with $STUB_BIN so this is found. A test may rename it away to
+    # simulate "AppArmor userspace not installed".
+    printf '#!/usr/bin/env bash\nexit 0\n' > "$STUB_BIN/apparmor_parser"
+    chmod +x "$STUB_BIN/apparmor_parser"
+
+    # This container has no AppArmor kernel interface — point the pre-flight
+    # at a fixture dir (override APPARMOR_SYSFS per-test to simulate absence)
+    mkdir -p "$TEST_HOME/aa-sysfs"
+    export APPARMOR_SYSFS="$TEST_HOME/aa-sysfs"
+
     # shellcheck source=/dev/null
     source "$TEST_HOME/uo-tree/lib/common.sh"
     # shellcheck source=/dev/null
@@ -348,10 +360,10 @@ make_fixture() {   # $1=parent dir  $2=top-level folder name
     confirm_action() { return 0; }
     local app="$TEST_HOME/ZCode.AppImage"
     : > "$app"
-    run appimage_fix_sandbox "$app"
+    PATH="$STUB_BIN:$PATH" run appimage_fix_sandbox "$app"
     [ "$status" -eq 0 ]
     grep -q "sudo install -m 0644" "$SUDO_LOG"
-    grep -q "sudo apparmor_parser -r -T /etc/apparmor.d/uo-appimage-ZCode" "$SUDO_LOG"
+    grep -q "sudo apparmor_parser -r /etc/apparmor.d/uo-appimage-ZCode" "$SUDO_LOG"
 }
 
 @test "appimage_fix_sandbox: dry-run shows the profile but never touches sudo" {
@@ -367,7 +379,7 @@ make_fixture() {   # $1=parent dir  $2=top-level folder name
     [ "$status" -eq 0 ]
     # the profile body is printed raw to stdout — captured by bats `run`
     [[ "$output" == *"profile uo-appimage-Other \"$TEST_HOME/Other.AppImage\" flags=(unconfined)"* ]]
-    grep -q "dry-run.*apparmor_parser -r -T /etc/apparmor.d/uo-appimage-Other" "$MSG_LOG"
+    grep -q "dry-run.*apparmor_parser -r /etc/apparmor.d/uo-appimage-Other" "$MSG_LOG"
     [ ! -s "$SUDO_LOG" ]
 }
 
@@ -382,9 +394,85 @@ make_fixture() {   # $1=parent dir  $2=top-level folder name
     sudo() { return 1; }   # both install and parser fail
     local app="$TEST_HOME/Fail.AppImage"
     : > "$app"
-    run appimage_fix_sandbox "$app"
+    PATH="$STUB_BIN:$PATH" run appimage_fix_sandbox "$app"
     [ "$status" -eq 1 ]
     grep -q "Could not install the AppArmor profile" "$MSG_LOG"
+}
+
+@test "appimage_fix_sandbox: refuses honestly when AppArmor userspace is missing" {
+    sanitize_app_name() { printf '%s' "${1//[^a-zA-Z0-9._-]/-}"; }
+    MSG_LOG="$TEST_HOME/msg.log"
+    failure() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    info() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    local app="$TEST_HOME/NoAA.AppImage"
+    : > "$app"
+    mv "$STUB_BIN/apparmor_parser" "$STUB_BIN/apparmor_parser.off"
+    PATH="$STUB_BIN:$PATH" run appimage_fix_sandbox "$app"
+    local rc=$status
+    mv "$STUB_BIN/apparmor_parser.off" "$STUB_BIN/apparmor_parser"
+    [ "$rc" -eq 1 ]
+    grep -q "AppArmor userspace tools are not installed" "$MSG_LOG"
+    grep -q "sudo apt install apparmor" "$MSG_LOG"
+    [ ! -s "$SUDO_LOG" ]   # nothing privileged was attempted
+}
+
+@test "appimage_fix_sandbox: refuses honestly when the AppArmor kernel interface is missing" {
+    sanitize_app_name() { printf '%s' "${1//[^a-zA-Z0-9._-]/-}"; }
+    MSG_LOG="$TEST_HOME/msg.log"
+    failure() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    info() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    local app="$TEST_HOME/NoKernel.AppImage"
+    : > "$app"
+    APPARMOR_SYSFS="$TEST_HOME/nowhere" PATH="$STUB_BIN:$PATH" run appimage_fix_sandbox "$app"
+    [ "$status" -eq 1 ]
+    grep -q "AppArmor is not enabled in this kernel" "$MSG_LOG"
+    grep -q "WSL2, containers and some VMs" "$MSG_LOG"
+    [ ! -s "$SUDO_LOG" ]
+}
+
+@test "appimage_fix_sandbox: shows the real parser error instead of swallowing it" {
+    # v7.18.4 failed on a real machine with `2>/dev/null` eating the cause
+    sanitize_app_name() { printf '%s' "${1//[^a-zA-Z0-9._-]/-}"; }
+    header() { :; }
+    success() { :; }
+    confirm_action() { return 0; }
+    MSG_LOG="$TEST_HOME/msg.log"
+    failure() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    info() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    warn() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    sudo() {
+        printf 'sudo %s\n' "$*" >> "$SUDO_LOG"
+        if [ "$1" = "apparmor_parser" ]; then printf 'profile syntax error at line 5\n'; return 1; fi
+        return 0
+    }
+    local app="$TEST_HOME/BrokenProfile.AppImage"
+    : > "$app"
+    PATH="$STUB_BIN:$PATH" run appimage_fix_sandbox "$app"
+    [ "$status" -eq 1 ]
+    grep -q "Could not install the AppArmor profile" "$MSG_LOG"
+    grep -q "profile syntax error at line 5" "$MSG_LOG"
+    grep -q "profile file WAS written" "$MSG_LOG"
+    grep -q "sudo rm /etc/apparmor.d/uo-appimage-BrokenProfile" "$MSG_LOG"
+}
+
+@test "appimage_fix_sandbox: multi-match message names the typed query, not the winner" {
+    sanitize_app_name() { printf '%s' "${1//[^a-zA-Z0-9._-]/-}"; }
+    header() { :; }
+    success() { :; }
+    confirm_action() { return 0; }
+    MSG_LOG="$TEST_HOME/msg.log"
+    warn() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    info() { :; }
+    mkdir -p "$TEST_HOME/Applications"
+    : > "$TEST_HOME/Applications/zcode-a.AppImage"
+    : > "$TEST_HOME/Applications/zcode-b.AppImage"
+    touch -d '2020-01-01' "$TEST_HOME/Applications/zcode-a.AppImage"
+    touch -d '2030-01-01' "$TEST_HOME/Applications/zcode-b.AppImage"
+    PATH="$STUB_BIN:$PATH" run appimage_fix_sandbox "zcode"
+    [ "$status" -eq 0 ]
+    grep -q "Several AppImages match 'zcode'" "$MSG_LOG"
+    ! grep -q "match '/" "$MSG_LOG"
+    grep -q "apparmor_parser -r /etc/apparmor.d/uo-appimage-zcode-b" "$SUDO_LOG"
 }
 
 @test "cli: --fix-appimage-sandbox requires a path argument" {
@@ -414,11 +502,12 @@ make_fixture() {   # $1=parent dir  $2=top-level folder name
     : > "$app"
     command() {   # stand-in for `command -v zcode` on the user's machine
         if [ "$1" = "-v" ] && [ "$2" = "zcode" ]; then printf '%s\n' "$app"; return 0; fi
+        if [ "$1" = "-v" ] && [ "$2" = "apparmor_parser" ]; then printf '%s\n' "$STUB_BIN/apparmor_parser"; return 0; fi
         return 1
     }
     run appimage_fix_sandbox "zcode"
     [ "$status" -eq 0 ]
-    grep -q "sudo apparmor_parser -r -T /etc/apparmor.d/uo-appimage-ZCode" "$SUDO_LOG"
+    grep -q "sudo apparmor_parser -r /etc/apparmor.d/uo-appimage-ZCode" "$SUDO_LOG"
 }
 
 # ---------- v7.18.4: name resolution + duplicate menu-entry diagnosis ----------
@@ -521,11 +610,11 @@ make_fixture() {   # $1=parent dir  $2=top-level folder name
     mkdir -p "$ad"
     printf '[Desktop Entry]\nName=ZCode\nExec=%s/zcode-1.0.AppImage\nType=Application\n' "$apps" > "$ad/zcode-old.desktop"
     printf '[Desktop Entry]\nName=ZCode\nExec=%s/zcode-2.0.AppImage\nType=Application\n' "$apps" > "$ad/zcode-new.desktop"
-    run appimage_fix_sandbox "zcode"
+    PATH="$STUB_BIN:$PATH" run appimage_fix_sandbox "zcode"
     [ "$status" -eq 0 ]
     grep -q "menu entries mention 'zcode'" "$MSG_LOG"
     grep -q "sudo install -m 0644" "$SUDO_LOG"
-    grep -q "apparmor_parser -r -T /etc/apparmor.d/uo-appimage-zcode-2.0" "$SUDO_LOG"
+    grep -q "apparmor_parser -r /etc/apparmor.d/uo-appimage-zcode-2.0" "$SUDO_LOG"
 }
 
 @test "cli: --fix-appimage-sandbox resolves a GUI-only app name end-to-end (v7.18.4)" {
