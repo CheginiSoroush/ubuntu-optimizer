@@ -753,13 +753,38 @@ appimage_print_launch_hint() {
 # The distribution-documented answer is a per-app profile granting `userns`
 # to that one binary — real sandboxing stays ON, unlike --no-sandbox.
 #
+# appimage_abi_line() — the `abi` declaration for the generated profile
+#
+# The syntax here is load-bearing. `abi <abi/4.0>,` (include-style angle
+# brackets) tells the parser to read the ABI definition shipped at
+# /etc/apparmor.d/abi/4.0 by AppArmor 4.x (Ubuntu 24.04+). A bare `abi 4.0,`
+# is NOT that: the parser treats "4.0" as a literal file name and fails with
+# "Could not open '4.0': No such file or directory" — the exact bug v7.18.2
+# shipped and v7.18.5's error surfacing exposed in the wild. Parsers without
+# abi/4.0 (AppArmor 3.x) get NO abi line at all: the unprivileged-userns
+# restriction only exists where AppArmor 4.x ships it anyway.
+#
+# Env:      APPARMOR_ABI_DIR — abi directory override (hermetic tests)
+# Prints:   the abi line, or nothing when the parser predates abi/4.0
+# ───────────────────────────────────────────────────────────────────────────────
+appimage_abi_line() {
+    local _dir=${APPARMOR_ABI_DIR:-/etc/apparmor.d/abi} _v
+    for _v in 4.0 5.0; do
+        if [ -f "$_dir/$_v" ]; then
+            printf 'abi <abi/%s>,\n' "$_v"
+            return 0
+        fi
+    done
+}
+
 # Arguments: $1 — profile name (uo-appimage-<app>)
 #            $2 — the AppImage realpath
 # Prints:    the profile body (stdout)
 # ───────────────────────────────────────────────────────────────────────────────
 appimage_userns_profile_body() {
-    cat <<EOF
-abi 4.0,
+    {
+        appimage_abi_line
+        cat <<EOF
 include <tunables/global>
 
 profile $1 "$2" flags=(unconfined) {
@@ -769,6 +794,7 @@ profile $1 "$2" flags=(unconfined) {
   include if exists <local/$1>
 }
 EOF
+    }
 }
 
 # appimage_write_userns_profile() — write the profile body to a file

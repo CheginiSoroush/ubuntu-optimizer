@@ -58,6 +58,13 @@ EOF
     mkdir -p "$TEST_HOME/aa-sysfs"
     export APPARMOR_SYSFS="$TEST_HOME/aa-sysfs"
 
+    # abi fixture dir — appimage_abi_line emits `abi <abi/4.0>,` only when a
+    # file named 4.0 exists here (override APPARMOR_ABI_DIR per-test to
+    # simulate an older AppArmor with no abi/4.0)
+    mkdir -p "$TEST_HOME/aa-abi"
+    : > "$TEST_HOME/aa-abi/4.0"
+    export APPARMOR_ABI_DIR="$TEST_HOME/aa-abi"
+
     # shellcheck source=/dev/null
     source "$TEST_HOME/uo-tree/lib/common.sh"
     # shellcheck source=/dev/null
@@ -318,17 +325,49 @@ make_fixture() {   # $1=parent dir  $2=top-level folder name
 @test "appimage_userns_profile_body: emits the documented Ubuntu 23.10+ profile" {
     run appimage_userns_profile_body "uo-appimage-zcode" "/opt/zcode/ZCode.AppImage"
     [ "$status" -eq 0 ]
-    [[ "$output" == *"abi 4.0,"* ]]
+    [[ "$output" == *"abi <abi/4.0>,"* ]]   # include-style — reads /etc/apparmor.d/abi/4.0
+    ! grep -q "^abi 4.0," <<< "$output"     # v7.18.2–v7.18.5 bug: bare form = "Could not open '4.0'"
     [[ "$output" == *"include <tunables/global>"* ]]
     [[ "$output" == *"profile uo-appimage-zcode \"/opt/zcode/ZCode.AppImage\" flags=(unconfined)"* ]]
     [[ "$output" == *"  userns,"* ]]
     [[ "$output" == *"include if exists <local/uo-appimage-zcode>"* ]]
 }
 
+@test "appimage_abi_line: include-style abi when abi/4.0 exists, nothing without it" {
+    # abi/4.0 present (Ubuntu 24.04+ — the fixture from setup)
+    APPARMOR_ABI_DIR="$TEST_HOME/aa-abi" run appimage_abi_line
+    [ "$status" -eq 0 ]
+    [ "$output" = "abi <abi/4.0>," ]
+
+    # no abi dir at all (AppArmor 3.x) — empty output, no abi line in profiles
+    APPARMOR_ABI_DIR="$TEST_HOME/no-abi-dir" run appimage_abi_line
+    [ "$status" -eq 0 ]
+    [ -z "$output" ]
+
+    # a newer abi directory wins when 4.0 is absent (future-proofing)
+    mkdir -p "$TEST_HOME/aa-abi-new"
+    : > "$TEST_HOME/aa-abi-new/5.0"
+    APPARMOR_ABI_DIR="$TEST_HOME/aa-abi-new" run appimage_abi_line
+    [ "$status" -eq 0 ]
+    [ "$output" = "abi <abi/5.0>," ]
+}
+
+@test "appimage_userns_profile_body: parsers without abi/4.0 get no abi line" {
+    mkdir -p "$TEST_HOME/no-abi-dir"
+    APPARMOR_ABI_DIR="$TEST_HOME/no-abi-dir" \
+        run appimage_userns_profile_body "uo-appimage-old" "/opt/old/App.AppImage"
+    [ "$status" -eq 0 ]
+    [[ "$output" == "include <tunables/global>"* ]]   # include is now the first line
+    [[ "$output" != *"abi"* ]]
+    [[ "$output" == *"  userns,"* ]]
+    [[ "$output" == *"profile uo-appimage-old \"/opt/old/App.AppImage\" flags=(unconfined)"* ]]
+}
+
 @test "appimage_write_userns_profile: produces the exact profile file" {
     local dest="$TEST_HOME/uo-appimage-test"
     run appimage_write_userns_profile "$dest" "uo-appimage-test" "/x/Test.AppImage"
     [ "$status" -eq 0 ]
+    grep -q "abi <abi/4.0>," "$dest"
     grep -q "profile uo-appimage-test \"/x/Test.AppImage\" flags=(unconfined)" "$dest"
     grep -q "  userns," "$dest"
 }
