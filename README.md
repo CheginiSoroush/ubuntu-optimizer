@@ -12,10 +12,10 @@ The all-in-one optimization, app-management and repair toolkit —
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.18.4-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.18.5-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-558%20%2F%20558-brightgreen)
+![Tests](https://img.shields.io/badge/bats-562%20%2F%20562-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 [![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/CheginiSoroush/badge.svg)](https://hub.xerj.org/contributors/CheginiSoroush)
 
@@ -208,7 +208,7 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 | `uo --swap` · `--swap-on [MB]` · `--swap-off` | swap status · create + enable the recommended `/swapfile` (marked fstab entry) · remove it — partitions/zram untouchable (v7.16) |
 | `uo --swappiness N` | tune `vm.swappiness` (1–100) through the undo-aware sysctl drop-in (v7.16) |
 | `uo --splash` · `--fix-splash` | boot splash status (kernel cmdline, GRUB config, plymouth) · restore the graphical splash: reinstalls a missing `/etc/default/grub` (`--force-confmiss`, hand-written fallback) or re-adds `quiet splash` with a timestamped backup, then `update-grub` — kdump/vendor drop-ins untouched (v7.18) |
-| `uo --fix-appimage-sandbox FILE\|APP-NAME` | permanent fix for Electron AppImages that abort with the “SUID sandbox helper … chrome-sandbox … mode 4755” error on Ubuntu 23.10+: installs a per-app AppArmor profile granting user-namespace sandboxing to that binary (sandboxing stays ON — unlike `--no-sandbox`); v7.18.4 resolves a bare app name through terminal commands, wrapper scripts, desktop-menu entries and common folders, and diagnoses duplicate/stale menu icons |
+| `uo --fix-appimage-sandbox FILE\|APP-NAME` | permanent fix for Electron AppImages that abort with the “SUID sandbox helper … chrome-sandbox … mode 4755” error on Ubuntu 23.10+: installs a per-app AppArmor profile granting user-namespace sandboxing to that binary and loads it into the kernel (sandboxing stays ON — unlike `--no-sandbox`); resolves a bare app name through terminal commands, wrapper scripts, desktop-menu entries and common folders; diagnoses duplicate/stale menu icons; pre-flights AppArmor availability and shows real errors instead of swallowing them (v7.18.5) |
 | `uo --fzf` | interactive fzf launcher over every toolkit action — Enter=run, Esc=cancel; `UO_FZF_BIN` override (v7.17) |
 | `uo --lang fa\|en` | persist the UI language; `--lang-show` prints the effective language + its source (v7.17) |
 | `uo -y` · `--no-color` · `--no-log` | auto-confirm · plain output · don't log |

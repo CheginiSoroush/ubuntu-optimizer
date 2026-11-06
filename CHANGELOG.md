@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.18.5] — the AppArmor fix tells the truth: pre-flight + visible errors + real kernel load
+
+### Fixed
+- **The profile was never actually loaded**: `apparmor_parser -r -T` parses and caches but `-T` (`--skip-kernel-load`) skips the kernel load — so even a "successful" v7.18.2–7.18.4 run left the profile inactive until the next reboot. The command is now the documented `apparmor_parser -r` (replace + load), making the fix effective immediately.
+- **Failures swallowed their own cause**: the parser's `2> /dev/null` turned the first real-machine run (reported seconds after v7.18.4 shipped) into a bare "Could not install the AppArmor profile." Both privileged steps now capture stderr and print it verbatim on failure, plus a "profile file WAS written but could not be loaded — remove it" warning when the install half succeeded.
+- **Multi-match message named the wrong thing**: "Several AppImages match '/opt/ZCode/ZCode.AppImage'" echoed the resolved winner instead of the query the user typed — it now says "match 'zcode'".
+- **Undo line order**: `apparmor_parser -R` needs the file to still exist; the undo is now `sudo apparmor_parser -R $DEST; sudo rm $DEST`.
+
+### Added
+- **AppArmor pre-flight**: before asking for confirmation, the tool verifies (1) `apparmor_parser` exists in userspace ("sudo apt install apparmor") and (2) the kernel interface `/sys/kernel/security/apparmor` is present — the usual reason a fix can never work in WSL2, containers and some VMs. Each case fails honestly with a per-run `--no-sandbox` fallback instead of prompting first and failing after.
+- Tests **558 → 562**: AppArmor-userspace-missing refusal, kernel-interface-missing refusal (via an overridable `APPARMOR_SYSFS` for hermetic CI), the real parser error reaching the output + profile-left-behind warning, and the typed-query multi-match message. `bats` **562/562** · ShellCheck clean (`-S warning`, CI parity) · `bash -n` clean.
+
 ## [7.18.4] — `--fix-appimage-sandbox` finds GUI-only apps + duplicate-menu diagnosis
 
 ### Fixed
