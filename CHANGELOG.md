@@ -4,6 +4,13 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.18.6] — the profile actually installs now: `abi 4.0,` was read as a file name
+
+### Fixed
+- **`abi 4.0,` → `abi <abi/4.0>,`**: the generated profile's first line used a bare `abi 4.0,`, which `apparmor_parser` reads as "open a file literally named `4.0`" — every install died with `Could not open '4.0': No such file or directory` (surfaced within minutes of v7.18.5 shipping, by the very error visibility that release added). The include-style form reads the ABI definition AppArmor 4.x ships at `/etc/apparmor.d/abi/4.0`, exactly as the distribution-documented Electron profiles do.
+- **Older parsers get no abi line at all**: new `appimage_abi_line()` emits the declaration only when an abi definition actually exists (4.0 preferred, then 5.0) and omits it on parsers that predate it — where the unprivileged-userns restriction doesn't exist either. Overridable via `APPARMOR_ABI_DIR` for hermetic tests (same pattern as `APPARMOR_SYSFS`).
+- Tests **562 → 564**: the include-style abi assertion plus a regression lock against the bare form (`! grep "^abi 4.0,"`), the three-branch `appimage_abi_line()` unit test (abi/4.0 → `abi <abi/4.0>,`, abi/5.0-only → `abi <abi/5.0>,`, none → empty), a profile-without-abi-line case for older parsers, and the written profile file now asserts the abi line too. `bats` **564/564** · ShellCheck clean (`-S warning`, CI parity) · `bash -n` clean.
+
 ## [7.18.5] — the AppArmor fix tells the truth: pre-flight + visible errors + real kernel load
 
 ### Fixed

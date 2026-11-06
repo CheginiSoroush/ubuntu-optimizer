@@ -1,7 +1,7 @@
 export type Lang = "fa" | "en";
 
 export const REPO_URL = "https://github.com/CheginiSoroush/ubuntu-optimizer";
-export const VERSION = "v7.18.5";
+export const VERSION = "v7.18.6";
 
 const en = {
   dir: "ltr" as const,
@@ -30,7 +30,7 @@ const en = {
     github: "GitHub",
   },
   hero: {
-    badge: `${VERSION} — 24 tools · 562/562 tests · MIT`,
+    badge: `${VERSION} — 24 tools · 564/564 tests · MIT`,
     titleA: "One command.",
     titleB: "A faster, cleaner, healthier Ubuntu.",
     subtitle:
@@ -43,7 +43,7 @@ const en = {
   stats: [
     { value: 24, suffix: "", label: "menu tools" },
     { value: 60, suffix: "+", label: "CLI options" },
-    { value: 562, suffix: "/562", label: "tests passing" },
+    { value: 564, suffix: "/564", label: "tests passing" },
     { value: 0, suffix: "", label: "ShellCheck issues" },
   ],
   tools: {
@@ -299,7 +299,7 @@ sudo rm /etc/polkit-1/rules.d/10-disable-password-timeout.rules`,
       },
       {
         q: "What's new in v7.15?",
-        a: "v7.16 added the Maintenance & hardware family (uo --dns preset switcher with Iranian bypass resolvers, uo --kernel-list/--kernel-clean old-kernel cleanup, uo --swap-on/--swap-off/--swappiness swap manager). v7.17 adds uo --fzf (fuzzy-search every action and run it) and a bilingual fa/en CLI (uo --lang fa, --lang-show, UO_LANG). v7.18 adds uo --splash / --fix-splash (boot splash status + repair: restores a missing /etc/default/grub or the quiet splash parameters, backup + update-grub included). v7.18.2 adds uo --fix-appimage-sandbox — the permanent per-app AppArmor userns fix for Electron AppImages that abort with the chrome-sandbox/SUID error on Ubuntu 23.10+. v7.18.3 fixes that flag's CLI wiring (the path argument never reached the function) and lets it resolve an installed command name directly (uo --fix-appimage-sandbox zcode), with a space-safe quoted profile. v7.18.4 makes it find GUI-only apps by name (terminal commands, wrapper scripts, desktop-menu Exec= entries and common folders) and diagnoses duplicate/stale menu entries — the reason an app can appear twice in the menu. v7.18.5 loads the profile into the kernel for real (the previous -T flag only parsed it), pre-flights AppArmor availability (WSL2/VMs/containers) and shows the actual error instead of swallowing it. 562/562 tests pass, ShellCheck is clean.",
+        a: "v7.16 added the Maintenance & hardware family (uo --dns preset switcher with Iranian bypass resolvers, uo --kernel-list/--kernel-clean old-kernel cleanup, uo --swap-on/--swap-off/--swappiness swap manager). v7.17 adds uo --fzf (fuzzy-search every action and run it) and a bilingual fa/en CLI (uo --lang fa, --lang-show, UO_LANG). v7.18 adds uo --splash / --fix-splash (boot splash status + repair: restores a missing /etc/default/grub or the quiet splash parameters, backup + update-grub included). v7.18.2 adds uo --fix-appimage-sandbox — the permanent per-app AppArmor userns fix for Electron AppImages that abort with the chrome-sandbox/SUID error on Ubuntu 23.10+. v7.18.3 fixes that flag's CLI wiring (the path argument never reached the function) and lets it resolve an installed command name directly (uo --fix-appimage-sandbox zcode), with a space-safe quoted profile. v7.18.4 makes it find GUI-only apps by name (terminal commands, wrapper scripts, desktop-menu Exec= entries and common folders) and diagnoses duplicate/stale menu entries — the reason an app can appear twice in the menu. v7.18.5 loads the profile into the kernel for real (the previous -T flag only parsed it), pre-flights AppArmor availability (WSL2/VMs/containers) and shows the actual error instead of swallowing it. v7.18.6 fixes the profile's first line: the abi declaration was a bare `abi 4.0,` which the parser misreads as a file named '4.0' (Could not open '4.0'); it now emits the parser-valid `abi <abi/4.0>,` — and only when the ABI file actually exists. 564/564 tests pass, ShellCheck is clean.",
       },
     ],
   },
@@ -392,7 +392,7 @@ const fa: Dict = {
   stats: [
     { value: 24, suffix: "", label: "ابزار در منو" },
     { value: 60, suffix: "+", label: "گزینهٔ خط فرمان" },
-    { value: 562, suffix: "/۵۶۲", label: "تست پاس‌شده" },
+    { value: 564, suffix: "/۵۶۴", label: "تست پاس‌شده" },
     { value: 0, suffix: "", label: "خطای ShellCheck" },
   ],
   tools: {
@@ -648,7 +648,7 @@ sudo rm /etc/polkit-1/rules.d/10-disable-password-timeout.rules`,
       },
       {
         q: "تازگی‌های نسخهٔ ۷٫۱۵ چیست؟",
-        a: "نسخهٔ 7.16 خانوادهٔ «نگهداری و سخت‌افزار» را آورد (uo --dns با پریست‌های عبور از تحریم، uo --kernel-list/--kernel-clean برای پاک‌سازی هسته‌های قدیمی، و مدیریت سواپ با uo --swap-on/--swap-off/--swappiness). نسخهٔ 7.17 هم uo --fzf (جست‌وجوی فازی و اجرای هر اقدام) و رابط دوزبانهٔ fa/en را اضافه کرد (uo --lang fa، --lang-show، UO_LANG). نسخهٔ 7.18 وضعیت و تعمیر اسپلش بوت را آورد (uo --splash / --fix-splash: بازگرداندن /etc/default/grub گم‌شده یا پارامترهای quiet splash، با بکاپ و update-grub). نسخهٔ 7.18.2 هم uo --fix-appimage-sandbox را اضافه کرد — فیکس دائمی AppArmor برای اپ‌های Electron با AppImage که با خطای chrome-sandbox/SUID روی اوبونتو ۲۳.۱۰+ اجرا نمی‌شوند. نسخهٔ 7.18.3 وایرینگ CLI همان فلگ را اصلاح کرد (مسیر به تابع نمی‌رسید) و حالا اسم دستور نصب‌شده را هم مستقیم می‌فهمد (uo --fix-appimage-sandbox zcode) و پروفایل با مسیر کوتیشن‌دار برای مسیرهای دارای فاصله امن است. نسخهٔ ۷.۱۸.۴ اپ‌های فقط-گرافیکی را هم با اسم پیدا می‌کند (دستور ترمینال، اسکریپت رپر، ورودی منوی دسکتاپ و پوشه‌های رایج) و ورودی‌های تکراری/خراب منو را هم تشخیص می‌دهد — همان دلیلی که یک برنامه دوبار در منو دیده می‌شود. نسخهٔ ۷.۱۸.۵ پروفایل را واقعاً در هسته لود می‌کند (فلگ قبلی فقط پارسش می‌کرد)، موجود بودن AppArmor را از قبل بررسی می‌کند (WSL2/ماشین مجازی/کانتینر) و به‌جای بلعیدن خطا، خودش را نمایش می‌دهد. ۵۶۲/۵۶۲ تست پاس و ShellCheck تمیز است.",
+        a: "نسخهٔ 7.16 خانوادهٔ «نگهداری و سخت‌افزار» را آورد (uo --dns با پریست‌های عبور از تحریم، uo --kernel-list/--kernel-clean برای پاک‌سازی هسته‌های قدیمی، و مدیریت سواپ با uo --swap-on/--swap-off/--swappiness). نسخهٔ 7.17 هم uo --fzf (جست‌وجوی فازی و اجرای هر اقدام) و رابط دوزبانهٔ fa/en را اضافه کرد (uo --lang fa، --lang-show، UO_LANG). نسخهٔ 7.18 وضعیت و تعمیر اسپلش بوت را آورد (uo --splash / --fix-splash: بازگرداندن /etc/default/grub گم‌شده یا پارامترهای quiet splash، با بکاپ و update-grub). نسخهٔ 7.18.2 هم uo --fix-appimage-sandbox را اضافه کرد — فیکس دائمی AppArmor برای اپ‌های Electron با AppImage که با خطای chrome-sandbox/SUID روی اوبونتو ۲۳.۱۰+ اجرا نمی‌شوند. نسخهٔ 7.18.3 وایرینگ CLI همان فلگ را اصلاح کرد (مسیر به تابع نمی‌رسید) و حالا اسم دستور نصب‌شده را هم مستقیم می‌فهمد (uo --fix-appimage-sandbox zcode) و پروفایل با مسیر کوتیشن‌دار برای مسیرهای دارای فاصله امن است. نسخهٔ ۷.۱۸.۴ اپ‌های فقط-گرافیکی را هم با اسم پیدا می‌کند (دستور ترمینال، اسکریپت رپر، ورودی منوی دسکتاپ و پوشه‌های رایج) و ورودی‌های تکراری/خراب منو را هم تشخیص می‌دهد — همان دلیلی که یک برنامه دوبار در منو دیده می‌شود. نسخهٔ ۷.۱۸.۵ پروفایل را واقعاً در هسته لود می‌کند (فلگ قبلی فقط پارسش می‌کرد)، موجود بودن AppArmor را از قبل بررسی می‌کند (WSL2/ماشین مجازی/کانتینر) و به‌جای بلعیدن خطا، خودش را نمایش می‌دهد. نسخهٔ ۷.۱۸.۶ خط اول پروفایل را اصلاح کرد: تعریف abi به شکل `abi 4.0,` بود که پارسر آن را فایلی به نام «4.0» می‌خواند (Could not open '4.0')؛ حالا شکل معتبر `abi <abi/4.0>,` تولید می‌شود و فقط وقتی فایل ABI واقعاً وجود دارد. ۵۶۴/۵۶۴ تست پاس و ShellCheck تمیز است.",
       },
     ],
   },

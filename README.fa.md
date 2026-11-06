@@ -12,10 +12,10 @@
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.18.5-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.18.6-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-562%20%2F%20562-brightgreen)
+![Tests](https://img.shields.io/badge/bats-564%20%2F%20564-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 [![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/CheginiSoroush/badge.svg)](https://hub.xerj.org/contributors/CheginiSoroush)
 
@@ -200,7 +200,7 @@ uo --profile server -y             # اعمال بدون سؤال
 | `uo --swap` · `--swap-on [MB]` · `--swap-off` | وضعیت swap · ساخت و فعال‌سازی `/swapfile` پیشنهادی (ورودی fstab علامت‌دار) · حذف آن — پارتیشن/zram دست‌نخورده (v7.16) |
 | `uo --swappiness N` | تنظیم `vm.swappiness` (۱ تا ۱۰۰) از مسیر sysctl قابل-undo (v7.16) |
 | `uo --splash` · `--fix-splash` | وضعیت اسپلش بوت (خط فرمان کرنل، پیکربندی GRUB، پلیموث) · بازگرداندن اسپلش گرافیکی: نصب دوبارهٔ `/etc/default/grub` گم‌شده (`--force-confmiss`، فال‌بک دست‌نویس) یا افزودن دوبارهٔ `quiet splash` با بکاپ زمان‌دار و بعد `update-grub` — دراپ‌این‌های kdump/فروشنده لمس نمی‌شوند (v7.18) |
-| `uo --fix-appimage-sandbox FILE\|NAME` | فیکس دائمی اپ‌های Electron نصب‌شده با AppImage که با خطای «SUID sandbox helper … chrome-sandbox … mode 4755» روی اوبونتو ۲۳.۱۰+ اجرا نمی‌شوند: ساخت پروفایل AppArmor برای همان برنامه که sandbox فضای-نام کاربر را مجاز می‌کند و مستقیماً در هسته لود می‌شود (سندباکس روشن می‌ماند — برخلاف `--no-sandbox`). اسم خالص برنامه از طریق دستورها، رپرها، ورودی‌های منو و پوشه‌های رایج حل می‌شود؛ ورودی‌های تکراری/خراب منو گزارش می‌شوند؛ قبل از هر تغییری موجود بودن AppArmor بررسی و خطای واقعی نمایش داده می‌شود (v7.18.5) |
+| `uo --fix-appimage-sandbox FILE\|NAME` | فیکس دائمی اپ‌های Electron نصب‌شده با AppImage که با خطای «SUID sandbox helper … chrome-sandbox … mode 4755» روی اوبونتو ۲۳.۱۰+ اجرا نمی‌شوند: ساخت پروفایل AppArmor برای همان برنامه که sandbox فضای-نام کاربر را مجاز می‌کند و مستقیماً در هسته لود می‌شود (سندباکس روشن می‌ماند — برخلاف `--no-sandbox`). اسم خالص برنامه از طریق دستورها، رپرها، ورودی‌های منو و پوشه‌های رایج حل می‌شود؛ ورودی‌های تکراری/خراب منو گزارش می‌شوند؛ قبل از هر تغییری موجود بودن AppArmor بررسی و خطای واقعی نمایش داده می‌شود؛ پروفایل تولیدشده حالا تعریف معتبر `abi <abi/4.0>,` را دارد (v7.18.6) |
 | `uo --fzf` | راه‌انداز تعاملی fzf روی همهٔ اقدام‌ها — Enter=اجرا، Esc=انصراف؛ `UO_FZF_BIN` برای مسیر دلخواه (v7.17) |
 | `uo --lang fa\|en` | ذخیرهٔ زبان رابط؛ `--lang-show` زبان فعلی + منبعش را چاپ می‌کند (v7.17) |
 | `uo --doctor` | بررسی سلامت و تعمیر همهٔ برنامه‌های نصب‌شده/ردیابی‌شده |
