@@ -46,7 +46,7 @@ GITHUB_INSTALL_REPO=""
 GITHUB_INSTALL_NAME=""
 GITHUB_REMOVE_TARGET=""
 PROFILE_NAME=""
-APPIMAGE_SANDBOX_FILE=""   # --fix-appimage-sandbox <file> — the dispatcher calls functions arg-less, so the path rides on this global (like SWAP_SWAPPINESS/DNS_PRESET)
+APPIMAGE_SANDBOX_FILE=""   # --fix-appimage-sandbox <file-or-name> — the dispatcher calls functions arg-less, so the value rides on this global (like SWAP_SWAPPINESS/DNS_PRESET)
 JSON_MODE=0
 OUTPUT_FILE=""
 APPEND_MODE=0
@@ -211,12 +211,15 @@ Options:
                       --force-confmiss, hand-written fallback) or re-adds
                       quiet splash (timestamped backup), then update-grub;
                       kdump/vendor drop-ins are never touched
-  --fix-appimage-sandbox FILE
+  --fix-appimage-sandbox FILE|APP-NAME
                       permanent fix for Electron AppImages that abort with the
                       “SUID sandbox helper … chrome-sandbox … mode 4755”
                       error on Ubuntu 23.10+: installs a per-app AppArmor
                       profile granting user-namespace sandboxing to that
-                      binary (sandboxing stays ON — unlike --no-sandbox)
+                      binary (sandboxing stays ON — unlike --no-sandbox);
+                      a bare app name is resolved through terminal commands,
+                      menu entries and common folders — duplicate/stale
+                      menu icons are diagnosed as a bonus
 
   --git-ssh           GitHub SSH key setup wizard
   --git-ssh-status    SSH key / GitHub authentication status
@@ -361,6 +364,8 @@ Examples:
   uo --fix-splash         # restore the graphical splash (quiet splash)
   uo --fix-appimage-sandbox ~/Apps/ZCode.AppImage
                           # Electron AppImage aborts with the SUID/chrome-sandbox error
+  uo --fix-appimage-sandbox zcode
+                          # same, by app name — resolved through commands + menu entries
   uo --swap-on 4096       # create a 4 GB swapfile
   uo --swappiness 10      # the desktop sweet spot
   uo --fzf                # fuzzy-search every action and run the picked one

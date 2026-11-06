@@ -4,6 +4,17 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.18.4] — `--fix-appimage-sandbox` finds GUI-only apps + duplicate-menu diagnosis
+
+### Fixed
+- **The failure message printed an empty path**: the CLI dispatcher calls the function arg-less, so the `File not found: ${1:-}` branch rendered as `✗ File not found: ` with nothing after the colon (reported by a real user seconds after v7.18.3). Every failure path now reports the value the user actually typed.
+- **Bare-name resolution was one-trick**: it only tried `command -v`, so a GUI-only app with no terminal command at all (launched purely from its menu icon — exactly the reporter's ZCode) could never resolve.
+
+### Added
+- **Full name resolution for `--fix-appimage-sandbox`**: new `appimage_resolve_name()` searches (1) terminal commands — symlink target, or a wrapper script chased to the AppImage it execs, (2) desktop-menu `Exec=` entries — the GUI-only case, (3) case-insensitive `*name*.AppImage` matches in `~/Applications`, `~/.local/bin`, `~/bin`, `~/Downloads`, `/opt`, `/usr/local/bin`. Candidates are deduplicated, the newest file wins first place, and several matches are listed with a pass-the-exact-path hint.
+- **Duplicate/stale menu-icon diagnosis** (`appimage_find_desktop_entries()` + `_appimage_report_entries()`): every `.desktop` entry naming the app is listed with its `Exec=` target; vanished targets are flagged with removal advice, and 2+ entries trigger the "that is why it can appear twice in the menu" warning — the tool now explains its reporter's second bug report in the same run.
+- Tests **550 → 558**: desktop-entry matching (Exec + `Name=`, case-insensitive), resolution via menu entry / common folders / wrapper script, the empty-message regression lock, stale-entry diagnosis, duplicate-entries + newest-wins, and a real-entry-script end-to-end run that resolves a GUI-only name through `--dry-run`. `bats` **558/558** · ShellCheck clean (`-S warning`, CI parity) · `bash -n` clean.
+
 ## [7.18.3] — `--fix-appimage-sandbox` wiring fix + command-name resolution
 
 ### Fixed
