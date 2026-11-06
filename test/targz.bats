@@ -52,6 +52,9 @@ EOF
     source "$TEST_HOME/uo-tree/lib/disk.sh"
     # shellcheck source=/dev/null
     source "$TEST_HOME/uo-tree/lib/targz.sh"
+    # appmgmt.sh — _desktop_exec_path is part of the v7.18.4 name resolver
+    # shellcheck source=/dev/null
+    source "$TEST_HOME/uo-tree/lib/appmgmt.sh"
     SCRIPT_DIR="$TEST_HOME/uo-tree"
 
     # sudo stub: logs every privileged call, executes nothing, always succeeds
@@ -416,6 +419,127 @@ make_fixture() {   # $1=parent dir  $2=top-level folder name
     run appimage_fix_sandbox "zcode"
     [ "$status" -eq 0 ]
     grep -q "sudo apparmor_parser -r -T /etc/apparmor.d/uo-appimage-ZCode" "$SUDO_LOG"
+}
+
+# ---------- v7.18.4: name resolution + duplicate menu-entry diagnosis ----------
+
+@test "appimage_find_desktop_entries: matches Exec targets and Name= lines (case-insensitive)" {
+    local ad="$TEST_HOME/.local/share/applications"
+    mkdir -p "$ad"
+    printf '[Desktop Entry]\nName=ZCode\nExec=%s/Apps/ZCode.AppImage %%U\nType=Application\n' "$TEST_HOME" > "$ad/zcode.desktop"
+    printf '[Desktop Entry]\nName=Helper\nExec=%s/Apps/zcode-helper.AppImage\nType=Application\n' "$TEST_HOME" > "$ad/other.desktop"
+    printf '[Desktop Entry]\nName=Nothing\nExec=/usr/bin/nothing\nType=Application\n' > "$ad/noise.desktop"
+    run appimage_find_desktop_entries "zcode"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"$ad/zcode.desktop"* ]]
+    [[ "$output" == *"$ad/other.desktop"* ]]
+    [[ "$output" != *"noise.desktop"* ]]
+}
+
+@test "appimage_resolve_name: finds the AppImage behind a GUI-only desktop entry" {
+    # the user's exact shape: ZCode has NO terminal command, only a menu icon
+    local apps="$TEST_HOME/Apps"
+    mkdir -p "$apps"
+    : > "$apps/ZCode.AppImage"
+    local ad="$TEST_HOME/.local/share/applications"
+    mkdir -p "$ad"
+    printf '[Desktop Entry]\nName=ZCode\nExec=%s/ZCode.AppImage %%U\nType=Application\n' "$apps" > "$ad/zcode.desktop"
+    run appimage_resolve_name "zcode"
+    [ "$status" -eq 0 ]
+    [ "$(basename "$output")" = "ZCode.AppImage" ]
+}
+
+@test "appimage_resolve_name: case-insensitive match in common AppImage folders" {
+    mkdir -p "$TEST_HOME/Applications"
+    : > "$TEST_HOME/Applications/zcode-1.2.3.AppImage"
+    run appimage_resolve_name "zcode"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"/Applications/zcode-1.2.3.AppImage"* ]]
+}
+
+@test "appimage_resolve_name: chases a wrapper script to its inner AppImage" {
+    local apps="$TEST_HOME/Apps"
+    mkdir -p "$apps"
+    : > "$apps/Real.AppImage"
+    local bin="$TEST_HOME/bin"
+    mkdir -p "$bin"
+    printf '#!/usr/bin/env bash\nexec "%s/Real.AppImage" "$@"\n' "$apps" > "$bin/zcode"
+    chmod +x "$bin/zcode"
+    command() {   # command -v zcode → the wrapper script
+        if [ "$1" = "-v" ] && [ "$2" = "zcode" ]; then printf '%s\n' "$bin/zcode"; return 0; fi
+        return 1
+    }
+    run appimage_resolve_name "zcode"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"/Real.AppImage"* ]]
+}
+
+@test "appimage_fix_sandbox: never prints an empty 'File not found' (v7.18.4)" {
+    # regression: the dispatcher calls arg-less, so ${1:-} once printed nothing
+    sanitize_app_name() { printf '%s' "${1//[^a-zA-Z0-9._-]/-}"; }
+    MSG_LOG="$TEST_HOME/msg.log"
+    failure() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    info() { :; }
+    warn() { :; }
+    run appimage_fix_sandbox "ghost-app"
+    [ "$status" -eq 1 ]
+    grep -q "File not found: ghost-app" "$MSG_LOG"
+    ! grep -q "File not found: $" "$MSG_LOG"
+}
+
+@test "appimage_fix_sandbox: diagnoses stale menu entries behind an unresolvable name" {
+    sanitize_app_name() { printf '%s' "${1//[^a-zA-Z0-9._-]/-}"; }
+    MSG_LOG="$TEST_HOME/msg.log"
+    failure() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    info() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    warn() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    local ad="$TEST_HOME/.local/share/applications"
+    mkdir -p "$ad"
+    printf '[Desktop Entry]\nName=ZCode\nExec=%s/gone/ZCode.AppImage %%U\nType=Application\n' "$TEST_HOME" > "$ad/zcode-old.desktop"
+    run appimage_fix_sandbox "zcode"
+    [ "$status" -eq 1 ]
+    grep -q "Stale menu entry.*zcode-old.desktop" "$MSG_LOG"
+    grep -q "target is gone" "$MSG_LOG"
+    grep -q "File not found: zcode" "$MSG_LOG"
+}
+
+@test "appimage_fix_sandbox: warns about duplicate menu entries, newest AppImage wins" {
+    sanitize_app_name() { printf '%s' "${1//[^a-zA-Z0-9._-]/-}"; }
+    header() { :; }
+    info() { :; }
+    success() { :; }
+    confirm_action() { return 0; }
+    MSG_LOG="$TEST_HOME/msg.log"
+    warn() { printf '%s\n' "$*" >> "$MSG_LOG"; }
+    local apps="$TEST_HOME/Apps"
+    mkdir -p "$apps"
+    : > "$apps/zcode-1.0.AppImage"
+    : > "$apps/zcode-2.0.AppImage"
+    touch -d '2020-01-01' "$apps/zcode-1.0.AppImage"   # deterministic mtimes:
+    touch -d '2030-01-01' "$apps/zcode-2.0.AppImage"   # newest must win
+    local ad="$TEST_HOME/.local/share/applications"
+    mkdir -p "$ad"
+    printf '[Desktop Entry]\nName=ZCode\nExec=%s/zcode-1.0.AppImage\nType=Application\n' "$apps" > "$ad/zcode-old.desktop"
+    printf '[Desktop Entry]\nName=ZCode\nExec=%s/zcode-2.0.AppImage\nType=Application\n' "$apps" > "$ad/zcode-new.desktop"
+    run appimage_fix_sandbox "zcode"
+    [ "$status" -eq 0 ]
+    grep -q "menu entries mention 'zcode'" "$MSG_LOG"
+    grep -q "sudo install -m 0644" "$SUDO_LOG"
+    grep -q "apparmor_parser -r -T /etc/apparmor.d/uo-appimage-zcode-2.0" "$SUDO_LOG"
+}
+
+@test "cli: --fix-appimage-sandbox resolves a GUI-only app name end-to-end (v7.18.4)" {
+    # the real entry script must find ZCode through its menu entry alone
+    local apps="$TEST_HOME/Apps"
+    mkdir -p "$apps"
+    : > "$apps/ZCode.AppImage"
+    local ad="$TEST_HOME/.local/share/applications"
+    mkdir -p "$ad"
+    printf '[Desktop Entry]\nName=ZCode\nExec=%s/ZCode.AppImage %%U\nType=Application\n' "$apps" > "$ad/zcode.desktop"
+    run run_uo --fix-appimage-sandbox zcode --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"profile uo-appimage-ZCode \"$apps/ZCode.AppImage\" flags=(unconfined)"* ]]
+    [[ "$output" == *"dry-run"* ]]
 }
 
 @test "appimage_install_from_file: warns about an ARM-only AppImage on an x86 machine" {

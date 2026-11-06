@@ -734,7 +734,7 @@ appimage_ensure_fuse() {
 # ───────────────────────────────────────────────────────────────────────────────
 appimage_print_launch_hint() {
     info "If it won't open from the desktop, run it once in a terminal — '$1' — and read the error line (GUI launches hide it)."
-    local _sbx="A crash like 'SUID sandbox helper … chrome-sandbox … mode 4755' is the Electron sandbox vs Ubuntu 23.10+ — permanent fix: uo --fix-appimage-sandbox <AppImage file> — quick check: $1 --no-sandbox"
+    local _sbx="A crash like 'SUID sandbox helper … chrome-sandbox … mode 4755' is the Electron sandbox vs Ubuntu 23.10+ — permanent fix: uo --fix-appimage-sandbox <AppImage-or-app-name> — quick check: $1 --no-sandbox"
     if [ -r "/proc/sys/kernel/apparmor_restrict_unprivileged_userns" ] \
         && [ "$(cat /proc/sys/kernel/apparmor_restrict_unprivileged_userns 2> /dev/null)" = "1" ]; then
         _sbx+=" (this kernel restricts unprivileged user namespaces — the usual cause)"
@@ -778,6 +778,174 @@ appimage_write_userns_profile() {
 }
 
 # ───────────────────────────────────────────────────────────────────────────────
+# appimage_find_desktop_entries() — desktop files that mention an app name
+#
+# A GUI-only AppImage (no terminal command anywhere) still has a launcher:
+# its .desktop entry. Scanning the two canonical application directories for
+# Exec targets or Name= lines containing the name (case-insensitive) finds
+# the app the way the menu sees it — and is also the diagnosis for "my app
+# appears twice in the menu" (two entries → two icons, one often stale).
+#
+# Arguments: $1 — app name (e.g. zcode)
+# Prints:    matching .desktop file paths, one per line
+# ───────────────────────────────────────────────────────────────────────────────
+appimage_find_desktop_entries() {   # $1=name → stdout: matching .desktop paths
+    local name=$1
+    [ -n "$name" ] || return 1
+    local dir f exec_path
+    for dir in "$HOME/.local/share/applications" /usr/share/applications; do
+        [ -d "$dir" ] || continue
+        for f in "$dir"/*.desktop; do
+            [ -f "$f" ] || continue
+            exec_path=$(_desktop_exec_path "$f")
+            if [[ "${exec_path,,}" == *"${name,,}"* ]] \
+                || grep -qiF "name=$name" "$f" 2> /dev/null; then
+                printf '%s\n' "$f"
+            fi
+        done
+    done
+    return 0
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# _appimage_inner_appimage() — chase a binary/wrapper to the AppImage it runs
+#
+# `command -v app` may find a symlink to the AppImage (realpath already
+# resolves that) or a wrapper SCRIPT that execs it. Scans the script text for
+# one path token ending in .AppImage and prints it if the file exists.
+#
+# Arguments: $1 — candidate binary/wrapper path
+# Prints:    the AppImage path, or nothing
+# ───────────────────────────────────────────────────────────────────────────────
+_appimage_inner_appimage() {   # $1=wrapper/binary path → stdout: AppImage or empty
+    local p=$1
+    [ -n "$p" ] && [ -f "$p" ] && [ -r "$p" ] || return 0
+    local inner
+    inner=$(grep -aoE '[^[:space:]"]+\.AppImage' "$p" 2> /dev/null | head -n 1)
+    if [ -n "$inner" ] && [ -f "$inner" ]; then
+        printf '%s\n' "$inner"
+    fi
+    return 0
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# appimage_resolve_name() — turn what the user knows into a real AppImage
+#
+# The user knows a name ("zcode"), not a path. Search order mirrors how the
+# app is actually launched: (1) a terminal command → its symlink target or
+# wrapper script, (2) desktop-menu Exec= entries — the GUI-only case, (3) a
+# case-insensitive filename match in the folders people drop AppImages in.
+# Existing candidates only; duplicates removed; newest file wins first place
+# (when several copies exist, the one updated last is the one in use).
+#
+# Arguments: $1 — app name or file path
+# Prints:    candidate .AppImage paths (existing files), best first
+# Returns:   0 — at least one candidate; 1 — nothing found
+# ───────────────────────────────────────────────────────────────────────────────
+appimage_resolve_name() {   # $1=name → stdout: candidate paths, best first
+    local name=$1
+    [ -n "$name" ] || return 1
+    local -a cands=()
+    local p dir f exec_path
+
+    # 1) terminal command: the binary behind the name
+    p=$(command -v "$name" 2> /dev/null) || p=""
+    if [ -n "$p" ] && [ -e "$p" ]; then
+        p=$(realpath -e "$p" 2> /dev/null) || p=""
+        case $p in
+            *.AppImage) cands+=("$p") ;;
+            "") : ;;
+            *)  p=$(_appimage_inner_appimage "$p")
+                [ -n "$p" ] && cands+=("$p") ;;
+        esac
+    fi
+
+    # 2) desktop menu entries — how GUI-only apps actually start
+    while IFS= read -r f; do
+        [ -n "$f" ] || continue
+        exec_path=$(_desktop_exec_path "$f")
+        [ -n "$exec_path" ] || continue
+        case $exec_path in
+            *.AppImage) : ;;
+            *)  if [ -e "$exec_path" ]; then
+                    p=$(realpath -e "$exec_path" 2> /dev/null) || p=""
+                    case $p in
+                        *.AppImage) exec_path=$p ;;
+                        *)  p=$(_appimage_inner_appimage "$p")
+                            [ -n "$p" ] && exec_path=$p ;;
+                    esac
+                fi ;;
+        esac
+        [ -f "$exec_path" ] && cands+=("$(realpath -e "$exec_path" 2> /dev/null || printf '%s' "$exec_path")")
+    done < <(appimage_find_desktop_entries "$name" 2> /dev/null)
+
+    # 3) the folders people actually drop AppImages into (case-insensitive)
+    for dir in "$HOME/Applications" "$HOME/.local/bin" "$HOME/bin" "$HOME/Downloads" /opt /usr/local/bin; do
+        [ -d "$dir" ] || continue
+        while IFS= read -r p; do
+            if [ -n "$p" ] && [ -f "$p" ]; then
+                cands+=("$(realpath -e "$p" 2> /dev/null || printf '%s' "$p")")
+            fi
+        done < <(find "$dir" -maxdepth 2 -iname "*${name}*.AppImage" 2> /dev/null)
+    done
+
+    # dedupe (string equality — glob-safe), keep only real files
+    local -a uniq=()
+    local c d dup
+    for c in "${cands[@]}"; do
+        if [ -z "$c" ] || [ ! -f "$c" ]; then continue; fi
+        dup=0
+        for d in "${uniq[@]}"; do
+            if [ "$d" = "$c" ]; then dup=1; break; fi
+        done
+        if [ "$dup" = 0 ]; then uniq+=("$c"); fi
+    done
+    [ "${#uniq[@]}" -gt 0 ] || return 1
+    if [ "${#uniq[@]}" -eq 1 ]; then
+        printf '%s\n' "${uniq[0]}"
+    else
+        # newest first: the recently updated copy is the one being used
+        local c2
+        for c2 in "${uniq[@]}"; do stat -c '%Y %n' "$c2" 2> /dev/null; done \
+            | sort -rn | cut -d' ' -f2-
+    fi
+    return 0
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
+# _appimage_report_entries() — explain an app's menu entries (duplicate icons)
+#
+# "The app shows up twice in my menu" = two .desktop entries name it, and one
+# of them usually points at an AppImage that no longer exists. Prints where
+# each entry's Exec points, flags stale targets with the exact removal advice.
+#
+# Arguments: $1 — app name or .AppImage path
+# ───────────────────────────────────────────────────────────────────────────────
+_appimage_report_entries() {   # $1=name or path → info/warn lines
+    local name=$1
+    if [[ "$name" == */* ]]; then name=$(basename "$name"); fi
+    name=${name%.AppImage}
+    [ -n "$name" ] || return 0
+    local -a entries=()
+    mapfile -t entries < <(appimage_find_desktop_entries "$name" 2> /dev/null)
+    [ "${#entries[@]}" -gt 0 ] || return 0
+    local f tgt stale=0
+    for f in "${entries[@]}"; do
+        tgt=$(_desktop_exec_path "$f")
+        if [ -n "$tgt" ] && [ -e "$tgt" ]; then
+            info "Menu entry: $f → $tgt"
+        else
+            stale=$((stale + 1))
+            warn "Stale menu entry: $f → ${tgt:-<no Exec>} — its target is gone; remove this .desktop file to drop the icon"
+        fi
+    done
+    if [ "${#entries[@]}" -gt 1 ]; then
+        warn "${#entries[@]} menu entries mention '$name' — that is why it can appear twice in the menu; keep the one whose target you actually use."
+    fi
+    return 0
+}
+
+# ───────────────────────────────────────────────────────────────────────────────
 # appimage_fix_sandbox() — the permanent fix for Electron AppImage aborts
 #
 # Writes /etc/apparmor.d/uo-appimage-<app> (a per-app userns profile for the
@@ -786,36 +954,61 @@ appimage_write_userns_profile() {
 # asks before touching anything. The profile is path-bound: moving the file
 # means re-running this command; the undo line is always printed.
 #
-# Input: $1 — a .AppImage path, OR the bare name of an installed command
-#            (resolved through PATH — `uo --fix-appimage-sandbox zcode` finds
-#            the AppImage behind a ~/.local/bin symlink or copy). When invoked
-#            from the CLI dispatcher, $1 is empty and the path rides on the
-#            APPIMAGE_SANDBOX_FILE global (the dispatcher calls arg-less).
+# Input: $1 — a .AppImage path, OR just the app's name (v7.18.4): resolved
+#            through PATH commands, wrapper scripts, desktop-menu Exec=
+#            entries and common AppImage folders — `uo --fix-appimage-sandbox
+#            zcode` finds the app even when it has no terminal command and
+#            only a menu icon. When invoked from the CLI dispatcher, $1 is
+#            empty and the value rides on the APPIMAGE_SANDBOX_FILE global
+#            (the dispatcher calls arg-less).
 # Returns:   0 — profile installed (or shown in dry-run)
 #            1 — invalid input, cancellation, or the install failed
 # ───────────────────────────────────────────────────────────────────────────────
 appimage_fix_sandbox() {
     local APPIMAGE_PATH=${1:-${APPIMAGE_SANDBOX_FILE:-}}
     APPIMAGE_PATH=${APPIMAGE_PATH/#\~/$HOME}
+    local _input=$APPIMAGE_PATH   # what the user actually typed (for reports)
     if [ -z "$APPIMAGE_PATH" ]; then
         failure "Usage: uo --fix-appimage-sandbox <path/to/app.AppImage>"
         return 1
     fi
-    # A bare command name (no slash) that is not a file — resolve through PATH,
-    # so the fix targets the same binary the user actually launches.
+    # A bare name (no slash) that is not a file — resolve it the way the user
+    # actually launches the app: PATH → wrapper script → menu entries → folders.
     if [ ! -f "$APPIMAGE_PATH" ] && [[ "$APPIMAGE_PATH" != */* ]]; then
-        local _resolved
-        _resolved=$(command -v "$APPIMAGE_PATH" 2> /dev/null) || _resolved=""
-        [ -n "$_resolved" ] && APPIMAGE_PATH=$_resolved
+        local -a _cands=()
+        mapfile -t _cands < <(appimage_resolve_name "$APPIMAGE_PATH" 2> /dev/null)
+        if [ "${#_cands[@]}" -gt 0 ]; then
+            APPIMAGE_PATH=${_cands[0]}
+            if [ "${#_cands[@]}" -gt 1 ]; then
+                warn "Several AppImages match '$APPIMAGE_PATH' — using the newest:"
+                local _c
+                for _c in "${_cands[@]}"; do info "  · $_c"; done
+                info "To target another one, pass its exact path."
+            fi
+        fi
+    fi
+    if [ ! -f "$APPIMAGE_PATH" ]; then
+        # diagnose BEFORE giving up: menu entries often explain everything
+        _appimage_report_entries "$_input"
+        failure "File not found: $APPIMAGE_PATH"
+        info "Searched: terminal commands, desktop menu entries (Exec=) and common AppImage folders."
+        info "Locate the real .AppImage and pass its path:  uo --fix-appimage-sandbox /path/to/App.AppImage"
+        return 1
     fi
     APPIMAGE_PATH=$(realpath -e "$APPIMAGE_PATH" 2> /dev/null) || {
-        failure "File not found: ${1:-}"
-        info "If the app starts from a terminal command, try its name:  uo --fix-appimage-sandbox <command-name>"
-        info "Or locate the real .AppImage first:  command -v <name>  (then pass that path)"
+        failure "File not found: $APPIMAGE_PATH"
         return 1
     }
     [[ "$APPIMAGE_PATH" =~ \.AppImage$ ]] || { failure "Not an AppImage: $APPIMAGE_PATH"; return 1; }
     [ -f "$APPIMAGE_PATH" ] || { failure "File not found: $APPIMAGE_PATH"; return 1; }
+    # while we are here: duplicate/stale menu icons for this app (v7.18.4).
+    # Key on the name the user typed ("zcode"), not the resolved, possibly
+    # versioned filename ("zcode-2.0") — siblings must be caught too.
+    if [[ "$_input" != */* ]]; then
+        _appimage_report_entries "$_input"
+    else
+        _appimage_report_entries "$APPIMAGE_PATH"
+    fi
 
     local APP_NAME PROFILE_NAME DEST TMP
     APP_NAME=$(basename "$APPIMAGE_PATH")
