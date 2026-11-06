@@ -4,6 +4,18 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.18.3] — `--fix-appimage-sandbox` wiring fix + command-name resolution
+
+### Fixed
+- **The v7.18.2 flag never delivered its argument**: the CLI dispatcher calls queued functions arg-less (`"$cli_dispatch_fn"`, action format `function|label`), so `CLI_ACTIONS+=("appimage_fix_sandbox|$2")` parked the path in the label and the function always ran with an empty `$1` — every invocation printed the Usage line and failed (reported by a real user seconds after v7.18.2 shipped). The path now rides on the `APPIMAGE_SANDBOX_FILE` global, the same convention as `SWAP_SWAPPINESS`/`DNS_PRESET`/`OUTPUT_FILE`, and a CLI-level end-to-end regression test (`--fix-appimage-sandbox FILE --dry-run`) locks the full wiring in.
+
+### Added
+- **Bare command-name resolution**: `uo --fix-appimage-sandbox zcode` now accepts the command the user actually launches (no slash, not a file) and resolves it through `PATH`/`realpath` — finding the AppImage behind a `~/.local/bin` symlink or copy. The not-found message explains both discovery routes (`command -v <name>` / passing the name).
+- **Space-safe profiles**: the profile attachment path is quoted (`profile NAME "/path" flags=(unconfined)`) — valid AppArmor syntax that also survives AppImage directories containing spaces.
+
+### QA
+- `bats` **550/550** (548 → 550: +2 — CLI end-to-end wiring, command-name resolution; quoted-path assertions updated) · ShellCheck clean (project rc, -S warning) · `bash -n` clean.
+
 ## [7.18.2] — AppImage sandbox doctor (`uo --fix-appimage-sandbox`)
 
 ### Added

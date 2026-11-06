@@ -762,7 +762,7 @@ appimage_userns_profile_body() {
 abi 4.0,
 include <tunables/global>
 
-profile $1 $2 flags=(unconfined) {
+profile $1 "$2" flags=(unconfined) {
   userns,
 
   # Site-specific additions and overrides for this AppImage
@@ -786,19 +786,32 @@ appimage_write_userns_profile() {
 # asks before touching anything. The profile is path-bound: moving the file
 # means re-running this command; the undo line is always printed.
 #
-# Arguments: $1 — path to the .AppImage
+# Input: $1 — a .AppImage path, OR the bare name of an installed command
+#            (resolved through PATH — `uo --fix-appimage-sandbox zcode` finds
+#            the AppImage behind a ~/.local/bin symlink or copy). When invoked
+#            from the CLI dispatcher, $1 is empty and the path rides on the
+#            APPIMAGE_SANDBOX_FILE global (the dispatcher calls arg-less).
 # Returns:   0 — profile installed (or shown in dry-run)
 #            1 — invalid input, cancellation, or the install failed
 # ───────────────────────────────────────────────────────────────────────────────
 appimage_fix_sandbox() {
-    local APPIMAGE_PATH=${1:-}
+    local APPIMAGE_PATH=${1:-${APPIMAGE_SANDBOX_FILE:-}}
     APPIMAGE_PATH=${APPIMAGE_PATH/#\~/$HOME}
     if [ -z "$APPIMAGE_PATH" ]; then
         failure "Usage: uo --fix-appimage-sandbox <path/to/app.AppImage>"
         return 1
     fi
+    # A bare command name (no slash) that is not a file — resolve through PATH,
+    # so the fix targets the same binary the user actually launches.
+    if [ ! -f "$APPIMAGE_PATH" ] && [[ "$APPIMAGE_PATH" != */* ]]; then
+        local _resolved
+        _resolved=$(command -v "$APPIMAGE_PATH" 2> /dev/null) || _resolved=""
+        [ -n "$_resolved" ] && APPIMAGE_PATH=$_resolved
+    fi
     APPIMAGE_PATH=$(realpath -e "$APPIMAGE_PATH" 2> /dev/null) || {
         failure "File not found: ${1:-}"
+        info "If the app starts from a terminal command, try its name:  uo --fix-appimage-sandbox <command-name>"
+        info "Or locate the real .AppImage first:  command -v <name>  (then pass that path)"
         return 1
     }
     [[ "$APPIMAGE_PATH" =~ \.AppImage$ ]] || { failure "Not an AppImage: $APPIMAGE_PATH"; return 1; }

@@ -46,6 +46,7 @@ GITHUB_INSTALL_REPO=""
 GITHUB_INSTALL_NAME=""
 GITHUB_REMOVE_TARGET=""
 PROFILE_NAME=""
+APPIMAGE_SANDBOX_FILE=""   # --fix-appimage-sandbox <file> — the dispatcher calls functions arg-less, so the path rides on this global (like SWAP_SWAPPINESS/DNS_PRESET)
 JSON_MODE=0
 OUTPUT_FILE=""
 APPEND_MODE=0
@@ -564,11 +565,12 @@ while [ $# -gt 0 ]; do
         --fix-splash)     CLI_ACTIONS+=("splash_fix|boot splash repair"); shift ;;
         --fix-appimage-sandbox)
             if [ $# -ge 2 ] && [ -n "$2" ] && [[ "$2" != -* ]]; then
-                CLI_ACTIONS+=("appimage_fix_sandbox|$2"); shift 2
+                APPIMAGE_SANDBOX_FILE="$2"; shift 2
             else
                 echo "--fix-appimage-sandbox requires a path: --fix-appimage-sandbox <app.AppImage>" >&2
                 exit 1
             fi
+            CLI_ACTIONS+=("appimage_fix_sandbox|appimage sandbox fix")
             ;;
         --git-ssh)        CLI_ACTIONS+=("gitssh_setup|GitHub SSH setup"); shift ;;
         --git-ssh-status) CLI_ACTIONS+=("gitssh_status|GitHub SSH status"); shift ;;

@@ -305,7 +305,7 @@ make_fixture() {   # $1=parent dir  $2=top-level folder name
     [ "$status" -eq 0 ]
     [[ "$output" == *"abi 4.0,"* ]]
     [[ "$output" == *"include <tunables/global>"* ]]
-    [[ "$output" == *"profile uo-appimage-zcode /opt/zcode/ZCode.AppImage flags=(unconfined)"* ]]
+    [[ "$output" == *"profile uo-appimage-zcode \"/opt/zcode/ZCode.AppImage\" flags=(unconfined)"* ]]
     [[ "$output" == *"  userns,"* ]]
     [[ "$output" == *"include if exists <local/uo-appimage-zcode>"* ]]
 }
@@ -314,7 +314,7 @@ make_fixture() {   # $1=parent dir  $2=top-level folder name
     local dest="$TEST_HOME/uo-appimage-test"
     run appimage_write_userns_profile "$dest" "uo-appimage-test" "/x/Test.AppImage"
     [ "$status" -eq 0 ]
-    grep -q "profile uo-appimage-test /x/Test.AppImage flags=(unconfined)" "$dest"
+    grep -q "profile uo-appimage-test \"/x/Test.AppImage\" flags=(unconfined)" "$dest"
     grep -q "  userns," "$dest"
 }
 
@@ -363,7 +363,7 @@ make_fixture() {   # $1=parent dir  $2=top-level folder name
     DRY_RUN=1 run appimage_fix_sandbox "$app"
     [ "$status" -eq 0 ]
     # the profile body is printed raw to stdout — captured by bats `run`
-    [[ "$output" == *"profile uo-appimage-Other $TEST_HOME/Other.AppImage flags=(unconfined)"* ]]
+    [[ "$output" == *"profile uo-appimage-Other \"$TEST_HOME/Other.AppImage\" flags=(unconfined)"* ]]
     grep -q "dry-run.*apparmor_parser -r -T /etc/apparmor.d/uo-appimage-Other" "$MSG_LOG"
     [ ! -s "$SUDO_LOG" ]
 }
@@ -388,6 +388,34 @@ make_fixture() {   # $1=parent dir  $2=top-level folder name
     run run_uo --fix-appimage-sandbox
     [ "$status" -eq 1 ]
     [[ "$output" == *"requires a path"* ]]
+}
+
+@test "cli: --fix-appimage-sandbox end-to-end — the path reaches the function (v7.18.3 wiring fix)" {
+    # regression: the dispatcher calls functions arg-less, so the flag once
+    # parked the path in the action label and the function saw an empty arg
+    local app="$TEST_HOME/E2E.AppImage"
+    : > "$app"
+    run run_uo --fix-appimage-sandbox "$app" --dry-run
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"profile uo-appimage-E2E \"$TEST_HOME/E2E.AppImage\" flags=(unconfined)"* ]]
+    [[ "$output" == *"dry-run"* ]]
+}
+
+@test "appimage_fix_sandbox: resolves a bare command name through PATH" {
+    sanitize_app_name() { printf '%s' "${1//[^a-zA-Z0-9._-]/-}"; }
+    header() { :; }
+    info() { :; }
+    success() { :; }
+    confirm_action() { return 0; }
+    local app="$TEST_HOME/ZCode.AppImage"
+    : > "$app"
+    command() {   # stand-in for `command -v zcode` on the user's machine
+        if [ "$1" = "-v" ] && [ "$2" = "zcode" ]; then printf '%s\n' "$app"; return 0; fi
+        return 1
+    }
+    run appimage_fix_sandbox "zcode"
+    [ "$status" -eq 0 ]
+    grep -q "sudo apparmor_parser -r -T /etc/apparmor.d/uo-appimage-ZCode" "$SUDO_LOG"
 }
 
 @test "appimage_install_from_file: warns about an ARM-only AppImage on an x86 machine" {
