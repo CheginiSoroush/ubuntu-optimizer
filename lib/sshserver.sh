@@ -62,17 +62,18 @@ ssh_server_unit() {
 # ───────────────────────────────────────────────────────────────────────────────
 # ssh_server_installed() — is the OpenSSH SERVER package present?
 #
-# The sshd binary lives in /usr/sbin, which is often outside a normal
-# user's PATH — probe the absolute path first (SSH_SERVER_SSHD_BIN hook
-# for tests) and only then fall back to command -v.
+# The sshd binary lives at the absolute /usr/sbin/sshd on Debian/Ubuntu —
+# outside a normal user's PATH, so the probe is the absolute path itself
+# (SSH_SERVER_SSHD_BIN hook for tests). There is deliberately NO
+# `command -v sshd` fallback: CI runners ship a real sshd in /usr/sbin and
+# it would leak into every "not installed" test (the apparmor_parser
+# lesson from v7.18.5's CI — never depend on the runner's PATH).
 #
-# Returns:   0 — installed
+# Returns:   0 — installed (an executable sshd at the probed path)
 #            1 — not installed
 # ───────────────────────────────────────────────────────────────────────────────
 ssh_server_installed() {
-    local bin=${SSH_SERVER_SSHD_BIN:-/usr/sbin/sshd}
-    [ -x "$bin" ] && return 0
-    command -v sshd > /dev/null 2>&1
+    [ -x "${SSH_SERVER_SSHD_BIN:-/usr/sbin/sshd}" ]
 }
 
 # ───────────────────────────────────────────────────────────────────────────────
