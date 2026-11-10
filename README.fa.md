@@ -12,10 +12,10 @@
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.18.6-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.18.7-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-564%20%2F%20564-brightgreen)
+![Tests](https://img.shields.io/badge/bats-582%20%2F%20582-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 [![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/CheginiSoroush/badge.svg)](https://hub.xerj.org/contributors/CheginiSoroush)
 
@@ -212,6 +212,8 @@ uo --profile server -y             # اعمال بدون سؤال
 | `uo --list-apps` · `--snap-clean` | فهرست برنامه‌ها · پاک‌سازی نسخه‌های قدیمی snap |
 | `uo --fixnet` · `--fixnet-run` · `--test` | ساخت · اجرای fixnet · تست‌های شبکه |
 | `uo --git-ssh` · `--git-ssh-status` | ویزارد کلید SSH گیت‌هاب · وضعیت |
+| `uo --ssh-server` | نصب openssh-server، فعال‌سازی و اجرای فوری سرویس (پس از ریبوت هم می‌ماند)، باز کردن UFW وقتی فایروال فعال است ولی پورت ۲۲ بسته است، سپس تأیید واقعی و چاپ دستور دقیق `ssh user@ip` — روی کانتینر/WSL1 بدون systemd قبل از هر پرسش صادقانه رد می‌کند (v7.18.7) |
+| `uo --ssh-server-status` | گزارش فقط-خواندنی سرور SSH: نصب؟ وضعیت سرویس، پورت شنونده، حکم فایروال + خط اتصال |
 | `uo --log` · `--log-clear` | نمایش · حذف گزارش فعالیت |
 | `uo -y` · `--no-color` · `--no-log` | تأیید خودکار · خروجی ساده · ثبت‌نکردن گزارش |
 

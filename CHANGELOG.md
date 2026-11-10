@@ -4,6 +4,14 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## [7.18.7] — remote access: `uo --ssh-server` installs, enables and firewalls the OpenSSH server
+
+### Added
+- **`uo --ssh-server` (new `lib/sshserver.sh` + menu items + fzf actions)**: turns THIS machine into an SSH server — the exact opposite of the GitHub key wizard (`--git-ssh` = reach out; `--ssh-server` = be reachable). The wizard installs `openssh-server` (skipped when present), `systemctl enable --now ssh` (Ubuntu unit name, `sshd` fallback) so it survives reboots, offers `ufw allow OpenSSH` when UFW is active with port 22 closed — the #1 silent "installed ssh but can't connect" cause — then verifies the service is really active and a socket is really listening before printing the ready-to-paste `ssh user@ip -p <port>` connect line. Both new flags land in the Security & Passwords menu, `--help`, bash completions and the fzf action list.
+- **Honest pre-flights before any prompt** (the v7.18.5 philosophy): no apt → refuse (Debian/Ubuntu package manager only); systemd not running → refuse with the WSL2 `/etc/wsl.conf` hint — a container can install the package but can never start it, and refusing early beats installing something dead. Every privileged step captures stderr and prints it verbatim (`└ <line>`) on failure.
+- **`uo --ssh-server-status`**: read-only report — installed?, unit name, active + boot-enabled state, listening port (parsed from `ss -tlnp`), UFW verdict (active+allowed / active+closed / inactive / unknown), connect line. A status report is never an error.
+- Tests **564 → 582** (+18): the /usr/sbin probe hook (`SSH_SERVER_SSHD_BIN`), unit-name preference (`ssh` before `sshd`, none → rc 1), `ss` port parsing, status for all four state combinations (green / firewall-closed / service-down / not-installed), both pre-flight refusals (asserting nothing privileged was attempted), the declined-confirmation no-op, the full happy path (apt + enable + UFW allow all logged), already-installed skipping apt, apt and enable failures surfacing their real error lines, inactive-UFW skipping the call, a service that never reaches `active` failing instead of lying, plus two end-to-end CLI runs. Hermetic by construction: PATH-prefixed stubs for `systemctl`/`ss`/`apt-get`/`ufw`/`hostname`, a logging sudo wrapper that delegates to them, and the `SSH_SERVER_SYSTEMD_DIR` hook standing in for `/run/systemd/system`. `bats` **582/582** · ShellCheck clean (`-S warning`, CI parity) · `bash -n` clean.
+
 ## [7.18.6] — the profile actually installs now: `abi 4.0,` was read as a file name
 
 ### Fixed

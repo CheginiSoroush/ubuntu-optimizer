@@ -12,10 +12,10 @@ The all-in-one optimization, app-management and repair toolkit —
 
 [![CI](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml/badge.svg)](https://github.com/CheginiSoroush/ubuntu-optimizer/actions/workflows/lint.yml)
 [![Website](https://img.shields.io/website?url=https%3A%2F%2Fcheginisoroush.github.io%2Fubuntu-optimizer&logo=github&label=website)](https://cheginisoroush.github.io/ubuntu-optimizer/)
-[![Version](https://img.shields.io/badge/version-v7.18.6-E95420?logo=ubuntu)](CHANGELOG.md)
+[![Version](https://img.shields.io/badge/version-v7.18.7-E95420?logo=ubuntu)](CHANGELOG.md)
 [![License: MIT](https://img.shields.io/badge/license-MIT-007EC6)](LICENSE)
 ![ShellCheck](https://img.shields.io/badge/ShellCheck-clean-brightgreen)
-![Tests](https://img.shields.io/badge/bats-564%20%2F%20564-brightgreen)
+![Tests](https://img.shields.io/badge/bats-582%20%2F%20582-brightgreen)
 ![Bash](https://img.shields.io/badge/made%20with-Bash-4EAA25?logo=gnubash&logoColor=white)
 [![XERJ Corpus Hub contributor](https://hub.xerj.org/contributors/CheginiSoroush/badge.svg)](https://hub.xerj.org/contributors/CheginiSoroush)
 
@@ -187,6 +187,8 @@ Local development & manual builds: [`website/README.md`](website/README.md).
 | `uo --list-apps` · `--snap-clean` | inventory apps · clean old snap revisions |
 | `uo --fixnet` · `--fixnet-run` · `--test` | create · run fixnet · network tests |
 | `uo --git-ssh` · `--git-ssh-status` | GitHub SSH key wizard · status |
+| `uo --ssh-server` | installs openssh-server, enables + starts the service now (survives reboots), opens UFW when the firewall is active but port 22 is closed, then verifies for real and prints the exact `ssh user@ip` connect line — refuses honestly before prompting on containers/WSL1 without systemd (v7.18.7) |
+| `uo --ssh-server-status` | read-only SSH server report: installed?, service state, listening port, firewall verdict + connect line |
 | `uo --log` · `--log-clear` | show · delete the activity log |
 | `uo --config-show` · `--config-example` | inspect the effective config · print an annotated template (v7.8) |
 | `uo --config FILE` · `--no-config` | use an alternative config file · ignore configs for one run (v7.8) |
