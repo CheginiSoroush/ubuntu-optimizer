@@ -122,7 +122,8 @@ menu_system() {
 # menu_security() — submenu 3: Security & Passwords
 #
 # Thin wrapper: the sudo timeout and polkit entries dispatch to
-# lib/system.sh, the two GitHub SSH entries to lib/gitssh.sh.
+# lib/system.sh, the two GitHub SSH entries to lib/gitssh.sh, and the two
+# remote-access SSH server entries to lib/sshserver.sh.
 #
 # Arguments: none
 # Returns:   0 — on Back/EOF
@@ -133,7 +134,9 @@ menu_security() {
         "Create polkit rule|setup_polkit_rule" \
         "Run both|all_security_opts" \
         "Set up GitHub SSH key (passwordless)|gitssh_setup" \
-        "GitHub SSH status|gitssh_status"
+        "GitHub SSH status|gitssh_status" \
+        "Install & enable SSH server (remote access)|ssh_server_setup" \
+        "SSH server status|ssh_server_status"
 }
 
 # ───────────────────────────────────────────────────────────────────────────────

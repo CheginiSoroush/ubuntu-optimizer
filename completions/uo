@@ -119,6 +119,7 @@ _uo() {
         --timer-install --timer-remove --timer-status --timer-log
         --timer-preview --timer-system --timer-notify-only --timer-tick
         --report --json --output --append --git-ssh --git-ssh-status --doctor
+        --ssh-server --ssh-server-status
         --boot --autostart --autostart-on --autostart-off
         --dns --dns-list --kernel-list --kernel-clean
         --swap --swap-on --swap-off --swappiness

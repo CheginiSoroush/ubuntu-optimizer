@@ -73,6 +73,8 @@ _fzf_actions() {
         'Run both (security)|all_security_opts' \
         'Set up GitHub SSH key (passwordless)|gitssh_setup' \
         'GitHub SSH status|gitssh_status' \
+        'Install & enable SSH server (remote access)|ssh_server_setup' \
+        'SSH server status|ssh_server_status' \
         'Fix time sync with chrony|fix_time' \
         'Show time status|show_time_status' \
         'Create the fixnet script (bilingual)|create_fixnet_script' \

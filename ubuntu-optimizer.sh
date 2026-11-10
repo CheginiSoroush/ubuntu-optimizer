@@ -15,7 +15,7 @@
 SCRIPT_DIR="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 
 # ── Load modules ───────────────────────────────────────────────────────────────
-for _lib in common cache config i18n network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk htmlreport gitssh undo profile boot autostart health bigfiles ports browserclean dnsswitch kernels swap splash selfupdate timer menus fzf; do
+for _lib in common cache config i18n network system fixnet packages targz appmgmt snapflatpak recovery report jsonreport github doctor disk htmlreport gitssh sshserver undo profile boot autostart health bigfiles ports browserclean dnsswitch kernels swap splash selfupdate timer menus fzf; do
     _libfile="$SCRIPT_DIR/lib/${_lib}.sh"
     if [ -f "$_libfile" ]; then
         # shellcheck source=/dev/null
@@ -223,6 +223,8 @@ Options:
 
   --git-ssh           GitHub SSH key setup wizard
   --git-ssh-status    SSH key / GitHub authentication status
+  --ssh-server        Install & enable the OpenSSH server (this machine becomes reachable via ssh)
+  --ssh-server-status OpenSSH server status (service, port, firewall)
 
   --github-install OWNER/REPO [NAME]
                       install an app from the latest GitHub release
@@ -579,6 +581,8 @@ while [ $# -gt 0 ]; do
             ;;
         --git-ssh)        CLI_ACTIONS+=("gitssh_setup|GitHub SSH setup"); shift ;;
         --git-ssh-status) CLI_ACTIONS+=("gitssh_status|GitHub SSH status"); shift ;;
+        --ssh-server)     CLI_ACTIONS+=("ssh_server_setup|SSH server setup"); shift ;;
+        --ssh-server-status) CLI_ACTIONS+=("ssh_server_status|SSH server status"); shift ;;
         --github-update)  CLI_ACTIONS+=("github_update_apps|GitHub updates"); shift ;;
         --github-list)    CLI_ACTIONS+=("github_list_apps|GitHub app list"); shift ;;
         --doctor)         CLI_ACTIONS+=("doctor_apps|app health check"); shift ;;
